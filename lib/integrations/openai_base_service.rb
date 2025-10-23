@@ -83,7 +83,7 @@ class Integrations::OpenaiBaseService
   def api_url
     endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence || 'https://api.openai.com/'
     endpoint = endpoint.chomp('/')
-    "#{endpoint}/v1/chat/completions"
+    "#{endpoint}"
   end
 
   def make_api_call(body)
