@@ -66,7 +66,7 @@ module Enterprise::Concerns::Article
       { role: 'user', content: "title: #{title} \n description: #{description} \n content: #{content}" }
     ]
     headers = { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{ENV.fetch('OPENAI_API_KEY', nil)}" }
-    body = { model: 'gpt-4o', messages: messages, response_format: { type: 'json_object' } }.to_json
+    body = { model: openai_model, messages: messages, response_format: { type: 'json_object' } }.to_json
     Rails.logger.info "Requesting Chat GPT with body: #{body}"
     response = HTTParty.post(openai_api_url, headers: headers, body: body)
     Rails.logger.info "Chat GPT response: #{response.body}"
@@ -78,6 +78,10 @@ module Enterprise::Concerns::Article
   def openai_api_url
     endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value || 'https://api.openai.com/'
     endpoint = endpoint.chomp('/')
-    "#{endpoint}/v1/chat/completions"
+    "#{endpoint}"
+  end
+
+  def openai_model
+    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || ENV.fetch('OPENAI_GPT_MODEL', 'gpt-4o-mini')
   end
 end

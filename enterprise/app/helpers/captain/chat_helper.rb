@@ -2,30 +2,56 @@ module Captain::ChatHelper
   def request_chat_completion
     log_chat_completion_request
 
-    response = @client.chat(
-      parameters: {
-        model: @model,
-        messages: @messages,
-        tools: @tool_registry&.registered_tools || [],
-        response_format: { type: 'json_object' },
-        temperature: @assistant&.config&.[]('temperature').to_f || 1
-      }
-    )
+    parameters = {
+      model: @model,
+      messages: @messages,
+      tools: @tool_registry&.registered_tools || [],
+      response_format: { type: 'json_object' },
+      temperature: @assistant&.config&.[]('temperature').to_f || 1
+    }
+
+    response = @client.chat(parameters: parameters)
 
     handle_response(response)
   rescue StandardError => e
-    Rails.logger.error "#{self.class.name} Assistant: #{@assistant.id}, Error in chat completion: #{e}"
+    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) || 
+                   "#{@client.instance_variable_get(:@uri_base)}/v1/chat/completions"
+    
+    headers = {
+      'Content-Type' => 'application/json',
+      'Authorization' => "Bearer #{@client.instance_variable_get(:@access_token)}"
+    }
+    
+    Rails.logger.error "=" * 80
+    Rails.logger.error "#{self.class.name} Assistant: #{@assistant.id}, Error in chat completion"
+    Rails.logger.error "Error: #{e.class.name} - #{e.message}"
+    Rails.logger.error "Request URL: #{endpoint_url}"
+    Rails.logger.error "Headers: #{headers.to_json}"
+    Rails.logger.error "Model: #{@model}"
+    Rails.logger.error "Request Parameters: #{parameters.to_json}"
+    Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
+    Rails.logger.error "=" * 80
     raise e
   end
 
   private
 
   def handle_response(response)
-    Rails.logger.debug { "#{self.class.name} Assistant: #{@assistant.id}, Received response #{response}" }
+    Rails.logger.info "=" * 80
+    Rails.logger.info "#{self.class.name} Assistant: #{@assistant.id} - Handling Response"
+    Rails.logger.info "Full response: #{response.to_json}"
+    
     message = response.dig('choices', 0, 'message')
+    Rails.logger.info "Message extracted: #{message.to_json}"
+    Rails.logger.info "Tool calls present: #{message['tool_calls'].present?}"
+    Rails.logger.info "Tool calls content: #{message['tool_calls'].to_json}" if message['tool_calls']
+    Rails.logger.info "=" * 80
+    
     if message['tool_calls']
+      Rails.logger.info "Processing tool calls..."
       process_tool_calls(message['tool_calls'])
     else
+      Rails.logger.info "No tool calls, parsing message content as JSON..."
       message = JSON.parse(message['content'].strip)
       persist_message(message, 'assistant')
       message
@@ -92,10 +118,23 @@ module Captain::ChatHelper
   end
 
   def log_chat_completion_request
-    Rails.logger.info(
-      "#{self.class.name} Assistant: #{@assistant.id}, Requesting chat completion
-      for messages #{@messages} with #{@tool_registry&.registered_tools&.length || 0} tools
-      "
-    )
+    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) || 
+                   "#{@client.instance_variable_get(:@uri_base)}/v1/chat/completions"
+    
+    headers = {
+      'Content-Type' => 'application/json',
+      'Authorization' => "Bearer #{@client.instance_variable_get(:@access_token)}"
+    }
+    
+    Rails.logger.info "=" * 80
+    Rails.logger.info "#{self.class.name} Assistant: #{@assistant.id} - Requesting Chat Completion"
+    Rails.logger.info "Endpoint URL: #{endpoint_url}"
+    Rails.logger.info "Headers: #{headers.to_json}"
+    Rails.logger.info "Model: #{@model}"
+    Rails.logger.info "Number of messages: #{@messages.length}"
+    Rails.logger.info "Number of tools: #{@tool_registry&.registered_tools&.length || 0}"
+    Rails.logger.info "Tools: #{(@tool_registry&.registered_tools || []).to_json}"
+    Rails.logger.info "Messages: #{@messages.to_json}"
+    Rails.logger.info "=" * 80
   end
 end

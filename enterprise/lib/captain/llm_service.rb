@@ -11,7 +11,7 @@ class Captain::LlmService
 
   def call(messages, functions = [])
     openai_params = {
-      model: 'gpt-4o',
+      model: model,
       response_format: { type: 'json_object' },
       messages: messages
     }
@@ -24,6 +24,10 @@ class Captain::LlmService
   end
 
   private
+
+  def model
+    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || ENV.fetch('OPENAI_GPT_MODEL', 'gpt-4o-mini')
+  end
 
   def handle_response(response)
     if response['choices'][0]['message']['tool_calls']

@@ -1,8 +1,6 @@
 class Internal::AccountAnalysis::ContentEvaluatorService < Llm::BaseOpenAiService
   def initialize
     super()
-
-    @model = 'gpt-4o-mini'.freeze
   end
 
   def evaluate(content)

@@ -47,7 +47,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -71,7 +71,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
         }.to_json
 
         # Update the stub_request with the correct messages order
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -96,7 +96,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -135,7 +135,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -157,7 +157,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -179,7 +179,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -201,7 +201,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -223,7 +223,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -245,7 +245,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
           ]
         }.to_json
 
-        stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+        stub_request(:post, 'https://api.openai.com')
           .with(body: request_body, headers: expected_headers)
           .to_return(status: 200, body: openai_response, headers: {})
 
@@ -261,7 +261,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
         it 'uses default OpenAI endpoint' do
           InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.destroy
 
-          stub_request(:post, 'https://api.openai.com/v1/chat/completions')
+          stub_request(:post, 'https://api.openai.com')
             .with(body: anything, headers: expected_headers)
             .to_return(status: 200, body: openai_response, headers: {})
 
@@ -276,7 +276,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
         end
 
         it 'uses custom endpoint' do
-          stub_request(:post, 'https://custom.azure.com/v1/chat/completions')
+          stub_request(:post, 'https://custom.azure.com')
             .with(body: anything, headers: expected_headers)
             .to_return(status: 200, body: openai_response, headers: {})
 
@@ -291,7 +291,7 @@ RSpec.describe Integrations::Openai::ProcessorService do
         end
 
         it 'properly handles trailing slash' do
-          stub_request(:post, 'https://custom.azure.com/v1/chat/completions')
+          stub_request(:post, 'https://custom.azure.com')
             .with(body: anything, headers: expected_headers)
             .to_return(status: 200, body: openai_response, headers: {})
 

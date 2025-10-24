@@ -49,7 +49,7 @@ module Enterprise::Integrations::OpenaiProcessorService
 
   def summarize_body
     {
-      model: self.class::GPT_MODEL,
+      model: model,
       messages: [
         { role: 'system',
           content: prompt_from_file('summary', enterprise: true) },
@@ -65,7 +65,7 @@ module Enterprise::Integrations::OpenaiProcessorService
     return value_from_cache if content.blank?
 
     {
-      model: self.class::GPT_MODEL,
+      model: model,
       messages: [
         {
           role: 'system',
