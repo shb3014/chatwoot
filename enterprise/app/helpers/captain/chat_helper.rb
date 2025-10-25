@@ -14,14 +14,14 @@ module Captain::ChatHelper
 
     handle_response(response)
   rescue StandardError => e
-    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) || 
+    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) ||
                    "#{@client.instance_variable_get(:@uri_base)}/v1/chat/completions"
-    
+
     headers = {
       'Content-Type' => 'application/json',
       'Authorization' => "Bearer #{@client.instance_variable_get(:@access_token)}"
     }
-    
+
     Rails.logger.error "=" * 80
     Rails.logger.error "#{self.class.name} Assistant: #{@assistant.id}, Error in chat completion"
     Rails.logger.error "Error: #{e.class.name} - #{e.message}"
@@ -40,19 +40,22 @@ module Captain::ChatHelper
     Rails.logger.info "=" * 80
     Rails.logger.info "#{self.class.name} Assistant: #{@assistant.id} - Handling Response"
     Rails.logger.info "Full response: #{response.to_json}"
-    
+
     message = response.dig('choices', 0, 'message')
     Rails.logger.info "Message extracted: #{message.to_json}"
     Rails.logger.info "Tool calls present: #{message['tool_calls'].present?}"
     Rails.logger.info "Tool calls content: #{message['tool_calls'].to_json}" if message['tool_calls']
     Rails.logger.info "=" * 80
-    
+
     if message['tool_calls']
       Rails.logger.info "Processing tool calls..."
       process_tool_calls(message['tool_calls'])
     else
       Rails.logger.info "No tool calls, parsing message content as JSON..."
-      message = JSON.parse(message['content'].strip)
+      content = message['content'].strip
+      # Strip markdown code fences if present (some models like DeepSeek wrap JSON in ```json ... ```)
+      content = content.gsub(/\A```json\n/, '').gsub(/\n```\z/, '')
+      message = JSON.parse(content)
       persist_message(message, 'assistant')
       message
     end
@@ -118,14 +121,14 @@ module Captain::ChatHelper
   end
 
   def log_chat_completion_request
-    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) || 
+    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) ||
                    "#{@client.instance_variable_get(:@uri_base)}/v1/chat/completions"
-    
+
     headers = {
       'Content-Type' => 'application/json',
       'Authorization' => "Bearer #{@client.instance_variable_get(:@access_token)}"
     }
-    
+
     Rails.logger.info "=" * 80
     Rails.logger.info "#{self.class.name} Assistant: #{@assistant.id} - Requesting Chat Completion"
     Rails.logger.info "Endpoint URL: #{endpoint_url}"

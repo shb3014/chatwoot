@@ -24,14 +24,37 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     query = arguments['search_query']
     Rails.logger.info { "#{self.class.name}: #{query}" }
 
+    # Search both responses (FAQs) and articles
     responses = assistant.responses.approved.search(query)
+    articles = search_articles(query)
 
-    return 'No FAQs found for the given query' if responses.empty?
+    return 'No documentation found for the given query' if responses.empty? && articles.empty?
 
-    responses.map { |response| format_response(response) }.join
+    results = []
+    results.concat(responses.map { |response| format_response(response) })
+    results.concat(articles.map { |article| format_article(article) })
+    results.join
   end
 
   private
+
+  def search_articles(query)
+    return [] unless assistant.account.feature_enabled?('help_center_embedding_search')
+
+    # Get embedding for the query
+    embedding = Captain::Llm::EmbeddingService.new.get_embedding(query)
+
+    # Search through all article embeddings without filtering by category/locale/status
+    # to get the most relevant results
+    article_ids = ArticleEmbedding.nearest_neighbors(:embedding, embedding, distance: 'cosine')
+                                  .limit(5)
+                                  .pluck(:article_id)
+
+    Article.where(id: article_ids)
+  rescue StandardError => e
+    Rails.logger.error { "Error searching articles: #{e.message}" }
+    []
+  end
 
   def format_response(response)
     formatted_response = "
@@ -45,5 +68,20 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     end
 
     formatted_response
+  end
+
+  def format_article(article)
+    formatted_article = "
+        Article Title: #{article.title}
+        Description: #{article.description}
+        Content: #{article.content}
+        "
+    if article.try(:slug).present?
+      formatted_article += "
+          Source: /articles/#{article.slug}
+          "
+    end
+
+    formatted_article
   end
 end
