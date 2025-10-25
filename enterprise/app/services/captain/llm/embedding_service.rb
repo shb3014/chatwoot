@@ -11,7 +11,8 @@ class Captain::Llm::EmbeddingService < Llm::BaseOpenAiService
     response = @client.embeddings(
       parameters: {
         model: model,
-        input: content
+        input: content,
+        dimensions: 1536
       }
     )
 
