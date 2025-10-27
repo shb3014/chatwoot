@@ -45,7 +45,8 @@ export default {
       ),
       widgetBubbleType: 'standard',
       bubbleIntroAnimationUrl: '',
-      bubbleHoverAnimationUrls: [],
+      bubbleOpenAnimationUrl: '',
+      bubbleCloseAnimationUrl: '',
       widgetBubblePositions: [
         {
           id: 'left',
@@ -185,7 +186,8 @@ export default {
             ? bubble_animations_config
             : {};
         this.bubbleIntroAnimationUrl = cfg.intro_animation_url || '';
-        this.bubbleHoverAnimationUrls = cfg.hover_animation_urls || [];
+        this.bubbleOpenAnimationUrl = cfg.open_animation_url || '';
+        this.bubbleCloseAnimationUrl = cfg.close_animation_url || '';
       }
 
       const savedInformation = this.getSavedInboxInformation();
@@ -206,6 +208,16 @@ export default {
         });
         this.widgetBubbleLauncherTitle =
           savedInformation.launcherTitle || 'Chat with us';
+        // Load saved animations if present (for preview/session persistence)
+        if (savedInformation.intro_animation_url !== undefined) {
+          this.bubbleIntroAnimationUrl = savedInformation.intro_animation_url;
+        }
+        if (savedInformation.open_animation_url !== undefined) {
+          this.bubbleOpenAnimationUrl = savedInformation.open_animation_url;
+        }
+        if (savedInformation.close_animation_url !== undefined) {
+          this.bubbleCloseAnimationUrl = savedInformation.close_animation_url;
+        }
       }
     },
     handleWidgetBubblePositionChange(item) {
@@ -220,15 +232,6 @@ export default {
     handleImageUpload({ file, url }) {
       this.avatarFile = file;
       this.avatarUrl = url;
-    },
-    addHoverAnimationUrl() {
-      this.bubbleHoverAnimationUrls.push('');
-    },
-    removeHoverAnimationUrl(index) {
-      this.bubbleHoverAnimationUrls.splice(index, 1);
-    },
-    updateHoverAnimationUrl(index, value) {
-      this.bubbleHoverAnimationUrls[index] = value;
     },
     async handleAvatarDelete() {
       try {
@@ -255,6 +258,9 @@ export default {
         position: this.widgetBubblePosition,
         launcherTitle: this.widgetBubbleLauncherTitle,
         type: this.widgetBubbleType,
+        intro_animation_url: this.bubbleIntroAnimationUrl,
+        open_animation_url: this.bubbleOpenAnimationUrl,
+        close_animation_url: this.bubbleCloseAnimationUrl,
       };
 
       LocalStorage.set(this.storageKey, bubbleSettings);
@@ -270,7 +276,8 @@ export default {
             reply_time: this.replyTime,
             bubble_animations_config: {
               intro_animation_url: this.bubbleIntroAnimationUrl,
-              hover_animation_urls: this.bubbleHoverAnimationUrls.filter(url => url.trim() !== ''),
+              open_animation_url: this.bubbleOpenAnimationUrl,
+              close_animation_url: this.bubbleCloseAnimationUrl,
             },
           },
         };
@@ -436,42 +443,21 @@ export default {
                 :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_HELP')"
               />
 
-              <div class="mt-3">
-                <label class="mb-2 text-sm font-medium text-n-slate-12">
-                  {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.HOVER_ANIMATIONS_LABEL') }}
-                </label>
-                <p class="text-xs text-n-slate-11 mb-2">
-                  {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.HOVER_ANIMATIONS_HELP') }}
-                </p>
+              <woot-input
+                v-model="bubbleOpenAnimationUrl"
+                :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_LABEL')"
+                :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_PLACEHOLDER')"
+                :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_HELP')"
+                class="mt-3"
+              />
 
-                <div
-                  v-for="(url, index) in bubbleHoverAnimationUrls"
-                  :key="index"
-                  class="flex gap-2 mb-2"
-                >
-                  <woot-input
-                    v-model="bubbleHoverAnimationUrls[index]"
-                    :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.HOVER_ANIMATION_PLACEHOLDER')"
-                    class="flex-1"
-                  />
-                  <NextButton
-                    icon="i-ri-delete-bin-line"
-                    variant="smooth"
-                    color-scheme="alert"
-                    size="small"
-                    @click="removeHoverAnimationUrl(index)"
-                  />
-                </div>
-
-                <NextButton
-                  icon="i-ri-add-line"
-                  variant="smooth"
-                  color-scheme="secondary"
-                  size="small"
-                  :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.ADD_HOVER_ANIMATION')"
-                  @click="addHoverAnimationUrl"
-                />
-              </div>
+              <woot-input
+                v-model="bubbleCloseAnimationUrl"
+                :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_LABEL')"
+                :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_PLACEHOLDER')"
+                :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_HELP')"
+                class="mt-3"
+              />
             </div>
 
             <NextButton

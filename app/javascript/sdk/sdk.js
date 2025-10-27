@@ -58,6 +58,29 @@ export const SDK_CSS = `
   border-radius: 0;
 }
 
+.woot-widget-bubble--no-shadow {
+  box-shadow: none !important;
+}
+
+.woot-widget-bubble--no-shadow:hover {
+  box-shadow: none !important;
+  transform: scale(1.1) !important;
+  transition: transform 0.2s ease !important;
+}
+
+.woot-widget-bubble--no-shadow.woot--hide {
+  transform: translateX(8px) scale(.75) rotate(0deg) !important;
+  transition: transform 300ms ease, opacity 200ms ease, visibility 0ms linear 500ms, bottom 0ms ease 200ms;
+}
+
+.woot-widget-bubble--no-shadow.woot--close {
+  transform: translateX(0px) scale(1) rotate(0deg) !important;
+}
+
+.woot-widget-bubble--no-shadow.woot--close.woot--hide {
+  transform: translateX(8px) scale(.75) rotate(0deg) !important;
+}
+
 .woot-widget-holder.woot-widget-holder--flat {
   bottom: 90px;
 }
@@ -130,7 +153,7 @@ export const SDK_CSS = `
 
 .woot-widget-bubble:hover {
   background: #1f93ff;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, .4) !important;
+  // box-shadow: 0 8px 32px rgba(0, 0, 0, .4) !important;
 }
 
 .woot-widget-bubble svg {

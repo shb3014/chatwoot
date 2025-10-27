@@ -114,7 +114,8 @@ export const removeUnreadClass = () => {
 // Bubble animation helpers
 let animationImage = null;
 let isAnimationPlaying = false;
-let hoverAnimationUrls = [];
+let openAnimationUrl = '';
+let closeAnimationUrl = '';
 
 const hideStaticBubbleIcon = bubble => {
   try {
@@ -182,17 +183,12 @@ const playAnimation = (url, duration = null, { hideSvg = true, keepLastFrame = t
   }
 };
 
-const getRandomHoverAnimation = () => {
-  if (!hoverAnimationUrls || hoverAnimationUrls.length === 0) return null;
-  const randomIndex = Math.floor(Math.random() * hoverAnimationUrls.length);
-  return hoverAnimationUrls[randomIndex];
-};
-
 export const setupBubbleAnimations = (animationsConfig) => {
   if (!animationsConfig) return;
 
-  const { intro_animation_url, hover_animation_urls } = animationsConfig;
-  hoverAnimationUrls = hover_animation_urls || [];
+  const { intro_animation_url, open_animation_url, close_animation_url } = animationsConfig;
+  openAnimationUrl = open_animation_url || '';
+  closeAnimationUrl = close_animation_url || '';
 
   // Play intro animation when bubble first appears
   if (intro_animation_url) {
@@ -201,25 +197,20 @@ export const setupBubbleAnimations = (animationsConfig) => {
     }, 500);
   }
 
-  // Setup hover animations
-  if (hoverAnimationUrls.length > 0) {
-    const setupHoverListener = () => {
-      const bubble = document.querySelector('.woot-widget-bubble:not(.woot--close)');
-      if (bubble) {
-        bubble.addEventListener('mouseenter', () => {
-          const randomUrl = getRandomHoverAnimation();
-          if (randomUrl) {
-            playAnimation(randomUrl, 2000, { hideSvg: true, keepLastFrame: true });
-          }
-        });
-      }
-    };
+  // Setup open/close animations via global events to stay in sync with real state
+  if (openAnimationUrl) {
+    try {
+      window.addEventListener(CHATWOOT_OPENED, () => {
+        playAnimation(openAnimationUrl, null, { hideSvg: true, keepLastFrame: true });
+      });
+    } catch (_) {}
+  }
 
-    // Try to setup listener, retry if bubble doesn't exist yet
-    if (document.querySelector('.woot-widget-bubble')) {
-      setupHoverListener();
-    } else {
-      setTimeout(setupHoverListener, 1000);
-    }
+  if (closeAnimationUrl) {
+    try {
+      window.addEventListener(CHATWOOT_CLOSED, () => {
+        playAnimation(closeAnimationUrl, null, { hideSvg: true, keepLastFrame: true });
+      });
+    } catch (_) {}
   }
 };

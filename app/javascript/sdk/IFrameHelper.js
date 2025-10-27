@@ -321,6 +321,10 @@ export const IFrameHelper = {
       className += ' woot-widget-bubble-color--lighter';
       closeBtnClassName += ' woot-widget-bubble-color--lighter';
     }
+    if (bubbleAnimationsConfig) {
+      className += ' woot-widget-bubble--no-shadow';
+      closeBtnClassName += ' woot-widget-bubble--no-shadow';
+    }
 
     const chatIcon = createBubbleIcon({
       className,
@@ -355,6 +359,7 @@ export const IFrameHelper = {
             closeBubble.style.background = 'transparent';
             closeBubble.style.boxShadow = 'none';
             closeBubble.style.borderRadius = '0';
+            bubbleHolder.style.boxShadow = 'none';
           } catch (_) {}
           // Avoid any container shadow bleeding
           try {
