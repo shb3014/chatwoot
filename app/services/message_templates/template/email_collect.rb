@@ -17,27 +17,44 @@ class MessageTemplates::Template::EmailCollect
   delegate :inbox, to: :message
 
   def ways_to_reach_you_message_params
-    content = I18n.t('conversations.templates.ways_to_reach_you_message_body',
-                     account_name: account.name)
+    base_content = I18n.with_locale(account.locale) do
+      I18n.t('conversations.templates.ways_to_reach_you_message_body',
+             account_name: account.name)
+    end
+
+    translated_content = translate_message(base_content)
 
     {
       account_id: @conversation.account_id,
       inbox_id: @conversation.inbox_id,
       message_type: :template,
-      content: content
+      content: translated_content
     }
   end
 
   def email_input_box_template_message_params
-    content = I18n.t('conversations.templates.email_input_box_message_body',
-                     account_name: account.name)
+    base_content = I18n.with_locale(account.locale) do
+      I18n.t('conversations.templates.email_input_box_message_body',
+             account_name: account.name)
+    end
+
+    translated_content = translate_message(base_content)
 
     {
       account_id: @conversation.account_id,
       inbox_id: @conversation.inbox_id,
       message_type: :template,
       content_type: :input_email,
-      content: content
+      content: translated_content
     }
+  end
+
+  def translate_message(message)
+    return message unless defined?(Llm::TranslationService)
+
+    Llm::TranslationService.new(conversation).translate_message(message)
+  rescue StandardError => e
+    Rails.logger.error "[EmailCollect] Translation failed: #{e.message}"
+    message
   end
 end
