@@ -19,6 +19,7 @@ import {
   setBubbleText,
   addUnreadClass,
   removeUnreadClass,
+  setupBubbleAnimations,
 } from './bubbleHelpers';
 import { isWidgetColorLighter } from 'shared/helpers/colorHelper';
 import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
@@ -176,6 +177,7 @@ export const IFrameHelper = {
       });
       IFrameHelper.onLoad({
         widgetColor: message.config.channelConfig.widgetColor,
+        bubbleAnimationsConfig: message.config.channelConfig.bubbleAnimationsConfig,
       });
       IFrameHelper.toggleCloseButton();
 
@@ -296,7 +298,7 @@ export const IFrameHelper = {
     IFrameHelper.sendMessage('push-event', { eventName });
   },
 
-  onLoad: ({ widgetColor }) => {
+  onLoad: ({ widgetColor, bubbleAnimationsConfig }) => {
     const iframe = IFrameHelper.getAppFrame();
     iframe.style.visibility = '';
     iframe.setAttribute('id', `chatwoot_live_chat_widget`);
@@ -334,6 +336,34 @@ export const IFrameHelper = {
     bubbleHolder.appendChild(chatIcon);
     bubbleHolder.appendChild(closeBubble);
     onClickChatBubble();
+
+    // Setup bubble animations if configured
+    if (bubbleAnimationsConfig) {
+      // If an intro animation exists, hide the static SVG immediately
+      try {
+        if (bubbleAnimationsConfig.intro_animation_url) {
+          const svgIcon = chatIcon.querySelector('#woot-widget-bubble-icon');
+          if (svgIcon) {
+            svgIcon.style.opacity = '0';
+          }
+          // Make the bubble background transparent and remove shadow so only the animation is visible
+          chatIcon.style.background = 'transparent';
+          chatIcon.style.boxShadow = 'none';
+          chatIcon.style.borderRadius = '0';
+          // Ensure the hidden close button matches (for consistency on small screens)
+          try {
+            closeBubble.style.background = 'transparent';
+            closeBubble.style.boxShadow = 'none';
+            closeBubble.style.borderRadius = '0';
+          } catch (_) {}
+          // Avoid any container shadow bleeding
+          try {
+            widgetHolder.style.boxShadow = 'none';
+          } catch (_) {}
+        }
+      } catch (_) {}
+      setupBubbleAnimations(bubbleAnimationsConfig);
+    }
   },
   toggleCloseButton: () => {
     let isMobile = false;

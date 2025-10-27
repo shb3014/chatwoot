@@ -44,6 +44,8 @@ export default {
         'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.WIDGET_BUBBLE_LAUNCHER_TITLE.DEFAULT'
       ),
       widgetBubbleType: 'standard',
+      bubbleIntroAnimationUrl: '',
+      bubbleHoverAnimationUrls: [],
       widgetBubblePositions: [
         {
           id: 'left',
@@ -166,6 +168,7 @@ export default {
         widget_color,
         reply_time,
         avatar_url,
+        bubble_animations_config,
       } = this.inbox;
       this.websiteName = name;
       this.welcomeHeading = welcome_title;
@@ -173,6 +176,17 @@ export default {
       this.color = widget_color;
       this.replyTime = reply_time;
       this.avatarUrl = avatar_url;
+
+      // Bubble animations
+      if (bubble_animations_config) {
+        const cfg =
+          typeof bubble_animations_config === 'object' &&
+          bubble_animations_config !== null
+            ? bubble_animations_config
+            : {};
+        this.bubbleIntroAnimationUrl = cfg.intro_animation_url || '';
+        this.bubbleHoverAnimationUrls = cfg.hover_animation_urls || [];
+      }
 
       const savedInformation = this.getSavedInboxInformation();
       if (savedInformation) {
@@ -206,6 +220,15 @@ export default {
     handleImageUpload({ file, url }) {
       this.avatarFile = file;
       this.avatarUrl = url;
+    },
+    addHoverAnimationUrl() {
+      this.bubbleHoverAnimationUrls.push('');
+    },
+    removeHoverAnimationUrl(index) {
+      this.bubbleHoverAnimationUrls.splice(index, 1);
+    },
+    updateHoverAnimationUrl(index, value) {
+      this.bubbleHoverAnimationUrls[index] = value;
     },
     async handleAvatarDelete() {
       try {
@@ -245,6 +268,10 @@ export default {
             welcome_title: this.welcomeHeading,
             welcome_tagline: this.welcomeTagline,
             reply_time: this.replyTime,
+            bubble_animations_config: {
+              intro_animation_url: this.bubbleIntroAnimationUrl,
+              hover_animation_urls: this.bubbleHoverAnimationUrls.filter(url => url.trim() !== ''),
+            },
           },
         };
         if (this.avatarFile) {
@@ -395,6 +422,58 @@ export default {
                 )
               "
             />
+
+            <!-- Bubble Animation Configuration -->
+            <div class="mt-4">
+              <h3 class="text-base font-medium text-n-slate-12 mb-3">
+                {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.TITLE') }}
+              </h3>
+
+              <woot-input
+                v-model="bubbleIntroAnimationUrl"
+                :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_LABEL')"
+                :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_PLACEHOLDER')"
+                :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_HELP')"
+              />
+
+              <div class="mt-3">
+                <label class="mb-2 text-sm font-medium text-n-slate-12">
+                  {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.HOVER_ANIMATIONS_LABEL') }}
+                </label>
+                <p class="text-xs text-n-slate-11 mb-2">
+                  {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.HOVER_ANIMATIONS_HELP') }}
+                </p>
+
+                <div
+                  v-for="(url, index) in bubbleHoverAnimationUrls"
+                  :key="index"
+                  class="flex gap-2 mb-2"
+                >
+                  <woot-input
+                    v-model="bubbleHoverAnimationUrls[index]"
+                    :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.HOVER_ANIMATION_PLACEHOLDER')"
+                    class="flex-1"
+                  />
+                  <NextButton
+                    icon="i-ri-delete-bin-line"
+                    variant="smooth"
+                    color-scheme="alert"
+                    size="small"
+                    @click="removeHoverAnimationUrl(index)"
+                  />
+                </div>
+
+                <NextButton
+                  icon="i-ri-add-line"
+                  variant="smooth"
+                  color-scheme="secondary"
+                  size="small"
+                  :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.ADD_HOVER_ANIMATION')"
+                  @click="addHoverAnimationUrl"
+                />
+              </div>
+            </div>
+
             <NextButton
               type="submit"
               class="mt-4"

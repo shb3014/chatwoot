@@ -20,6 +20,7 @@ json.website_channel_config do
   json.welcome_tagline @web_widget.welcome_tagline
   json.welcome_title @web_widget.welcome_title
   json.widget_color @web_widget.widget_color
+  json.bubble_animations_config @web_widget.bubble_animations_config
   json.working_hours @web_widget.inbox.working_hours
   json.working_hours_enabled @web_widget.inbox.working_hours_enabled
 end

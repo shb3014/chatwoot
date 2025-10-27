@@ -43,6 +43,7 @@ json.web_widget_script resource.channel.try(:web_widget_script)
 json.website_token resource.channel.try(:website_token)
 json.selected_feature_flags resource.channel.try(:selected_feature_flags)
 json.reply_time resource.channel.try(:reply_time)
+json.bubble_animations_config resource.channel.try(:bubble_animations_config)
 if resource.web_widget?
   json.hmac_token resource.channel.try(:hmac_token) if Current.account_user&.administrator?
   json.pre_chat_form_enabled resource.channel.try(:pre_chat_form_enabled)

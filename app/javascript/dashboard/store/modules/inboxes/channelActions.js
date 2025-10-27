@@ -20,8 +20,35 @@ export const buildInboxData = inboxParams => {
       formData.append('channel[selected_feature_flags][]', '');
     }
   }
+  // Append channel params, supporting nested objects/arrays (e.g., bubble_animations_config)
+  const appendNested = (fd, prefix, value) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach(item => {
+        // Arrays of primitives
+        if (item === undefined || item === null) return;
+        if (typeof item === 'object') {
+          // For arrays of objects, append with [] then nested keys
+          Object.keys(item).forEach(k => {
+            appendNested(fd, `${prefix}[][${k}]`, item[k]);
+          });
+        } else {
+          fd.append(`${prefix}[]`, item);
+        }
+      });
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.keys(value).forEach(k => {
+        appendNested(fd, `${prefix}[${k}]`, value[k]);
+      });
+      return;
+    }
+    fd.append(prefix, value);
+  };
+
   Object.keys(channelParams).forEach(key => {
-    formData.append(`channel[${key}]`, channel[key]);
+    appendNested(formData, `channel[${key}]`, channelParams[key]);
   });
   return formData;
 };

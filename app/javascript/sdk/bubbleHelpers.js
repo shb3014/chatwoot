@@ -110,3 +110,116 @@ export const removeUnreadClass = () => {
   const holderEl = document.querySelector('.woot-widget-holder');
   removeClasses(holderEl, 'has-unread-view');
 };
+
+// Bubble animation helpers
+let animationImage = null;
+let isAnimationPlaying = false;
+let hoverAnimationUrls = [];
+
+const hideStaticBubbleIcon = bubble => {
+  try {
+    const svgIcon = bubble && bubble.querySelector('#woot-widget-bubble-icon');
+    if (svgIcon) {
+      svgIcon.style.opacity = '0';
+    }
+  } catch (_) {}
+};
+
+const createAnimationImage = () => {
+  if (animationImage) return animationImage;
+
+  animationImage = document.createElement('img');
+  animationImage.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  `;
+  animationImage.id = 'woot-bubble-animation';
+
+  return animationImage;
+};
+
+const playAnimation = (url, duration = null, { hideSvg = true, keepLastFrame = true } = {}) => {
+  if (!url || isAnimationPlaying) return;
+
+  const bubble = document.querySelector('.woot-widget-bubble:not(.woot--close)');
+  if (!bubble) return;
+
+  const img = createAnimationImage();
+  if (!bubble.contains(img)) {
+    bubble.appendChild(img);
+  }
+
+  isAnimationPlaying = true;
+  img.src = url;
+  if (hideSvg) hideStaticBubbleIcon(bubble);
+
+  // Show animation
+  setTimeout(() => {
+    img.style.opacity = '1';
+  }, 50);
+
+  const finish = () => {
+    // keepLastFrame=true => do not fade out, keep current frame visible
+    isAnimationPlaying = false;
+  };
+
+  if (duration) {
+    setTimeout(finish, duration);
+  } else {
+    // Fallback duration if we cannot detect; keep last frame after
+    img.onload = () => {
+      const animDuration = 3000;
+      setTimeout(finish, animDuration);
+    };
+  }
+};
+
+const getRandomHoverAnimation = () => {
+  if (!hoverAnimationUrls || hoverAnimationUrls.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * hoverAnimationUrls.length);
+  return hoverAnimationUrls[randomIndex];
+};
+
+export const setupBubbleAnimations = (animationsConfig) => {
+  if (!animationsConfig) return;
+
+  const { intro_animation_url, hover_animation_urls } = animationsConfig;
+  hoverAnimationUrls = hover_animation_urls || [];
+
+  // Play intro animation when bubble first appears
+  if (intro_animation_url) {
+    setTimeout(() => {
+      playAnimation(intro_animation_url, null, { hideSvg: true, keepLastFrame: true });
+    }, 500);
+  }
+
+  // Setup hover animations
+  if (hoverAnimationUrls.length > 0) {
+    const setupHoverListener = () => {
+      const bubble = document.querySelector('.woot-widget-bubble:not(.woot--close)');
+      if (bubble) {
+        bubble.addEventListener('mouseenter', () => {
+          const randomUrl = getRandomHoverAnimation();
+          if (randomUrl) {
+            playAnimation(randomUrl, 2000, { hideSvg: true, keepLastFrame: true });
+          }
+        });
+      }
+    };
+
+    // Try to setup listener, retry if bubble doesn't exist yet
+    if (document.querySelector('.woot-widget-bubble')) {
+      setupHoverListener();
+    } else {
+      setTimeout(setupHoverListener, 1000);
+    }
+  }
+};

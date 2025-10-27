@@ -952,6 +952,16 @@
         "WIDGET_BUBBLE_TYPE": {
           "STANDARD": "Standard",
           "EXPANDED_BUBBLE": "Expanded Bubble"
+        },
+        "BUBBLE_ANIMATIONS": {
+          "TITLE": "Bubble Animations",
+          "INTRO_ANIMATION_LABEL": "Intro Animation URL",
+          "INTRO_ANIMATION_PLACEHOLDER": "https://example.com/intro.webp",
+          "INTRO_ANIMATION_HELP": "URL to a WebP animation that plays when the bubble first appears",
+          "HOVER_ANIMATIONS_LABEL": "Hover Animation URLs",
+          "HOVER_ANIMATIONS_HELP": "Add multiple WebP animation URLs. A random one will play when hovering over the bubble",
+          "HOVER_ANIMATION_PLACEHOLDER": "https://example.com/hover-1.webp",
+          "ADD_HOVER_ANIMATION": "Add Hover Animation"
         }
       },
       "WIDGET_SCREEN": {
