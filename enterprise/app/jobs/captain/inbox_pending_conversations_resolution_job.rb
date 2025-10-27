@@ -16,14 +16,11 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
   private
 
   def create_outgoing_message(conversation, inbox)
-    Rails.logger.info "[CAPTAIN][ResolutionJob] Creating resolution message for conversation #{conversation.id}"
 
     I18n.with_locale(inbox.account.locale) do
       base_message = inbox.captain_assistant.config['resolution_message'].presence || I18n.t('conversations.activity.auto_resolution_message')
 
       translated_message = Llm::TranslationService.new(conversation).translate_message(base_message)
-
-      Rails.logger.info "[CAPTAIN][ResolutionJob] Resolution message created successfully"
 
       conversation.messages.create!(
         {

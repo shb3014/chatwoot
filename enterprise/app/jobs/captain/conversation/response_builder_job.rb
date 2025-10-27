@@ -85,11 +85,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def create_handoff_message
     base_message = @assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff')
-    Rails.logger.info "[CAPTAIN][ResponseBuilderJob] Creating handoff message for conversation #{@conversation.id}"
 
     translated_message = Llm::TranslationService.new(@conversation).translate_message(base_message)
-
-    Rails.logger.info "[CAPTAIN][ResponseBuilderJob] Handoff message created successfully"
     create_outgoing_message(translated_message)
   end
 

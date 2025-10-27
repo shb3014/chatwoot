@@ -10,14 +10,8 @@ class Llm::TranslationService < Llm::BaseOpenAiService
     target_language ||= determine_target_language
     return message unless target_language
 
-    Rails.logger.info "[TranslationService] Translating message to #{target_language}"
-    Rails.logger.debug "[TranslationService] Original message: #{message[0..100]}..." if message.length > 100
-
     response = @client.chat(parameters: translation_parameters(message, target_language))
     translated = parse_translation_response(response, message)
-
-    Rails.logger.info "[TranslationService] Translation successful"
-    Rails.logger.debug "[TranslationService] Translated message: #{translated[0..100]}..." if translated.length > 100
 
     translated
   rescue StandardError => e
@@ -29,21 +23,56 @@ class Llm::TranslationService < Llm::BaseOpenAiService
   private
 
   def determine_target_language
-    # Priority: conversation language > account locale
+    # Priority: conversation language > account locale > auto-detect from conversation
     conversation_language = @conversation.language
     account_locale = @conversation.account.locale_english_name
-
-    Rails.logger.info "[TranslationService] Determining target language for conversation #{@conversation.id}"
-    Rails.logger.info "[TranslationService] Conversation language: #{conversation_language.inspect}"
-    Rails.logger.info "[TranslationService] Account locale: #{account_locale.inspect}"
 
     if conversation_language.present?
       Rails.logger.info "[TranslationService] Using conversation language: #{conversation_language}"
       return conversation_language
     end
 
-    Rails.logger.info "[TranslationService] Using account locale: #{account_locale}"
-    account_locale
+    if account_locale.present? && account_locale.downcase != 'english'
+      return account_locale
+    end
+
+    # Auto-detect language from conversation history
+    detected_language = detect_language_from_conversation
+    detected_language
+  end
+
+  def detect_language_from_conversation
+    recent_messages = @conversation.messages
+                                   .where(message_type: :incoming)
+                                   .where(private: false)
+                                   .order(created_at: :desc)
+                                   .limit(5)
+                                   .pluck(:content)
+                                   .reject(&:blank?)
+
+    return nil if recent_messages.empty?
+
+    response = @client.chat(
+      parameters: {
+        model: @model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a language detection assistant. Analyze the provided conversation messages and identify the primary language used by the user. Return ONLY the language name in English (e.g., "Chinese", "Spanish", "French", "English"). If you cannot determine the language, return "English".'
+          },
+          {
+            role: 'user',
+            content: "Detect the language from these messages:\n\n#{recent_messages.join("\n\n")}"
+          }
+        ]
+      }
+    )
+
+    detected = response.dig('choices', 0, 'message', 'content')&.strip
+    detected.presence
+  rescue StandardError => e
+    Rails.logger.error "[TranslationService] Language detection failed: #{e.message}"
+    nil
   end
 
   def translation_parameters(message, target_language)
