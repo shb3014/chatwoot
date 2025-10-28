@@ -170,19 +170,44 @@ const playAnimation = (url) => {
     return;
   }
 
-  const img = createAnimationImage(bubbleId);
-  if (!bubble.contains(img)) {
-    bubble.appendChild(img);
-    console.log('[BubbleAnimation] Animation image appended to bubble');
-  }
-
-  // Force reload the animation by changing src
-  // img.style.opacity = '0';
-  // Use a timestamp to force browser to reload the animation
-  // const cacheBuster = `?t=${Date.now()}`;
-  img.src = `${url}?t=${Date.now()}`;
-
   hideStaticBubbleIcon(bubble);
+
+  // Get existing animation image
+  const currentImg = document.getElementById(`woot-bubble-animation-${bubbleId}`);
+  const animationUrl = `${url}?t=${Date.now()}`;
+
+  // Create and preload new image
+  const newImg = document.createElement('img');
+  newImg.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0s ease;
+  `;
+  newImg.id = `woot-bubble-animation-${bubbleId}`;
+
+  // Preload and swap when ready
+  newImg.onload = () => {
+    console.log('[BubbleAnimation] New animation loaded, swapping');
+    // Remove old image if exists
+    if (currentImg && currentImg.parentNode) {
+      currentImg.parentNode.removeChild(currentImg);
+    }
+    // Show new image
+    newImg.style.opacity = '1';
+  };
+
+  // Add new image to bubble
+  bubble.appendChild(newImg);
+
+  // Start loading the animation
+  newImg.src = animationUrl;
 };
 
 export const setupBubbleAnimations = (animationsConfig) => {
@@ -197,9 +222,7 @@ export const setupBubbleAnimations = (animationsConfig) => {
 
   // Play intro animation when bubble first appears
   if (intro_animation_url) {
-    setTimeout(() => {
-      playAnimation(intro_animation_url);
-    }, 500);
+    playAnimation(intro_animation_url);
   }
 
   // Setup open/close animations via global events to stay in sync with real state

@@ -155,10 +155,6 @@ export const IFrameHelper = {
 
   events: {
     loaded: message => {
-      console.log('[IFrameHelper] 收到 loaded 事件', {
-        widgetColor: message.config.channelConfig.widgetColor,
-        bubbleAnimationsConfig: message.config.channelConfig.bubbleAnimationsConfig
-      });
       updateAuthCookie(message.config.authToken, window.$chatwoot.baseDomain);
       window.$chatwoot.hasLoaded = true;
       const campaignsSnoozedTill = Cookies.get('cw_snooze_campaigns_till');
@@ -339,14 +335,14 @@ export const IFrameHelper = {
     chatIcon.style.background = widgetColor;
 
     bubbleHolder.appendChild(chatIcon);
-    
+
     // Only add closeBubble if animations are NOT configured
     if (!bubbleAnimationsConfig) {
       addClasses(closeBubble, closeBtnClassName);
       closeBubble.style.background = widgetColor;
       bubbleHolder.appendChild(closeBubble);
     }
-    
+
     onClickChatBubble();
 
     // Setup bubble animations if configured
