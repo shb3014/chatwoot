@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IFrameHelper Playground</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; padding: 24px; }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+      button { padding: 8px 12px; border: 1px solid #d1d5db; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; }
+      button.secondary { background: #374151; }
+      .note { color: #6b7280; font-size: 12px; margin-top: 8px; }
+      .log { margin-top: 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb; max-height: 220px; overflow: auto; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      .divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
+    </style>
+  </head>
+  <body>
+    <h2>IFrameHelper Playground</h2>
+    <div class="toolbar">
+      <button id="mount">挂载并加载 Widget</button>
+      <button id="remount" class="secondary">🔄 重新挂载（热更新）</button>
+      <button id="open" class="secondary">打开气泡</button>
+      <button id="close" class="secondary">关闭气泡</button>
+      <button id="unread" class="secondary">设置未读模式</button>
+      <button id="resetUnread" class="secondary">重置未读</button>
+      <button id="playAudio" class="secondary">播放提示音</button>
+      <button id="closeChat" class="secondary">触发 closeChat</button>
+    </div>
+    <div class="note">提示：本页面使用仓库内的 <code>app/javascript/sdk/IFrameHelper.js</code>，iframe 页面为 <code>/widget/index.html</code> 的本地 stub。</div>
+    <div class="divider"></div>
+    <div class="log" id="log"></div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+  </html>
+
+

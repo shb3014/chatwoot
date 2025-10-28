@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Widget Stub</title>
+    <style>
+      body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+      .bar { padding: 8px 12px; font-size: 12px; background: #111827; color: #fff; display: flex; gap: 8px; align-items: center; }
+      button { padding: 6px 10px; background: #374151; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+      .content { padding: 12px; font-size: 12px; color: #374151; }
+      code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <span>Widget Stub</span>
+      <button id="sendPostback">postback</button>
+      <button id="label">setBubbleLabel</button>
+    </div>
+    <div class="content">
+      <div>此页面模拟真实 /widget，向父窗口发送 <code>loaded</code> 等事件。</div>
+    </div>
+
+    <script>
+      const send = (payload) => {
+        parent.postMessage('chatwoot-widget:' + JSON.stringify(payload), '*');
+      };
+
+      // 监听父窗口消息（调试用）
+      window.addEventListener('message', (e) => {
+        try {
+          if (typeof e.data !== 'string' || !e.data.startsWith('chatwoot-widget:')) return;
+          const msg = JSON.parse(e.data.replace('chatwoot-widget:', ''));
+          // 简单响应：当父页面请求 toggle-open / toggle-close-button / change-url 等，仅记录日志
+          console.log('[widget] ← from parent', msg);
+        } catch (_) {}
+      });
+
+      // 页面加载后立即上报 loaded
+      (function onLoaded() {
+        const params = new URLSearchParams(location.search);
+        const websiteToken = params.get('website_token') || 'debug-token';
+        console.log('[widget] loaded with website_token=', websiteToken);
+        send({
+          event: 'loaded',
+          config: {
+            authToken: 'stub-auth-token',
+            channelConfig: {
+              widgetColor: '#2563eb',
+              // 可选：试验气泡动画
+              // bubbleAnimationsConfig: {
+              //   intro_animation_url: 'https://media.tenor.com/hk5kqgYdz-MAAAAC/loading.gif'
+              // }
+            }
+          }
+        });
+      })();
+
+      // 绑定两个调试按钮
+      document.getElementById('sendPostback').addEventListener('click', () => {
+        send({ event: 'postback', data: { id: 'demo', value: 1 } });
+      });
+      document.getElementById('label').addEventListener('click', () => {
+        send({ event: 'setBubbleLabel', label: 'Hello!' });
+      });
+    </script>
+  </body>
+  </html>
+
+
