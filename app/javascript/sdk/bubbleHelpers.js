@@ -90,9 +90,17 @@ export const onBubbleClick = (props = {}) => {
   const newIsOpen = toggleValue === undefined ? !isOpen : toggleValue;
   window.$chatwoot.isOpen = newIsOpen;
 
-  toggleClass(chatBubble, 'woot--hide');
-  toggleClass(closeBubble, 'woot--hide');
-  toggleClass(widgetHolder, 'woot--hide');
+  console.log('[BubbleAnimation] onBubbleClick - newIsOpen:', newIsOpen, 'hasBubbleAnimations:', hasBubbleAnimations);
+
+  // When bubble animations are enabled, only use chatBubble (no close button)
+  if (hasBubbleAnimations) {
+    toggleClass(widgetHolder, 'woot--hide');
+  } else {
+    // Default behavior: toggle between chatBubble and closeBubble
+    toggleClass(chatBubble, 'woot--hide');
+    toggleClass(closeBubble, 'woot--hide');
+    toggleClass(widgetHolder, 'woot--hide');
+  }
 
   handleBubbleToggle(newIsOpen);
 };
@@ -112,10 +120,10 @@ export const removeUnreadClass = () => {
 };
 
 // Bubble animation helpers
-let animationImage = null;
-let isAnimationPlaying = false;
+// const animationStates = new Map(); // Track animation state per bubble
 let openAnimationUrl = '';
 let closeAnimationUrl = '';
+let hasBubbleAnimations = false;
 
 const hideStaticBubbleIcon = bubble => {
   try {
@@ -126,10 +134,11 @@ const hideStaticBubbleIcon = bubble => {
   } catch (_) {}
 };
 
-const createAnimationImage = () => {
-  if (animationImage) return animationImage;
+const createAnimationImage = (bubbleId) => {
+  const existingImg = document.getElementById(`woot-bubble-animation-${bubbleId}`);
+  if (existingImg) return existingImg;
 
-  animationImage = document.createElement('img');
+  const animationImage = document.createElement('img');
   animationImage.style.cssText = `
     position: absolute;
     top: 0;
@@ -139,52 +148,48 @@ const createAnimationImage = () => {
     object-fit: cover;
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0;
+    opacity: 1;
     transition: opacity 0.3s ease;
   `;
-  animationImage.id = 'woot-bubble-animation';
+  animationImage.id = `woot-bubble-animation-${bubbleId}`;
 
   return animationImage;
 };
 
-const playAnimation = (url, duration = null, { hideSvg = true, keepLastFrame = true } = {}) => {
-  if (!url || isAnimationPlaying) return;
+const playAnimation = (url) => {
+  if (!url) return;
 
+  console.log('[BubbleAnimation] Playing animation:', url);
+
+  // When animations are enabled, always use the chatBubble (single bubble for all animations)
   const bubble = document.querySelector('.woot-widget-bubble:not(.woot--close)');
-  if (!bubble) return;
+  const bubbleId = 'chat';
 
-  const img = createAnimationImage();
+  if (!bubble) {
+    console.warn('[BubbleAnimation] Bubble element not found');
+    return;
+  }
+
+  const img = createAnimationImage(bubbleId);
   if (!bubble.contains(img)) {
     bubble.appendChild(img);
+    console.log('[BubbleAnimation] Animation image appended to bubble');
   }
 
-  isAnimationPlaying = true;
-  img.src = url;
-  if (hideSvg) hideStaticBubbleIcon(bubble);
+  // Force reload the animation by changing src
+  // img.style.opacity = '0';
+  // Use a timestamp to force browser to reload the animation
+  // const cacheBuster = `?t=${Date.now()}`;
+  img.src = `${url}?t=${Date.now()}`;
 
-  // Show animation
-  setTimeout(() => {
-    img.style.opacity = '1';
-  }, 50);
-
-  const finish = () => {
-    // keepLastFrame=true => do not fade out, keep current frame visible
-    isAnimationPlaying = false;
-  };
-
-  if (duration) {
-    setTimeout(finish, duration);
-  } else {
-    // Fallback duration if we cannot detect; keep last frame after
-    img.onload = () => {
-      const animDuration = 3000;
-      setTimeout(finish, animDuration);
-    };
-  }
+  hideStaticBubbleIcon(bubble);
 };
 
 export const setupBubbleAnimations = (animationsConfig) => {
   if (!animationsConfig) return;
+
+  // Enable single bubble mode when animations are configured
+  hasBubbleAnimations = true;
 
   const { intro_animation_url, open_animation_url, close_animation_url } = animationsConfig;
   openAnimationUrl = open_animation_url || '';
@@ -193,24 +198,31 @@ export const setupBubbleAnimations = (animationsConfig) => {
   // Play intro animation when bubble first appears
   if (intro_animation_url) {
     setTimeout(() => {
-      playAnimation(intro_animation_url, null, { hideSvg: true, keepLastFrame: true });
+      playAnimation(intro_animation_url);
     }, 500);
   }
 
   // Setup open/close animations via global events to stay in sync with real state
+  // All animations play on the same chatBubble element
   if (openAnimationUrl) {
     try {
       window.addEventListener(CHATWOOT_OPENED, () => {
-        playAnimation(openAnimationUrl, null, { hideSvg: true, keepLastFrame: true });
+        console.log('[BubbleAnimation] CHATWOOT_OPENED event received, playing open animation');
+        // Play animation immediately when opened
+        playAnimation(openAnimationUrl);
       });
+      console.log('[BubbleAnimation] Open animation listener registered for:', openAnimationUrl);
     } catch (_) {}
   }
 
   if (closeAnimationUrl) {
     try {
       window.addEventListener(CHATWOOT_CLOSED, () => {
-        playAnimation(closeAnimationUrl, null, { hideSvg: true, keepLastFrame: true });
+        console.log('[BubbleAnimation] CHATWOOT_CLOSED event received, playing close animation');
+        // Play animation immediately when closed
+        playAnimation(closeAnimationUrl);
       });
+      console.log('[BubbleAnimation] Close animation listener registered for:', closeAnimationUrl);
     } catch (_) {}
   }
 };

@@ -155,6 +155,10 @@ export const IFrameHelper = {
 
   events: {
     loaded: message => {
+      console.log('[IFrameHelper] 收到 loaded 事件', {
+        widgetColor: message.config.channelConfig.widgetColor,
+        bubbleAnimationsConfig: message.config.channelConfig.bubbleAnimationsConfig
+      });
       updateAuthCookie(message.config.authToken, window.$chatwoot.baseDomain);
       window.$chatwoot.hasLoaded = true;
       const campaignsSnoozedTill = Cookies.get('cw_snooze_campaigns_till');
@@ -332,13 +336,17 @@ export const IFrameHelper = {
       target: chatBubble,
     });
 
-    addClasses(closeBubble, closeBtnClassName);
-
     chatIcon.style.background = widgetColor;
-    closeBubble.style.background = widgetColor;
 
     bubbleHolder.appendChild(chatIcon);
-    bubbleHolder.appendChild(closeBubble);
+    
+    // Only add closeBubble if animations are NOT configured
+    if (!bubbleAnimationsConfig) {
+      addClasses(closeBubble, closeBtnClassName);
+      closeBubble.style.background = widgetColor;
+      bubbleHolder.appendChild(closeBubble);
+    }
+    
     onClickChatBubble();
 
     // Setup bubble animations if configured
@@ -354,15 +362,9 @@ export const IFrameHelper = {
           chatIcon.style.background = 'transparent';
           chatIcon.style.boxShadow = 'none';
           chatIcon.style.borderRadius = '0';
-          // Ensure the hidden close button matches (for consistency on small screens)
-          try {
-            closeBubble.style.background = 'transparent';
-            closeBubble.style.boxShadow = 'none';
-            closeBubble.style.borderRadius = '0';
-            bubbleHolder.style.boxShadow = 'none';
-          } catch (_) {}
           // Avoid any container shadow bleeding
           try {
+            bubbleHolder.style.boxShadow = 'none';
             widgetHolder.style.boxShadow = 'none';
           } catch (_) {}
         }

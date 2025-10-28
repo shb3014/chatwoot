@@ -5,33 +5,173 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>IFrameHelper Playground</title>
     <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; padding: 24px; }
-      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-      button { padding: 8px 12px; border: 1px solid #d1d5db; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; }
-      button.secondary { background: #374151; }
-      .note { color: #6b7280; font-size: 12px; margin-top: 8px; }
-      .log { margin-top: 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb; max-height: 220px; overflow: auto; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
-      .divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; padding: 24px; background: #f9fafb; }
+      .container { max-width: 1400px; margin: 0 auto; }
+      h2 { color: #111827; font-size: 24px; margin-bottom: 8px; }
+      .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+      .section { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
+      .section-title { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+      button { padding: 8px 16px; border: 1px solid #d1d5db; background: #ffffff; color: #374151; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+      button:hover { background: #f3f4f6; border-color: #9ca3af; }
+      button:active { background: #e5e7eb; }
+      button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+      button.primary:hover { background: #1d4ed8; }
+      button.secondary { background: #6b7280; color: #fff; border-color: #6b7280; }
+      button.secondary:hover { background: #4b5563; }
+      .note { color: #6b7280; font-size: 12px; margin-top: 12px; padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #2563eb; }
+      .log { padding: 12px; border: 1px solid #e5e7eb; background: #1f2937; max-height: 300px; overflow: auto; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11px; color: #d1d5db; }
+      .log-item { margin-bottom: 4px; }
+      .log-item.info { color: #60a5fa; }
+      .log-item.success { color: #34d399; }
+      .log-item.warning { color: #fbbf24; }
+      .log-item.error { color: #f87171; }
+      .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .clear-log { padding: 4px 8px; font-size: 11px; background: #374151; color: #d1d5db; border: none; border-radius: 4px; cursor: pointer; }
+      .clear-log:hover { background: #4b5563; }
+      code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #dc2626; }
+      .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #dbeafe; color: #1e40af; border-radius: 12px; font-size: 12px; font-weight: 600; }
+      .status-badge.success { background: #d1fae5; color: #065f46; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 768px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .form-group { display: flex; flex-direction: column; gap: 6px; }
+      .form-group.full-width { grid-column: 1 / -1; }
+      .form-group label { font-size: 12px; font-weight: 500; color: #374151; }
+      .form-group input[type="text"], .form-group input[type="color"], .form-group select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+      .form-group input[type="color"] { height: 38px; cursor: pointer; }
+      .form-group select { background: #fff; cursor: pointer; }
+      .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; cursor: pointer; }
+      .checkbox-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+      .config-display { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
+      .config-item { display: flex; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+      .config-item:last-child { border-bottom: none; }
+      .config-label { font-weight: 500; color: #6b7280; min-width: 100px; font-size: 13px; }
+      .config-item span:not(.config-label) { color: #111827; font-size: 13px; }
+      .config-url { font-family: ui-monospace, monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
   </head>
   <body>
-    <h2>IFrameHelper Playground</h2>
-    <div class="toolbar">
-      <button id="mount">挂载并加载 Widget</button>
-      <button id="remount" class="secondary">🔄 重新挂载（热更新）</button>
-      <button id="open" class="secondary">打开气泡</button>
-      <button id="close" class="secondary">关闭气泡</button>
-      <button id="unread" class="secondary">设置未读模式</button>
-      <button id="resetUnread" class="secondary">重置未读</button>
-      <button id="playAudio" class="secondary">播放提示音</button>
-      <button id="closeChat" class="secondary">触发 closeChat</button>
+    <div class="container">
+      <h2>🧪 IFrameHelper Playground</h2>
+      <p class="subtitle">测试和调试 Chatwoot Widget 的 IFrameHelper 交互</p>
+
+      <div class="section">
+        <div class="section-title">
+          🎮 Widget 控制
+          <span class="status-badge" id="widgetStatus">未挂载</span>
+        </div>
+        <div class="toolbar">
+          <button id="mount" class="primary">挂载 Widget</button>
+          <button id="remount" class="secondary">🔄 重新挂载</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="section">
+            <div class="section-title">⚙️ 当前配置</div>
+            <div class="config-display" id="configDisplay">
+              <div class="config-item">
+                <span class="config-label">配置文件:</span>
+                <code>playground/iframe-helper/config.js</code>
+              </div>
+              <div class="config-item">
+                <span class="config-label">气泡颜色:</span>
+                <span id="displayColor">#009CE0</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">位置:</span>
+                <span id="displayPosition">right</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">入场动画:</span>
+                <span id="displayIntroAnim" class="config-url">未设置</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">打开动画:</span>
+                <span id="displayOpenAnim" class="config-url">未设置</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">关闭动画:</span>
+                <span id="displayCloseAnim" class="config-url">未设置</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="note">
+            💡 <strong>如何修改配置：</strong><br>
+            1. 编辑 <code>playground/iframe-helper/config.js</code> 文件<br>
+            2. 修改 <code>widgetConfig</code>、<code>channelConfig</code> 或 <code>bubbleAnimationsConfig</code><br>
+            3. 保存文件后点击"重新挂载"按钮应用更改
+          </div>
+
+          <div class="section">
+            <div class="section-title">💬 气泡交互</div>
+            <div class="toolbar">
+              <button id="open">打开气泡</button>
+              <button id="close">关闭气泡</button>
+              <button id="unread">设置未读模式</button>
+              <button id="resetUnread">重置未读</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">🧪 模拟 Widget 事件</div>
+            <div class="toolbar">
+              <button id="setBubbleLabel">设置气泡文本</button>
+              <button id="sendPostback">发送 Postback</button>
+              <button id="updateHeight">更新高度</button>
+              <button id="showNotification" class="primary">显示未读 (3)</button>
+              <button id="clearNotification">清除未读</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">💬 模拟消息</div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>消息内容</label>
+                <input type="text" id="customMessageText" placeholder="输入消息内容..." />
+              </div>
+              <div class="form-group full-width" style="display: flex; gap: 8px;">
+                <button id="sendAgentMessage" class="primary" style="flex: 1;">发送客服消息</button>
+                <button id="sendUserMessage" style="flex: 1;">发送用户消息</button>
+                <button id="clearMessages" style="flex: 1;">清空消息</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">🔔 其他操作</div>
+            <div class="toolbar">
+              <button id="playAudio">播放提示音</button>
+              <button id="closeChat">关闭聊天</button>
+            </div>
+          </div>
+
+          <div class="note">
+            💡 <strong>提示：</strong>修改配置后点击"重新挂载"以应用更改。<br>
+            Widget iframe 现在看起来像真实的聊天窗口，所有测试功能都在主页面控制。
+          </div>
+        </div>
+
+        <div>
+          <div class="section">
+            <div class="log-header">
+              <div class="section-title" style="margin: 0;">📋 事件日志</div>
+              <button class="clear-log" id="clearLog">清空日志</button>
+            </div>
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="note">提示：本页面使用仓库内的 <code>app/javascript/sdk/IFrameHelper.js</code>，iframe 页面为 <code>/widget/index.html</code> 的本地 stub。</div>
-    <div class="divider"></div>
-    <div class="log" id="log"></div>
 
     <script type="module" src="./main.js"></script>
   </body>
-  </html>
+</html>
 
 

@@ -3,69 +3,280 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Widget Stub</title>
+    <title>Chatwoot Widget</title>
     <style>
-      body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-      .bar { padding: 8px 12px; font-size: 12px; background: #111827; color: #fff; display: flex; gap: 8px; align-items: center; }
-      button { padding: 6px 10px; background: #374151; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
-      .content { padding: 12px; font-size: 12px; color: #374151; }
-      code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: #ffffff; height: 100vh; display: flex; flex-direction: column; }
+      .messages { flex: 1; overflow-y: auto; padding: 16px; background: #f9fafb; display: flex; flex-direction: column; }
+      .message { padding: 12px 16px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 70%; }
+      .message.agent { align-self: flex-start; background: #fff; border: 1px solid #e5e7eb; }
+      .message.user { align-self: flex-end; background: #2563eb; color: #fff; }
+      .message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+      .message-sender { font-weight: 600; font-size: 13px; }
+      .message.agent .message-sender { color: #111827; }
+      .message.user .message-sender { color: rgba(255,255,255,0.9); }
+      .message-time { font-size: 11px; margin-left: 8px; }
+      .message.agent .message-time { color: #9ca3af; }
+      .message.user .message-time { color: rgba(255,255,255,0.7); }
+      .message-text { font-size: 14px; line-height: 1.5; }
+      .message.agent .message-text { color: #374151; }
+      .message.user .message-text { color: #fff; }
+      .welcome { text-align: center; padding: 24px 16px; color: #6b7280; font-size: 13px; }
+      .welcome-title { font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 8px; }
+      .input-area { border-top: 1px solid #e5e7eb; padding: 12px 16px; background: #fff; display: flex; gap: 8px; }
+      .input-area input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+      .input-area button { padding: 10px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+      .input-area button:hover { background: #1d4ed8; }
     </style>
   </head>
   <body>
-    <div class="bar">
-      <span>Widget Stub</span>
-      <button id="sendPostback">postback</button>
-      <button id="label">setBubbleLabel</button>
+    <div class="messages" id="messagesContainer">
+      <div class="welcome">
+        <div class="welcome-title">👋 欢迎来到 PlantsIO</div>
+        <div>我们的团队通常会在几小时内回复。</div>
+      </div>
     </div>
-    <div class="content">
-      <div>此页面模拟真实 /widget，向父窗口发送 <code>loaded</code> 等事件。</div>
+
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="输入消息..." />
+      <button id="sendMessageBtn">发送</button>
     </div>
 
     <script>
+      // ============ 状态管理 ============
+      let currentColor = '#009CE0';
+      let bubbleAnimationEnabled = false;
+
+      // ============ 工具函数 ============
       const send = (payload) => {
         parent.postMessage('chatwoot-widget:' + JSON.stringify(payload), '*');
+        console.log('[widget] 发送事件:', payload);
       };
 
-      // 监听父窗口消息（调试用）
+      const addMessage = (sender, text, isAgent = false) => {
+        const container = document.getElementById('messagesContainer');
+        const msg = document.createElement('div');
+        msg.className = isAgent ? 'message agent' : 'message user';
+        msg.innerHTML = `
+          <div class="message-header">
+            <span class="message-sender">${sender}</span>
+            <span class="message-time">${new Date().toLocaleTimeString()}</span>
+          </div>
+          <div class="message-text">${text}</div>
+        `;
+        container.appendChild(msg);
+        container.scrollTop = container.scrollHeight;
+      };
+
+      // ============ 生产环境真实数据结构 ============
+      const createProductionConfig = (widgetColor) => ({
+        authToken: 'eyJhbGciOiJIUzI1NiJ9.eyJzb3VyY2VfaWQiOiIwOTZhOTVkZC1hMzk2LTRjZjMtOTg1Ni1jNmEwMjRkOTllMWQiLCJpbmJveF9pZCI6MSwiZXhwIjoxNzc3MTA2NTQxLCJpYXQiOjE3NjE1NTQ1NDF9.stub',
+        channelConfig: {
+          avatarUrl: 'https://via.placeholder.com/48/009CE0/FFFFFF?text=CW',
+          hasAConnectedAgentBot: '',
+          locale: 'en',
+          websiteName: 'PlantsIO',
+          websiteToken: 'LEEuDASKDTq2i6Tka4nbpVmv',
+          welcomeTagline: '',
+          welcomeTitle: '',
+          widgetColor: widgetColor,
+          portal: {
+            id: 1,
+            account_id: 3,
+            name: 'PlantsIO Help Center',
+            slug: 'ivy',
+            custom_domain: 'chat.plantsio.com',
+            color: '#2781F6',
+            homepage_link: null,
+            page_title: null,
+            header_text: null,
+            created_at: '2025-10-22T15:21:30.906Z',
+            updated_at: '2025-10-23T03:05:49.316Z',
+            config: {
+              default_locale: 'en',
+              allowed_locales: ['en', 'zh']
+            },
+            archived: false,
+            channel_web_widget_id: 1,
+            ssl_settings: {}
+          },
+          enabledFeatures: ['attachments', 'emoji_picker', 'end_conversation'],
+          enabledLanguages: [
+            { name: 'English (en)', iso_639_1_code: 'en' },
+            { name: '中文 (zh-CN)', iso_639_1_code: 'zh_CN' },
+            { name: '中文 (台湾) (zh-TW)', iso_639_1_code: 'zh_TW' },
+            { name: '日本語 (ja)', iso_639_1_code: 'ja' },
+            { name: '한국어 (ko)', iso_639_1_code: 'ko' },
+            { name: 'Español (es)', iso_639_1_code: 'es' },
+            { name: 'Français (fr)', iso_639_1_code: 'fr' },
+            { name: 'Deutsch (de)', iso_639_1_code: 'de' }
+          ],
+          replyTime: 'in_a_few_hours',
+          preChatFormEnabled: false,
+          preChatFormOptions: {
+            pre_chat_fields: [
+              {
+                name: 'emailAddress',
+                type: 'email',
+                label: 'Email Id',
+                enabled: false,
+                required: true,
+                field_type: 'standard'
+              },
+              {
+                name: 'fullName',
+                type: 'text',
+                label: 'Full name',
+                enabled: false,
+                required: false,
+                field_type: 'standard'
+              },
+              {
+                name: 'phoneNumber',
+                type: 'text',
+                label: 'Phone number',
+                enabled: false,
+                required: false,
+                field_type: 'standard'
+              }
+            ],
+            pre_chat_message: 'Share your queries or comments here.'
+          },
+          workingHoursEnabled: true,
+          csatSurveyEnabled: false,
+          workingHours: [
+            { day_of_week: 0, closed_all_day: true, open_all_day: false },
+            { day_of_week: 1, closed_all_day: false, open_hour: 9, open_minutes: 0, close_hour: 18, close_minutes: 0, open_all_day: false },
+            { day_of_week: 2, closed_all_day: false, open_hour: 9, open_minutes: 0, close_hour: 18, close_minutes: 0, open_all_day: false },
+            { day_of_week: 3, closed_all_day: false, open_hour: 9, open_minutes: 0, close_hour: 18, close_minutes: 0, open_all_day: false },
+            { day_of_week: 4, closed_all_day: false, open_hour: 9, open_minutes: 0, close_hour: 18, close_minutes: 0, open_all_day: false },
+            { day_of_week: 5, closed_all_day: false, open_hour: 9, open_minutes: 0, close_hour: 18, close_minutes: 0, open_all_day: false },
+            { day_of_week: 6, closed_all_day: true, open_all_day: false }
+          ],
+          outOfOfficeMessage: "We're away right now, but we'd love to hear from you! Leave your email or contact info, and we'll reply as soon as we're back.",
+          utcOffset: '+08:00',
+          timezone: 'Asia/Shanghai',
+          allowMessagesAfterResolved: true,
+          disableBranding: true,
+          bubbleAnimationsConfig: bubbleAnimationEnabled ? {
+            intro_animation_url: 'https://d2yysiie7eha49.cloudfront.net/cat.gif'
+          } : undefined
+        }
+      });
+
+      // ============ 初始化 ============
+      (function onLoaded() {
+        const params = new URLSearchParams(location.search);
+        const websiteToken = params.get('website_token') || 'debug-token';
+        const colorParam = params.get('color');
+        if (colorParam) currentColor = colorParam;
+        
+        // 读取动画配置
+        const introAnimation = params.get('intro_animation');
+        const openAnimation = params.get('open_animation');
+        const closeAnimation = params.get('close_animation');
+        
+        console.log('[widget] URL 参数', { 
+          websiteToken, 
+          color: currentColor,
+          intro_animation: introAnimation,
+          open_animation: openAnimation,
+          close_animation: closeAnimation
+        });
+        
+        // 创建配置
+        const config = createProductionConfig(currentColor);
+        
+        // 构建动画配置（如果有任何动画 URL）
+        if (introAnimation || openAnimation || closeAnimation) {
+          const animConfig = {};
+          if (introAnimation) animConfig.intro_animation_url = introAnimation;
+          if (openAnimation) animConfig.open_animation_url = openAnimation;
+          if (closeAnimation) animConfig.close_animation_url = closeAnimation;
+          
+          config.channelConfig.bubbleAnimationsConfig = animConfig;
+          
+          console.log('[widget] 已设置动画配置', animConfig);
+        } else {
+          // 明确设置为 undefined（而不是使用 createProductionConfig 中的默认值）
+          config.channelConfig.bubbleAnimationsConfig = undefined;
+          console.log('[widget] 未设置动画配置');
+        }
+        
+        console.log('[widget] 最终配置', {
+          widgetColor: config.channelConfig.widgetColor,
+          bubbleAnimationsConfig: config.channelConfig.bubbleAnimationsConfig
+        });
+        
+        send({
+          event: 'loaded',
+          config: config
+        });
+      })();
+
+      // ============ 监听父窗口消息 ============
       window.addEventListener('message', (e) => {
         try {
           if (typeof e.data !== 'string' || !e.data.startsWith('chatwoot-widget:')) return;
           const msg = JSON.parse(e.data.replace('chatwoot-widget:', ''));
-          // 简单响应：当父页面请求 toggle-open / toggle-close-button / change-url 等，仅记录日志
-          console.log('[widget] ← from parent', msg);
+          console.log('[widget] 收到父窗口消息:', msg);
+          
+          // 处理来自测试页面的模拟事件
+          if (msg.event === 'simulateAgentMessage') {
+            addMessage(msg.sender || '客服 Alice', msg.text, true);
+          } else if (msg.event === 'simulateUserMessage') {
+            addMessage('我', msg.text, false);
+          } else if (msg.event === 'clearMessages') {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = `
+              <div class="welcome">
+                <div class="welcome-title">👋 欢迎来到 PlantsIO</div>
+                <div>我们的团队通常会在几小时内回复。</div>
+              </div>
+            `;
+          }
         } catch (_) {}
       });
 
-      // 页面加载后立即上报 loaded
-      (function onLoaded() {
-        const params = new URLSearchParams(location.search);
-        const websiteToken = params.get('website_token') || 'debug-token';
-        console.log('[widget] loaded with website_token=', websiteToken);
-        send({
-          event: 'loaded',
-          config: {
-            authToken: 'stub-auth-token',
-            channelConfig: {
-              widgetColor: '#2563eb',
-              // 可选：试验气泡动画
-              // bubbleAnimationsConfig: {
-              //   intro_animation_url: 'https://media.tenor.com/hk5kqgYdz-MAAAAC/loading.gif'
-              // }
-            }
-          }
+      // ============ 用户输入处理 ============
+      const sendUserMessage = () => {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        // 添加用户消息
+        addMessage('我', text, false);
+        input.value = '';
+        
+        // 通知父窗口有新消息（可选）
+        send({ 
+          event: 'userMessageSent',
+          message: text
         });
-      })();
+        
+        // 模拟客服自动回复
+        setTimeout(() => {
+          const replies = [
+            '感谢您的消息！我们的客服团队会尽快回复您。',
+            '收到您的消息，正在为您查询相关信息...',
+            '感谢联系我们！我们会在工作时间内回复您。'
+          ];
+          const reply = replies[Math.floor(Math.random() * replies.length)];
+          addMessage('客服 Alice', reply, true);
+        }, 1000);
+      };
 
-      // 绑定两个调试按钮
-      document.getElementById('sendPostback').addEventListener('click', () => {
-        send({ event: 'postback', data: { id: 'demo', value: 1 } });
+      document.getElementById('sendMessageBtn').addEventListener('click', sendUserMessage);
+      document.getElementById('messageInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendUserMessage();
       });
-      document.getElementById('label').addEventListener('click', () => {
-        send({ event: 'setBubbleLabel', label: 'Hello!' });
-      });
+
+      // 初始欢迎消息（延迟显示以模拟真实环境）
+      setTimeout(() => {
+        addMessage('客服 Alice', '👋 您好！欢迎来到 PlantsIO。有什么可以帮助您的吗？', true);
+      }, 800);
     </script>
   </body>
-  </html>
+</html>
 
 
