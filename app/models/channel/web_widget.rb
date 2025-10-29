@@ -38,7 +38,8 @@ class Channel::WebWidget < ApplicationRecord
                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
                                                  :locale, { values: [] }, :regex_pattern, :regex_cue] }] },
                     { selected_feature_flags: [] },
-                    { bubble_animations_config: [:intro_animation_url, { hover_animation_urls: [] }] }].freeze
+                    { bubble_animations_config: [:intro_animation_url, :open_animation_url, :close_animation_url,
+                                                 { hover_animation_urls: [] }] }].freeze
 
   before_validation :validate_pre_chat_options
   validates :website_url, presence: true

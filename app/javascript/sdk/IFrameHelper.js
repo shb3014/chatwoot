@@ -361,7 +361,6 @@ export const IFrameHelper = {
           // Avoid any container shadow bleeding
           try {
             bubbleHolder.style.boxShadow = 'none';
-            widgetHolder.style.boxShadow = 'none';
           } catch (_) {}
         }
       } catch (_) {}
