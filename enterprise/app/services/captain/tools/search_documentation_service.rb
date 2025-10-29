@@ -30,10 +30,18 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
     return 'No documentation found for the given query' if responses.empty? && articles.empty?
 
+    # Store articles for reference list
+    @cited_articles = articles.to_a
+
     results = []
     results.concat(responses.map { |response| format_response(response) })
-    results.concat(articles.map { |article| format_article(article) })
-    results.join
+    results.concat(articles.map.with_index { |article, index| format_article(article, index + 1) })
+
+    # Add reference list at the end
+    documentation = results.join
+    documentation += format_article_references if @cited_articles.any?
+
+    documentation
   end
 
   private
@@ -70,18 +78,51 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     formatted_response
   end
 
-  def format_article(article)
+  def format_article(article, reference_number = nil)
     formatted_article = "
         Article Title: #{article.title}
         Description: #{article.description}
         Content: #{article.content}
         "
     if article.try(:slug).present?
+      article_url = generate_article_url(article)
       formatted_article += "
-          Source: /articles/#{article.slug}
+          Source [#{reference_number}]: #{article_url}
           "
     end
 
     formatted_article
+  end
+
+  def format_article_references
+    return '' if @cited_articles.empty?
+
+    references = "\n\n---\n**Referenced Articles:**\n"
+    @cited_articles.each_with_index do |article, index|
+      article_url = generate_article_url(article)
+      references += "\n[#{index + 1}] #{article.title} - #{article_url}"
+    end
+    references
+  end
+
+  def generate_article_url(article)
+    portal = article.portal
+
+    # 生成基础 URL
+    base_url = if portal.custom_domain.present?
+                 "https://#{portal.custom_domain}"
+               else
+                 frontend_url = ENV.fetch('FRONTEND_URL', '')
+                 "#{frontend_url}/hc/#{portal.slug}"
+               end
+
+    # 生成文章路径
+    article_path = if portal.custom_domain.present?
+                     "/articles/#{article.slug}"
+                   else
+                     "/articles/#{article.slug}"
+                   end
+
+    "#{base_url}#{article_path}"
   end
 end
