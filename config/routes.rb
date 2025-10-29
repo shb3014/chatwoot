@@ -492,6 +492,7 @@ Rails.application.routes.draw do
     end
   end
 
+  # 标准帮助中心路由（带 portal slug）
   get 'hc/:slug', to: 'public/api/v1/portals#show'
   get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'
   get 'hc/:slug/:locale', to: 'public/api/v1/portals#show'
@@ -501,6 +502,21 @@ Rails.application.routes.draw do
   get 'hc/:slug/:locale/categories/:category_slug/articles', to: 'public/api/v1/portals/articles#index'
   get 'hc/:slug/articles/:article_slug.png', to: 'public/api/v1/portals/articles#tracking_pixel'
   get 'hc/:slug/articles/:article_slug', to: 'public/api/v1/portals/articles#show'
+
+  # 自定义域名简化路由（仅当使用自定义域名时匹配）
+  # 这些路由会通过 PublicController#ensure_custom_domain_request 来验证自定义域名
+  get ':locale/categories/:category_slug', to: 'public/api/v1/portals/categories#show', constraints: lambda { |request|
+    domain = request.host
+    !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
+  }
+  get ':locale/categories', to: 'public/api/v1/portals/categories#index', constraints: lambda { |request|
+    domain = request.host
+    !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
+  }
+  get 'articles/:article_slug', to: 'public/api/v1/portals/articles#show', constraints: lambda { |request|
+    domain = request.host
+    !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
+  }
 
   # ----------------------------------------------------------------------
   # Used in mailer templates

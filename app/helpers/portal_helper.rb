@@ -46,10 +46,20 @@ module PortalHelper
   end
 
   def generate_home_link(portal_slug, portal_locale, theme, is_plain_layout_enabled)
-    if is_plain_layout_enabled
-      "/hc/#{portal_slug}/#{portal_locale}#{theme_query_string(theme)}"
+    # 如果使用自定义域名，使用简化路径
+    if @portal&.custom_domain.present? && request.host == @portal.custom_domain
+      if is_plain_layout_enabled
+        "/#{portal_locale}#{theme_query_string(theme)}"
+      else
+        "/#{portal_locale}"
+      end
     else
-      "/hc/#{portal_slug}/#{portal_locale}"
+      # 标准路径（包含 portal slug）
+      if is_plain_layout_enabled
+        "/hc/#{portal_slug}/#{portal_locale}#{theme_query_string(theme)}"
+      else
+        "/hc/#{portal_slug}/#{portal_locale}"
+      end
     end
   end
 
@@ -60,18 +70,38 @@ module PortalHelper
     theme = params[:theme]
     is_plain_layout_enabled = params[:is_plain_layout_enabled]
 
-    if is_plain_layout_enabled
-      "/hc/#{portal_slug}/#{category_locale}/categories/#{category_slug}#{theme_query_string(theme)}"
+    # 如果使用自定义域名，使用简化路径
+    if @portal&.custom_domain.present? && request.host == @portal.custom_domain
+      if is_plain_layout_enabled
+        "/#{category_locale}/categories/#{category_slug}#{theme_query_string(theme)}"
+      else
+        "/#{category_locale}/categories/#{category_slug}"
+      end
     else
-      "/hc/#{portal_slug}/#{category_locale}/categories/#{category_slug}"
+      # 标准路径（包含 portal slug）
+      if is_plain_layout_enabled
+        "/hc/#{portal_slug}/#{category_locale}/categories/#{category_slug}#{theme_query_string(theme)}"
+      else
+        "/hc/#{portal_slug}/#{category_locale}/categories/#{category_slug}"
+      end
     end
   end
 
   def generate_article_link(portal_slug, article_slug, theme, is_plain_layout_enabled)
-    if is_plain_layout_enabled
-      "/hc/#{portal_slug}/articles/#{article_slug}#{theme_query_string(theme)}"
+    # 如果使用自定义域名，使用简化路径
+    if @portal&.custom_domain.present? && request.host == @portal.custom_domain
+      if is_plain_layout_enabled
+        "/articles/#{article_slug}#{theme_query_string(theme)}"
+      else
+        "/articles/#{article_slug}"
+      end
     else
-      "/hc/#{portal_slug}/articles/#{article_slug}"
+      # 标准路径（包含 portal slug）
+      if is_plain_layout_enabled
+        "/hc/#{portal_slug}/articles/#{article_slug}#{theme_query_string(theme)}"
+      else
+        "/hc/#{portal_slug}/articles/#{article_slug}"
+      end
     end
   end
 

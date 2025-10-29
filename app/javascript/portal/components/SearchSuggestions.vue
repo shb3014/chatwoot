@@ -67,6 +67,12 @@ export default {
 
   methods: {
     generateArticleUrl(article) {
+      // 如果使用自定义域名，使用简化路径
+      const { customDomain } = window.portalConfig || {};
+      if (customDomain) {
+        return `/articles/${article.slug}`;
+      }
+      // 否则使用完整路径
       return `/hc/${article.portal.slug}/articles/${article.slug}`;
     },
     prepareContent(content) {

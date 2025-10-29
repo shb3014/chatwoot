@@ -5,16 +5,16 @@ import { widgetConfig, channelConfig, presets } from './config.js';
 const log = (message, type = 'info', data = null) => {
   const timestamp = new Date().toLocaleTimeString();
   console.log(`[playground ${timestamp}]`, message, data || '');
-  
+
   const el = document.getElementById('log');
   const line = document.createElement('div');
   line.className = `log-item ${type}`;
-  
+
   let text = `[${timestamp}] ${message}`;
   if (data) {
     text += '\n  ' + JSON.stringify(data, null, 2).split('\n').join('\n  ');
   }
-  
+
   line.textContent = text;
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
@@ -34,14 +34,14 @@ window.$chatwoot = { ...widgetConfig };
 const updateConfigDisplay = () => {
   document.getElementById('displayColor').textContent = channelConfig.widgetColor;
   document.getElementById('displayPosition').textContent = widgetConfig.position;
-  
+
   const animConfig = channelConfig.bubbleAnimationsConfig;
   if (animConfig) {
-    document.getElementById('displayIntroAnim').textContent = 
+    document.getElementById('displayIntroAnim').textContent =
       animConfig.intro_animation_url || '未设置';
-    document.getElementById('displayOpenAnim').textContent = 
+    document.getElementById('displayOpenAnim').textContent =
       animConfig.open_animation_url || '未设置';
-    document.getElementById('displayCloseAnim').textContent = 
+    document.getElementById('displayCloseAnim').textContent =
       animConfig.close_animation_url || '未设置';
   } else {
     document.getElementById('displayIntroAnim').textContent = '未设置';
@@ -56,7 +56,7 @@ window.addEventListener('message', e => {
     if (typeof e.data !== 'string' || !e.data.startsWith('chatwoot-widget:')) return;
     const msg = JSON.parse(e.data.replace('chatwoot-widget:', ''));
     log(`← iframe 事件: ${msg.event}`, 'success', msg);
-    
+
     // 根据事件类型更新状态
     if (msg.event === 'loaded') {
       updateStatus('✅ 已加载', true);
@@ -69,19 +69,19 @@ const unmountWidget = () => {
   // 移除 iframe 容器
   const holder = document.getElementById('cw-widget-holder');
   if (holder) holder.remove();
-  
+
   // 移除气泡容器
   const bubble = document.getElementById('cw-bubble-holder');
   if (bubble) bubble.remove();
-  
+
   // 移除样式
   const styles = document.getElementById('cw-widget-styles');
   if (styles) styles.remove();
-  
+
   // 重置全局状态
   window.$chatwoot.isOpen = false;
   window.$chatwoot.hasLoaded = false;
-  
+
   updateStatus('未挂载', false);
   log('✅ 已清理旧 widget', 'warning');
 };
@@ -90,13 +90,13 @@ const unmountWidget = () => {
 const mountWidget = () => {
   // 重新加载配置（从配置文件）
   Object.assign(window.$chatwoot, widgetConfig);
-  
+
   // 构建 URL 参数
   const params = new URLSearchParams({
     website_token: channelConfig.websiteToken,
     color: channelConfig.widgetColor
   });
-  
+
   // 添加动画配置到 URL 参数
   const animConfig = channelConfig.bubbleAnimationsConfig;
   if (animConfig) {
@@ -110,7 +110,7 @@ const mountWidget = () => {
       params.set('close_animation', animConfig.close_animation_url);
     }
   }
-  
+
   const widgetUrl = `/widget/index.html?${params.toString()}`;
   console.log('[playground] Widget URL:', widgetUrl);
   console.log('[playground] 配置文件中的配置:', {
@@ -118,20 +118,20 @@ const mountWidget = () => {
     channelConfig,
     bubbleAnimationsConfig: animConfig
   });
-  
+
   // 在 playground 环境中，直接覆盖 getUrl 方法指向本地 stub
   const originalGetUrl = IFrameHelper.getUrl;
   IFrameHelper.getUrl = ({ websiteToken }) => widgetUrl;
-  
+
   IFrameHelper.createFrame({ baseUrl: '', websiteToken: channelConfig.websiteToken });
   updateStatus('挂载中...', false);
-  log('→ 调用 IFrameHelper.createFrame', 'info', { 
+  log('→ 调用 IFrameHelper.createFrame', 'info', {
     websiteToken: channelConfig.websiteToken,
     widgetUrl: widgetUrl,
     config: window.$chatwoot,
     channelConfig: channelConfig
   });
-  
+
   // 恢复原方法
   IFrameHelper.getUrl = originalGetUrl;
 };
@@ -150,7 +150,7 @@ document.getElementById('remount').addEventListener('click', () => {
       Object.assign(widgetConfig, module.widgetConfig);
       Object.assign(channelConfig, module.channelConfig);
       updateConfigDisplay();
-      
+
       log('📄 配置已重新加载', 'success', {
         widgetConfig: module.widgetConfig,
         channelConfig: module.channelConfig
@@ -249,12 +249,12 @@ document.getElementById('clearNotification').addEventListener('click', () => {
 document.getElementById('sendAgentMessage').addEventListener('click', () => {
   const input = document.getElementById('customMessageText');
   const text = input.value.trim() || '您好！有什么可以帮助您的吗？';
-  
-  IFrameHelper.sendMessage('simulateAgentMessage', { 
+
+  IFrameHelper.sendMessage('simulateAgentMessage', {
     sender: '客服 Alice',
     text: text
   });
-  
+
   log('→ 发送客服消息到 widget', 'success', { text });
   if (input.value.trim()) input.value = '';
 });
@@ -263,11 +263,11 @@ document.getElementById('sendAgentMessage').addEventListener('click', () => {
 document.getElementById('sendUserMessage').addEventListener('click', () => {
   const input = document.getElementById('customMessageText');
   const text = input.value.trim() || '你好，我有一个问题。';
-  
-  IFrameHelper.sendMessage('simulateUserMessage', { 
+
+  IFrameHelper.sendMessage('simulateUserMessage', {
     text: text
   });
-  
+
   log('→ 发送用户消息到 widget', 'info', { text });
   if (input.value.trim()) input.value = '';
 });
@@ -297,13 +297,13 @@ document.getElementById('clearLog').addEventListener('click', () => {
 window.addEventListener('load', () => {
   // 更新配置显示
   updateConfigDisplay();
-  
+
   log('🚀 页面加载完成，准备自动挂载 widget', 'info');
   log('📄 配置文件:', 'info', {
     widgetConfig,
     channelConfig
   });
-  
+
   mountWidget();
   log('💡 Widget 已挂载，点击"打开气泡"按钮或点击页面上的气泡来打开', 'info');
 });

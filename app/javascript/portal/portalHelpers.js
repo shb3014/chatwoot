@@ -64,7 +64,14 @@ export const InitializationHelpers = {
       if (!localeSwitcher) return;
 
       const { portalSlug } = localeSwitcher.dataset;
-      window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(localeSwitcher.value)}/`;
+      const { customDomain } = window.portalConfig || {};
+
+      // 如果使用自定义域名，使用简化路径
+      if (customDomain) {
+        window.location.href = `/${encodeURIComponent(localeSwitcher.value)}/`;
+      } else {
+        window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(localeSwitcher.value)}/`;
+      }
     });
   },
 

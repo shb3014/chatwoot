@@ -18,7 +18,15 @@ class Public::Api::V1::Portals::BaseController < PublicController
   end
 
   def portal
-    @portal ||= Portal.find_by!(slug: params[:slug], archived: false)
+    # 如果使用自定义域名，通过域名查找 portal
+    if !DomainHelper.chatwoot_domain?(request.host)
+      @portal ||= Portal.find_by!(custom_domain: request.host, archived: false)
+    else
+      # 否则通过 slug 查找
+      @portal ||= Portal.find_by!(slug: params[:slug], archived: false)
+    end
+    @locale = params[:locale] || @portal.default_locale
+    @portal
   end
 
   def set_locale(&)
