@@ -45,11 +45,11 @@ export const SDK_CSS = `
   bottom: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .16) !important;
   cursor: pointer;
-  height: 64px;
+  height: 74px;
   padding: 0px;
   position: fixed;
   user-select: none;
-  width: 64px;
+  width: 74px;
   z-index: 2147483000 !important;
   overflow: hidden;
 }

@@ -34,9 +34,9 @@ export const channelConfig = {
   // ========== 气泡动画配置 ==========
   // 设置为 null 或空字符串以禁用
   bubbleAnimationsConfig: {
-    intro_animation_url: 'https://d2yysiie7eha49.cloudfront.net/cat.gif',  // 入场动画（加载后 0.5 秒播放）
-    open_animation_url: 'https://d2yysiie7eha49.cloudfront.net/look_up.webp',   // 打开动画（气泡打开时播放）
-    close_animation_url: 'https://d2yysiie7eha49.cloudfront.net/plant_in.webp',  // 关闭动画（气泡关闭时播放）
+    intro_animation_url: 'https://d2yysiie7eha49.cloudfront.net/intro2.webp',  // 入场动画（加载后 0.5 秒播放）
+    open_animation_url: 'https://d2yysiie7eha49.cloudfront.net/open.webp',   // 打开动画（气泡打开时播放）
+    close_animation_url: 'https://d2yysiie7eha49.cloudfront.net/close.webp',  // 关闭动画（气泡关闭时播放）
   },
 
   // ========== 欢迎信息 ==========
