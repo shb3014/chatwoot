@@ -50,7 +50,7 @@ export const SDK_CSS = `
   position: fixed;
   user-select: none;
   width: 74px;
-  z-index: 2147483000 !important;
+  z-index: 214748300 !important;
   overflow: hidden;
 }
 
