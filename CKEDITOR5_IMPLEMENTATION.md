@@ -181,6 +181,22 @@ pnpm dev
 }
 ```
 
+## 许可证配置
+
+CKEditor 5 从 v38 开始要求声明许可证密钥。由于 Chatwoot 是开源项目（使用 MIT 许可证），我们使用 GPL 许可证密钥：
+
+```javascript
+const editorConfig = {
+  licenseKey: 'GPL',  // 开源项目使用 GPL 许可证
+  // ... 其他配置
+};
+```
+
+**说明：**
+- `GPL` 许可证密钥适用于所有开源项目
+- 这会在编辑器底部显示 "Powered by CKEditor" 水印
+- 如果需要商业许可证（移除水印），需要从 CKEditor 官方购买
+
 ## 注意事项
 
 1. **内容格式**: CKEditor 5 使用 HTML 格式存储内容，而原来的 ProseMirror 使用 Markdown。如果需要兼容旧内容，可能需要添加格式转换逻辑。

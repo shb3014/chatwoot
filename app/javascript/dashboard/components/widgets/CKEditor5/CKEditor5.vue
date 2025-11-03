@@ -88,6 +88,8 @@ const handleImageUpload = async file => {
 
 // 编辑器配置
 const editorConfig = {
+  // 使用 GPL 许可证（Chatwoot 是开源项目）
+  licenseKey: 'GPL',
   placeholder: props.placeholder,
   extraPlugins: [editor => uploadAdapterPlugin(editor, handleImageUpload)],
   toolbar: {
