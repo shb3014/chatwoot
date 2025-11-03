@@ -45,13 +45,36 @@ export default {
 
     // 自定义图片上传适配器
     class UploadAdapter {
-      constructor(loader, uploadFunction) {
+      constructor(loader) {
         this.loader = loader;
-        this.uploadFunction = uploadFunction;
       }
 
       upload() {
-        return this.loader.file.then(file => this.uploadFunction(file));
+        return this.loader.file.then(async file => {
+          // 检查文件大小
+          if (!checkFileSizeLimit(file, MAXIMUM_FILE_UPLOAD_SIZE)) {
+            useAlert(
+              t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR_FILE_SIZE', {
+                size: MAXIMUM_FILE_UPLOAD_SIZE,
+              })
+            );
+            throw new Error('File size exceeds limit');
+          }
+
+          try {
+            const fileUrl = await store.dispatch('articles/attachImage', {
+              portalSlug: route.params.portalSlug,
+              file,
+            });
+
+            return {
+              default: fileUrl,
+            };
+          } catch (error) {
+            useAlert(t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR'));
+            throw error;
+          }
+        });
       }
 
       abort() {
@@ -59,45 +82,19 @@ export default {
       }
     }
 
-    function uploadAdapterPlugin(editor, uploadFunction) {
+    // 创建上传适配器插件（必须是一个函数，返回插件定义）
+    function CustomUploadAdapterPlugin(editor) {
       editor.plugins.get('FileRepository').createUploadAdapter = loader => {
-        return new UploadAdapter(loader, uploadFunction);
+        return new UploadAdapter(loader);
       };
     }
-
-    // 处理图片上传
-    const handleImageUpload = async file => {
-      // 检查文件大小
-      if (!checkFileSizeLimit(file, MAXIMUM_FILE_UPLOAD_SIZE)) {
-        useAlert(
-          t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR_FILE_SIZE', {
-            size: MAXIMUM_FILE_UPLOAD_SIZE,
-          })
-        );
-        throw new Error('File size exceeds limit');
-      }
-
-      try {
-        const fileUrl = await store.dispatch('articles/attachImage', {
-          portalSlug: route.params.portalSlug,
-          file,
-        });
-
-        return {
-          default: fileUrl,
-        };
-      } catch (error) {
-        useAlert(t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR'));
-        throw error;
-      }
-    };
 
     // 编辑器配置
     const editorConfig = {
       // 使用 GPL 许可证（Chatwoot 是开源项目）
       licenseKey: 'GPL',
       placeholder: props.placeholder,
-      extraPlugins: [editor => uploadAdapterPlugin(editor, handleImageUpload)],
+      extraPlugins: [CustomUploadAdapterPlugin],
       toolbar: {
         items: [
           'heading',
