@@ -433,29 +433,69 @@ export default {
             <!-- Bubble Animation Configuration -->
             <div class="mt-4">
               <h3 class="text-base font-medium text-n-slate-12 mb-3">
-                {{ $t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.TITLE') }}
+                {{
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.TITLE'
+                  )
+                }}
               </h3>
 
               <woot-input
                 v-model="bubbleIntroAnimationUrl"
-                :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_LABEL')"
-                :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_PLACEHOLDER')"
-                :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_HELP')"
+                :label="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_LABEL'
+                  )
+                "
+                :placeholder="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_PLACEHOLDER'
+                  )
+                "
+                :help-text="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.INTRO_ANIMATION_HELP'
+                  )
+                "
               />
 
               <woot-input
                 v-model="bubbleOpenAnimationUrl"
-                :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_LABEL')"
-                :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_PLACEHOLDER')"
-                :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_HELP')"
+                :label="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_LABEL'
+                  )
+                "
+                :placeholder="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_PLACEHOLDER'
+                  )
+                "
+                :help-text="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.OPEN_ANIMATION_HELP'
+                  )
+                "
                 class="mt-3"
               />
 
               <woot-input
                 v-model="bubbleCloseAnimationUrl"
-                :label="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_LABEL')"
-                :placeholder="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_PLACEHOLDER')"
-                :help-text="$t('INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_HELP')"
+                :label="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_LABEL'
+                  )
+                "
+                :placeholder="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_PLACEHOLDER'
+                  )
+                "
+                :help-text="
+                  $t(
+                    'INBOX_MGMT.WIDGET_BUILDER.WIDGET_OPTIONS.BUBBLE_ANIMATIONS.CLOSE_ANIMATION_HELP'
+                  )
+                "
                 class="mt-3"
               />
             </div>

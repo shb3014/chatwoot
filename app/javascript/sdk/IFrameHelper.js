@@ -177,7 +177,8 @@ export const IFrameHelper = {
       });
       IFrameHelper.onLoad({
         widgetColor: message.config.channelConfig.widgetColor,
-        bubbleAnimationsConfig: message.config.channelConfig.bubbleAnimationsConfig,
+        bubbleAnimationsConfig:
+          message.config.channelConfig.bubbleAnimationsConfig,
       });
       IFrameHelper.toggleCloseButton();
 

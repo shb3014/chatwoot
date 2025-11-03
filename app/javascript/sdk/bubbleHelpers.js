@@ -90,7 +90,12 @@ export const onBubbleClick = (props = {}) => {
   const newIsOpen = toggleValue === undefined ? !isOpen : toggleValue;
   window.$chatwoot.isOpen = newIsOpen;
 
-  console.log('[BubbleAnimation] onBubbleClick - newIsOpen:', newIsOpen, 'hasBubbleAnimations:', hasBubbleAnimations);
+  console.log(
+    '[BubbleAnimation] onBubbleClick - newIsOpen:',
+    newIsOpen,
+    'hasBubbleAnimations:',
+    hasBubbleAnimations
+  );
 
   // When bubble animations are enabled, only use chatBubble (no close button)
   if (hasBubbleAnimations) {
@@ -134,8 +139,10 @@ const hideStaticBubbleIcon = bubble => {
   } catch (_) {}
 };
 
-const createAnimationImage = (bubbleId) => {
-  const existingImg = document.getElementById(`woot-bubble-animation-${bubbleId}`);
+const createAnimationImage = bubbleId => {
+  const existingImg = document.getElementById(
+    `woot-bubble-animation-${bubbleId}`
+  );
   if (existingImg) return existingImg;
 
   const animationImage = document.createElement('img');
@@ -156,13 +163,15 @@ const createAnimationImage = (bubbleId) => {
   return animationImage;
 };
 
-const playAnimation = (url) => {
+const playAnimation = url => {
   if (!url) return;
 
   console.log('[BubbleAnimation] Playing animation:', url);
 
   // When animations are enabled, always use the chatBubble (single bubble for all animations)
-  const bubble = document.querySelector('.woot-widget-bubble:not(.woot--close)');
+  const bubble = document.querySelector(
+    '.woot-widget-bubble:not(.woot--close)'
+  );
   const bubbleId = 'chat';
 
   if (!bubble) {
@@ -173,7 +182,9 @@ const playAnimation = (url) => {
   hideStaticBubbleIcon(bubble);
 
   // Get existing animation image
-  const currentImg = document.getElementById(`woot-bubble-animation-${bubbleId}`);
+  const currentImg = document.getElementById(
+    `woot-bubble-animation-${bubbleId}`
+  );
   const animationUrl = `${url}?t=${Date.now()}`;
 
   // Create and preload new image
@@ -210,13 +221,14 @@ const playAnimation = (url) => {
   newImg.src = animationUrl;
 };
 
-export const setupBubbleAnimations = (animationsConfig) => {
+export const setupBubbleAnimations = animationsConfig => {
   if (!animationsConfig) return;
 
   // Enable single bubble mode when animations are configured
   hasBubbleAnimations = true;
 
-  const { intro_animation_url, open_animation_url, close_animation_url } = animationsConfig;
+  const { intro_animation_url, open_animation_url, close_animation_url } =
+    animationsConfig;
   openAnimationUrl = open_animation_url || '';
   closeAnimationUrl = close_animation_url || '';
 
@@ -230,22 +242,32 @@ export const setupBubbleAnimations = (animationsConfig) => {
   if (openAnimationUrl) {
     try {
       window.addEventListener(CHATWOOT_OPENED, () => {
-        console.log('[BubbleAnimation] CHATWOOT_OPENED event received, playing open animation');
+        console.log(
+          '[BubbleAnimation] CHATWOOT_OPENED event received, playing open animation'
+        );
         // Play animation immediately when opened
         playAnimation(openAnimationUrl);
       });
-      console.log('[BubbleAnimation] Open animation listener registered for:', openAnimationUrl);
+      console.log(
+        '[BubbleAnimation] Open animation listener registered for:',
+        openAnimationUrl
+      );
     } catch (_) {}
   }
 
   if (closeAnimationUrl) {
     try {
       window.addEventListener(CHATWOOT_CLOSED, () => {
-        console.log('[BubbleAnimation] CHATWOOT_CLOSED event received, playing close animation');
+        console.log(
+          '[BubbleAnimation] CHATWOOT_CLOSED event received, playing close animation'
+        );
         // Play animation immediately when closed
         playAnimation(closeAnimationUrl);
       });
-      console.log('[BubbleAnimation] Close animation listener registered for:', closeAnimationUrl);
+      console.log(
+        '[BubbleAnimation] Close animation listener registered for:',
+        closeAnimationUrl
+      );
     } catch (_) {}
   }
 };
