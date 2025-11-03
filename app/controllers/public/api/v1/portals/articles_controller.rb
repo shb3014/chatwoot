@@ -86,41 +86,23 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
     # 检测内容格式：如果包含 HTML 标签，则视为 HTML 格式
     # CKEditor 5 存储 HTML，旧编辑器存储 Markdown
     if content.strip.start_with?('<') || content.include?('<p>') || content.include?('<h1>') || content.include?('<h2>')
-      # HTML 格式 - 使用 sanitize 清理并返回
-      ActionController::Base.helpers.sanitize(
-        content,
-        tags: %w[
-          p br strong em u s del b i a img h1 h2 h3 h4 h5 h6
-          ul ol li blockquote pre code span div
-          table thead tbody tfoot tr th td caption
-          figure figcaption iframe hr
-        ],
-        attributes: {
-          'a' => %w[href title target rel class style],
-          'img' => %w[src alt title width height class style],
-          'iframe' => %w[src width height frameborder allowfullscreen class style],
-          'table' => %w[border cellpadding cellspacing class style],
-          'th' => %w[colspan rowspan class style],
-          'td' => %w[colspan rowspan class style],
-          'p' => %w[class style],
-          'div' => %w[class style],
-          'span' => %w[class style],
-          'h1' => %w[class style id],
-          'h2' => %w[class style id],
-          'h3' => %w[class style id],
-          'h4' => %w[class style id],
-          'h5' => %w[class style id],
-          'h6' => %w[class style id],
-          'figure' => %w[class style],
-          'figcaption' => %w[class style],
-          'blockquote' => %w[class style],
-          'code' => %w[class style],
-          'pre' => %w[class style],
-          'ul' => %w[class style],
-          'ol' => %w[class style],
-          'li' => %w[class style],
-        }
-      ).html_safe
+      # HTML 格式 - 使用自定义的 sanitize 配置
+      scrubber = Rails::Html::PermitScrubber.new
+      scrubber.tags = %w[
+        p br strong em u s del b i a img h1 h2 h3 h4 h5 h6
+        ul ol li blockquote pre code span div
+        table thead tbody tfoot tr th td caption
+        figure figcaption iframe hr
+      ]
+      scrubber.attributes = %w[
+        href title target rel class style
+        src alt width height
+        border cellpadding cellspacing colspan rowspan
+        frameborder allowfullscreen
+        id
+      ]
+
+      ActionController::Base.helpers.sanitize(content, scrubber: scrubber).html_safe
     else
       # Markdown 格式 - 使用现有的渲染器（向后兼容）
       ChatwootMarkdownRenderer.new(content).render_article
