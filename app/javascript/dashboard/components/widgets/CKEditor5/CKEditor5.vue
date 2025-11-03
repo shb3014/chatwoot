@@ -1,213 +1,228 @@
-<script setup>
+<script>
 import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
-import * as CKEditor from '@ckeditor/ckeditor5-vue';
+import { Ckeditor } from '@ckeditor/ckeditor5-vue';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
-const props = defineProps({
-  modelValue: {
-    type: String,
-    default: '',
+export default {
+  name: 'CKEditor5',
+  components: {
+    ckeditor: Ckeditor,
   },
-  placeholder: {
-    type: String,
-    default: '',
-  },
-  autofocus: {
-    type: Boolean,
-    default: true,
-  },
-  minHeight: {
-    type: String,
-    default: '300px',
-  },
-});
-
-const emit = defineEmits(['update:modelValue', 'blur', 'focus']);
-
-const { t } = useI18n();
-const route = useRoute();
-const store = useStore();
-
-const editorData = ref(props.modelValue || '');
-const editor = ClassicEditor;
-const editorInstance = ref(null);
-
-const MAXIMUM_FILE_UPLOAD_SIZE = 4; // MB
-
-// 自定义图片上传适配器
-class UploadAdapter {
-  constructor(loader, uploadFunction) {
-    this.loader = loader;
-    this.uploadFunction = uploadFunction;
-  }
-
-  upload() {
-    return this.loader.file.then(file => this.uploadFunction(file));
-  }
-
-  abort() {
-    // 取消上传的逻辑（可选）
-  }
-}
-
-function uploadAdapterPlugin(editor, uploadFunction) {
-  editor.plugins.get('FileRepository').createUploadAdapter = loader => {
-    return new UploadAdapter(loader, uploadFunction);
-  };
-}
-
-// 处理图片上传
-const handleImageUpload = async file => {
-  // 检查文件大小
-  if (!checkFileSizeLimit(file, MAXIMUM_FILE_UPLOAD_SIZE)) {
-    useAlert(
-      t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR_FILE_SIZE', {
-        size: MAXIMUM_FILE_UPLOAD_SIZE,
-      })
-    );
-    throw new Error('File size exceeds limit');
-  }
-
-  try {
-    const fileUrl = await store.dispatch('articles/attachImage', {
-      portalSlug: route.params.portalSlug,
-      file,
-    });
-
-    return {
-      default: fileUrl,
-    };
-  } catch (error) {
-    useAlert(t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR'));
-    throw error;
-  }
-};
-
-// 编辑器配置
-const editorConfig = {
-  // 使用 GPL 许可证（Chatwoot 是开源项目）
-  licenseKey: 'GPL',
-  placeholder: props.placeholder,
-  extraPlugins: [editor => uploadAdapterPlugin(editor, handleImageUpload)],
-  toolbar: {
-    items: [
-      'heading',
-      '|',
-      'bold',
-      'italic',
-      'link',
-      '|',
-      'bulletedList',
-      'numberedList',
-      '|',
-      'blockQuote',
-      'insertTable',
-      '|',
-      'imageUpload',
-      'mediaEmbed',
-      '|',
-      'undo',
-      'redo',
-    ],
-  },
-  image: {
-    toolbar: [
-      'imageTextAlternative',
-      'toggleImageCaption',
-      'imageStyle:inline',
-      'imageStyle:block',
-      'imageStyle:side',
-    ],
-  },
-  table: {
-    contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells'],
-  },
-  heading: {
-    options: [
-      { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
-      {
-        model: 'heading1',
-        view: 'h1',
-        title: 'Heading 1',
-        class: 'ck-heading_heading1',
-      },
-      {
-        model: 'heading2',
-        view: 'h2',
-        title: 'Heading 2',
-        class: 'ck-heading_heading2',
-      },
-      {
-        model: 'heading3',
-        view: 'h3',
-        title: 'Heading 3',
-        class: 'ck-heading_heading3',
-      },
-    ],
-  },
-  link: {
-    decorators: {
-      openInNewTab: {
-        mode: 'manual',
-        label: 'Open in a new tab',
-        attributes: {
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-      },
+  props: {
+    modelValue: {
+      type: String,
+      default: '',
+    },
+    placeholder: {
+      type: String,
+      default: '',
+    },
+    autofocus: {
+      type: Boolean,
+      default: true,
+    },
+    minHeight: {
+      type: String,
+      default: '300px',
     },
   },
-};
+  emits: ['update:modelValue', 'blur', 'focus'],
+  setup(props, { emit }) {
+    const { t } = useI18n();
+    const route = useRoute();
+    const store = useStore();
 
-// 监听 modelValue 变化
-watch(
-  () => props.modelValue,
-  newValue => {
-    if (editorData.value !== newValue) {
-      editorData.value = newValue;
+    const editorData = ref(props.modelValue || '');
+    const editor = ClassicEditor;
+    const editorInstance = ref(null);
+
+    const MAXIMUM_FILE_UPLOAD_SIZE = 4; // MB
+
+    // 自定义图片上传适配器
+    class UploadAdapter {
+      constructor(loader, uploadFunction) {
+        this.loader = loader;
+        this.uploadFunction = uploadFunction;
+      }
+
+      upload() {
+        return this.loader.file.then(file => this.uploadFunction(file));
+      }
+
+      abort() {
+        // 取消上传的逻辑（可选）
+      }
     }
-  }
-);
 
-// 编辑器准备好时的回调
-const onEditorReady = instance => {
-  editorInstance.value = instance;
-  if (props.autofocus) {
-    instance.editing.view.focus();
-  }
+    function uploadAdapterPlugin(editor, uploadFunction) {
+      editor.plugins.get('FileRepository').createUploadAdapter = loader => {
+        return new UploadAdapter(loader, uploadFunction);
+      };
+    }
+
+    // 处理图片上传
+    const handleImageUpload = async file => {
+      // 检查文件大小
+      if (!checkFileSizeLimit(file, MAXIMUM_FILE_UPLOAD_SIZE)) {
+        useAlert(
+          t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR_FILE_SIZE', {
+            size: MAXIMUM_FILE_UPLOAD_SIZE,
+          })
+        );
+        throw new Error('File size exceeds limit');
+      }
+
+      try {
+        const fileUrl = await store.dispatch('articles/attachImage', {
+          portalSlug: route.params.portalSlug,
+          file,
+        });
+
+        return {
+          default: fileUrl,
+        };
+      } catch (error) {
+        useAlert(t('HELP_CENTER.ARTICLE_EDITOR.IMAGE_UPLOAD.ERROR'));
+        throw error;
+      }
+    };
+
+    // 编辑器配置
+    const editorConfig = {
+      // 使用 GPL 许可证（Chatwoot 是开源项目）
+      licenseKey: 'GPL',
+      placeholder: props.placeholder,
+      extraPlugins: [editor => uploadAdapterPlugin(editor, handleImageUpload)],
+      toolbar: {
+        items: [
+          'heading',
+          '|',
+          'bold',
+          'italic',
+          'link',
+          '|',
+          'bulletedList',
+          'numberedList',
+          '|',
+          'blockQuote',
+          'insertTable',
+          '|',
+          'imageUpload',
+          'mediaEmbed',
+          '|',
+          'undo',
+          'redo',
+        ],
+      },
+      image: {
+        toolbar: [
+          'imageTextAlternative',
+          'toggleImageCaption',
+          'imageStyle:inline',
+          'imageStyle:block',
+          'imageStyle:side',
+        ],
+      },
+      table: {
+        contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells'],
+      },
+      heading: {
+        options: [
+          {
+            model: 'paragraph',
+            title: 'Paragraph',
+            class: 'ck-heading_paragraph',
+          },
+          {
+            model: 'heading1',
+            view: 'h1',
+            title: 'Heading 1',
+            class: 'ck-heading_heading1',
+          },
+          {
+            model: 'heading2',
+            view: 'h2',
+            title: 'Heading 2',
+            class: 'ck-heading_heading2',
+          },
+          {
+            model: 'heading3',
+            view: 'h3',
+            title: 'Heading 3',
+            class: 'ck-heading_heading3',
+          },
+        ],
+      },
+      link: {
+        decorators: {
+          openInNewTab: {
+            mode: 'manual',
+            label: 'Open in a new tab',
+            attributes: {
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+          },
+        },
+      },
+    };
+
+    // 监听 modelValue 变化
+    watch(
+      () => props.modelValue,
+      newValue => {
+        if (editorData.value !== newValue) {
+          editorData.value = newValue;
+        }
+      }
+    );
+
+    // 编辑器准备好时的回调
+    const onEditorReady = instance => {
+      editorInstance.value = instance;
+      if (props.autofocus) {
+        instance.editing.view.focus();
+      }
+    };
+
+    // 编辑器内容变化时的回调
+    const onEditorInput = data => {
+      editorData.value = data;
+      emit('update:modelValue', data);
+    };
+
+    // 编辑器获得焦点
+    const onEditorFocus = () => {
+      emit('focus');
+    };
+
+    // 编辑器失去焦点
+    const onEditorBlur = () => {
+      emit('blur');
+    };
+
+    return {
+      editorData,
+      editor,
+      editorConfig,
+      editorInstance,
+      onEditorReady,
+      onEditorInput,
+      onEditorFocus,
+      onEditorBlur,
+    };
+  },
 };
-
-// 编辑器内容变化时的回调
-const onEditorInput = data => {
-  editorData.value = data;
-  emit('update:modelValue', data);
-};
-
-// 编辑器获得焦点
-const onEditorFocus = () => {
-  emit('focus');
-};
-
-// 编辑器失去焦点
-const onEditorBlur = () => {
-  emit('blur');
-};
-
-// 暴露编辑器实例供父组件使用
-defineExpose({
-  editorInstance,
-});
 </script>
 
 <template>
   <div class="ckeditor5-wrapper" :style="{ '--min-height': minHeight }">
-    <component
-      :is="CKEditor.component"
+    <ckeditor
       v-model="editorData"
       :editor="editor"
       :config="editorConfig"
