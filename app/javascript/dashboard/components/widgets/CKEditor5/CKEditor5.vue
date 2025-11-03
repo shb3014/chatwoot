@@ -5,7 +5,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
-import CKEditor from '@ckeditor/ckeditor5-vue';
+import * as CKEditor from '@ckeditor/ckeditor5-vue';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const props = defineProps({
