@@ -199,11 +199,19 @@ const editorConfig = {
 
 ## 注意事项
 
-1. **内容格式**: CKEditor 5 使用 HTML 格式存储内容，而原来的 ProseMirror 使用 Markdown。如果需要兼容旧内容，可能需要添加格式转换逻辑。
+1. **内容格式与向后兼容**:
+   - CKEditor 5 使用 **HTML 格式**存储内容，而原来的 ProseMirror 使用 **Markdown 格式**
+   - ✅ 已实现自动格式检测和向后兼容
+   - 前台展示会自动检测内容格式：
+     - 如果是 HTML（包含 `<p>`, `<h1>` 等标签），直接清理并渲染
+     - 如果是 Markdown，使用原有的 `ChatwootMarkdownRenderer` 渲染
+   - 这意味着新旧文章都能正常显示，无需迁移旧内容
 
 2. **升级路径**: 目前使用的是预构建版本（Classic Build），未来如果需要自定义功能，可以迁移到自定义构建。
 
 3. **图片存储**: 图片上传使用现有的 Chatwoot 存储系统，与原有实现保持一致。
+
+4. **安全性**: HTML 内容通过 Rails 的 `sanitize` 方法清理，只允许安全的标签和属性，防止 XSS 攻击。
 
 ## 故障排除
 

@@ -81,7 +81,32 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
   end
 
   def render_article_content(content)
-    ChatwootMarkdownRenderer.new(content).render_article
+    return '' if content.blank?
+
+    # 检测内容格式：如果包含 HTML 标签，则视为 HTML 格式
+    # CKEditor 5 存储 HTML，旧编辑器存储 Markdown
+    if content.strip.start_with?('<') || content.include?('<p>') || content.include?('<h1>') || content.include?('<h2>')
+      # HTML 格式 - 使用 sanitize 清理并返回
+      ActionController::Base.helpers.sanitize(
+        content,
+        tags: %w[
+          p br strong em u s a img h1 h2 h3 h4 h5 h6
+          ul ol li blockquote pre code table thead tbody tr th td
+          figure figcaption iframe
+        ],
+        attributes: {
+          'a' => %w[href title target rel],
+          'img' => %w[src alt title width height],
+          'iframe' => %w[src width height frameborder allowfullscreen],
+          'table' => %w[border cellpadding cellspacing],
+          'th' => %w[colspan rowspan],
+          'td' => %w[colspan rowspan],
+        }
+      ).html_safe
+    else
+      # Markdown 格式 - 使用现有的渲染器（向后兼容）
+      ChatwootMarkdownRenderer.new(content).render_article
+    end
   end
 end
 
