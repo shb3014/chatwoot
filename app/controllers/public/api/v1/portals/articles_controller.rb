@@ -90,17 +90,35 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
       ActionController::Base.helpers.sanitize(
         content,
         tags: %w[
-          p br strong em u s a img h1 h2 h3 h4 h5 h6
-          ul ol li blockquote pre code table thead tbody tr th td
-          figure figcaption iframe
+          p br strong em u s del b i a img h1 h2 h3 h4 h5 h6
+          ul ol li blockquote pre code span div
+          table thead tbody tfoot tr th td caption
+          figure figcaption iframe hr
         ],
         attributes: {
-          'a' => %w[href title target rel],
-          'img' => %w[src alt title width height],
-          'iframe' => %w[src width height frameborder allowfullscreen],
-          'table' => %w[border cellpadding cellspacing],
-          'th' => %w[colspan rowspan],
-          'td' => %w[colspan rowspan],
+          'a' => %w[href title target rel class style],
+          'img' => %w[src alt title width height class style],
+          'iframe' => %w[src width height frameborder allowfullscreen class style],
+          'table' => %w[border cellpadding cellspacing class style],
+          'th' => %w[colspan rowspan class style],
+          'td' => %w[colspan rowspan class style],
+          'p' => %w[class style],
+          'div' => %w[class style],
+          'span' => %w[class style],
+          'h1' => %w[class style id],
+          'h2' => %w[class style id],
+          'h3' => %w[class style id],
+          'h4' => %w[class style id],
+          'h5' => %w[class style id],
+          'h6' => %w[class style id],
+          'figure' => %w[class style],
+          'figcaption' => %w[class style],
+          'blockquote' => %w[class style],
+          'code' => %w[class style],
+          'pre' => %w[class style],
+          'ul' => %w[class style],
+          'ol' => %w[class style],
+          'li' => %w[class style],
         }
       ).html_safe
     else
