@@ -5,7 +5,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
-import { component as CKEditorComponent } from '@ckeditor/ckeditor5-vue';
+import CKEditor from '@ckeditor/ckeditor5-vue';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const props = defineProps({
@@ -206,7 +206,8 @@ defineExpose({
 
 <template>
   <div class="ckeditor5-wrapper" :style="{ '--min-height': minHeight }">
-    <CKEditorComponent
+    <component
+      :is="CKEditor.component"
       v-model="editorData"
       :editor="editor"
       :config="editorConfig"
