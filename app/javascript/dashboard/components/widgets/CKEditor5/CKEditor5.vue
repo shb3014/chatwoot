@@ -1,10 +1,11 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
+import { component as CKEditorComponent } from '@ckeditor/ckeditor5-vue';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const props = defineProps({
@@ -32,7 +33,8 @@ const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
 
-const editorRef = ref(null);
+const editorData = ref(props.modelValue || '');
+const editor = ClassicEditor;
 const editorInstance = ref(null);
 
 const MAXIMUM_FILE_UPLOAD_SIZE = 4; // MB
@@ -166,64 +168,35 @@ const editorConfig = {
 watch(
   () => props.modelValue,
   newValue => {
-    if (editorInstance.value && editorInstance.value.getData() !== newValue) {
-      editorInstance.value.setData(newValue || '');
+    if (editorData.value !== newValue) {
+      editorData.value = newValue;
     }
   }
 );
 
-// 组件挂载后初始化编辑器
-onMounted(async () => {
-  try {
-    editorInstance.value = await ClassicEditor.create(
-      editorRef.value,
-      editorConfig
-    );
-
-    // 设置初始内容
-    if (props.modelValue) {
-      editorInstance.value.setData(props.modelValue);
-    }
-
-    // 监听内容变化
-    editorInstance.value.model.document.on('change:data', () => {
-      const data = editorInstance.value.getData();
-      emit('update:modelValue', data);
-    });
-
-    // 监听焦点和失焦事件
-    editorInstance.value.editing.view.document.on('focus', () => {
-      emit('focus');
-    });
-
-    editorInstance.value.editing.view.document.on('blur', () => {
-      emit('blur');
-    });
-
-    // 自动聚焦
-    if (props.autofocus) {
-      editorInstance.value.editing.view.focus();
-    }
-  } catch (error) {
-    console.error('Error initializing CKEditor:', error);
-    useAlert('Failed to initialize editor');
-  }
-});
-
-// 组件卸载时销毁编辑器
-const destroyEditor = () => {
-  if (editorInstance.value) {
-    editorInstance.value.destroy().catch(error => {
-      console.error('Error destroying CKEditor:', error);
-    });
+// 编辑器准备好时的回调
+const onEditorReady = instance => {
+  editorInstance.value = instance;
+  if (props.autofocus) {
+    instance.editing.view.focus();
   }
 };
 
-// 使用 beforeUnmount 生命周期钩子
-import { onBeforeUnmount } from 'vue';
-onBeforeUnmount(() => {
-  destroyEditor();
-});
+// 编辑器内容变化时的回调
+const onEditorInput = data => {
+  editorData.value = data;
+  emit('update:modelValue', data);
+};
+
+// 编辑器获得焦点
+const onEditorFocus = () => {
+  emit('focus');
+};
+
+// 编辑器失去焦点
+const onEditorBlur = () => {
+  emit('blur');
+};
 
 // 暴露编辑器实例供父组件使用
 defineExpose({
@@ -233,7 +206,15 @@ defineExpose({
 
 <template>
   <div class="ckeditor5-wrapper" :style="{ '--min-height': minHeight }">
-    <div ref="editorRef" />
+    <CKEditorComponent
+      v-model="editorData"
+      :editor="editor"
+      :config="editorConfig"
+      @ready="onEditorReady"
+      @input="onEditorInput"
+      @focus="onEditorFocus"
+      @blur="onEditorBlur"
+    />
   </div>
 </template>
 
