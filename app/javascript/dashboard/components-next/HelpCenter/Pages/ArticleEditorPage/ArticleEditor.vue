@@ -129,15 +129,17 @@ const previewArticle = () => {
           @set-category="setCategoryId"
         />
       </div>
-      <CKEditor5
-        v-model="articleContent"
-        class="py-0 pb-10 pl-4 rtl:pr-4 rtl:pl-0"
-        :placeholder="
-          t('HELP_CENTER.EDIT_ARTICLE_PAGE.EDIT_ARTICLE.EDITOR_PLACEHOLDER')
-        "
-        :autofocus="false"
-        min-height="400px"
-      />
+      <ClientOnly>
+        <CKEditor5
+          v-model="articleContent"
+          class="py-0 pb-10 pl-4 rtl:pr-4 rtl:pl-0"
+          :placeholder="
+            t('HELP_CENTER.EDIT_ARTICLE_PAGE.EDIT_ARTICLE.EDITOR_PLACEHOLDER')
+          "
+          :autofocus="false"
+          min-height="400px"
+        />
+      </ClientOnly>
     </template>
   </HelpCenterLayout>
 </template>

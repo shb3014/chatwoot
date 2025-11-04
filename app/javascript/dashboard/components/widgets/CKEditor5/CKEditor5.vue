@@ -356,8 +356,40 @@ export default {
     }
   }
 
-  // 图片 caption 样式
+  // 编辑器内容样式
   .ck-editor__editable {
+    // 标题样式
+    h1 {
+      font-size: 2em;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0.67em 0;
+      color: inherit;
+    }
+
+    h2 {
+      font-size: 1.5em;
+      font-weight: 700;
+      line-height: 1.3;
+      margin: 0.83em 0;
+      color: inherit;
+    }
+
+    h3 {
+      font-size: 1.25em;
+      font-weight: 600;
+      line-height: 1.4;
+      margin: 1em 0;
+      color: inherit;
+    }
+
+    // 段落样式
+    p {
+      margin: 0.5em 0;
+      line-height: 1.6;
+    }
+
+    // 图片样式
     figure.image {
       margin: 1em auto;
 
@@ -380,6 +412,36 @@ export default {
     // 图片调整大小手柄样式优化
     .image-resizer {
       display: block;
+    }
+
+    // 引用样式
+    blockquote {
+      border-left: 4px solid #ccc;
+      margin: 1em 0;
+      padding-left: 1em;
+      font-style: italic;
+    }
+
+    // 列表样式
+    ul, ol {
+      margin: 0.5em 0;
+      padding-left: 2em;
+    }
+
+    // 表格样式
+    table {
+      border-collapse: collapse;
+      margin: 1em 0;
+
+      td, th {
+        border: 1px solid #ddd;
+        padding: 0.5em;
+      }
+
+      th {
+        background: #f5f5f5;
+        font-weight: 600;
+      }
     }
   }
 
