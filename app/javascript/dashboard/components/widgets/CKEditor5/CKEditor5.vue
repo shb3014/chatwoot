@@ -6,7 +6,29 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { Ckeditor } from '@ckeditor/ckeditor5-vue';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+
+// CKEditor5 核心编辑器
+import { ClassicEditor as ClassicEditorBase } from '@ckeditor/ckeditor5-editor-classic';
+
+// CKEditor5 插件
+import { Essentials } from '@ckeditor/ckeditor5-essentials';
+import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
+import { Link } from '@ckeditor/ckeditor5-link';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { List } from '@ckeditor/ckeditor5-list';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { Table, TableToolbar } from '@ckeditor/ckeditor5-table';
+import { MediaEmbed } from '@ckeditor/ckeditor5-media-embed';
+import { Undo } from '@ckeditor/ckeditor5-undo';
+import {
+  Image,
+  ImageCaption,
+  ImageResize,
+  ImageStyle,
+  ImageToolbar,
+  ImageUpload,
+} from '@ckeditor/ckeditor5-image';
 
 export default {
   name: 'CKEditor5',
@@ -38,7 +60,33 @@ export default {
     const store = useStore();
 
     const editorData = ref(props.modelValue || '');
-    const editor = ClassicEditor;
+
+    // 创建自定义编辑器类
+    class CustomEditor extends ClassicEditorBase {}
+
+    // 配置内置插件
+    CustomEditor.builtinPlugins = [
+      Essentials,
+      Bold,
+      Italic,
+      Link,
+      Paragraph,
+      Heading,
+      List,
+      BlockQuote,
+      Table,
+      TableToolbar,
+      MediaEmbed,
+      Undo,
+      Image,
+      ImageCaption,
+      ImageResize,
+      ImageStyle,
+      ImageToolbar,
+      ImageUpload,
+    ];
+
+    const editor = CustomEditor;
     const editorInstance = ref(null);
 
     const MAXIMUM_FILE_UPLOAD_SIZE = 4; // MB
@@ -82,19 +130,9 @@ export default {
       }
     }
 
-    // 创建上传适配器插件（必须是一个函数，返回插件定义）
-    function CustomUploadAdapterPlugin(editor) {
-      editor.plugins.get('FileRepository').createUploadAdapter = loader => {
-        return new UploadAdapter(loader);
-      };
-    }
-
     // 编辑器配置
     const editorConfig = {
-      // 使用 GPL 许可证（Chatwoot 是开源项目）
-      licenseKey: 'GPL',
       placeholder: props.placeholder,
-      extraPlugins: [CustomUploadAdapterPlugin],
       toolbar: {
         items: [
           'heading',
@@ -207,6 +245,12 @@ export default {
     // 编辑器准备好时的回调
     const onEditorReady = instance => {
       editorInstance.value = instance;
+
+      // 注册自定义图片上传适配器
+      instance.plugins.get('FileRepository').createUploadAdapter = loader => {
+        return new UploadAdapter(loader);
+      };
+
       if (props.autofocus) {
         instance.editing.view.focus();
       }
