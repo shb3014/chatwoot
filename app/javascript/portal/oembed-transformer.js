@@ -113,14 +113,22 @@ class OEmbedTransformer {
   transformOEmbeds(container = document) {
     const oembeds = container.querySelectorAll('oembed');
 
+    console.log('[OEmbed] 找到', oembeds.length, '个 oembed 标签');
+
     oembeds.forEach(oembed => {
       const url = oembed.getAttribute('url');
-      if (!url) return;
+      console.log('[OEmbed] 处理 URL:', url);
+
+      if (!url) {
+        console.warn('[OEmbed] oembed 标签缺少 url 属性');
+        return;
+      }
 
       // 查找匹配的提供商
       const provider = this.providers.find(p => p.pattern.test(url));
 
       if (provider) {
+        console.log('[OEmbed] 找到匹配的提供商');
         const html = provider.transform(url);
         if (html) {
           // 创建一个包装 div
@@ -130,9 +138,11 @@ class OEmbedTransformer {
 
           // 替换 oembed 标签
           oembed.parentNode.replaceChild(wrapper, oembed);
+          console.log('[OEmbed] 已转换为嵌入式播放器');
         }
       } else {
         // 不支持的媒体类型，显示链接
+        console.warn('[OEmbed] 不支持的媒体类型:', url);
         const link = document.createElement('a');
         link.href = url;
         link.textContent = url;
