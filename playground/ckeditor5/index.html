@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CKEditor5 样式测试 Playground</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- CKEditor5 Classic Build CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@44.3.0/build/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@44.3.0/build/ckeditor.css">
+
+    <style>
+      /* Chatwoot 主题色变量 */
+      :root {
+        --n-slate-1: #fcfcfd;
+        --n-slate-2: #f9f9fb;
+        --n-slate-3: #f0f0f3;
+        --n-slate-4: #e7e7ea;
+        --n-slate-11: #60646c;
+        --n-slate-12: #1c2024;
+        --n-brand: #1f93ff;
+        --n-background: #ffffff;
+        --n-solid-1: #111113;
+        --n-solid-2: #18191b;
+        --border-weak: 1px solid #e5e7eb;
+        --min-height: 300px;
+      }
+
+      .dark {
+        --n-slate-1: #111113;
+        --n-slate-2: #18191b;
+        --n-slate-3: #222326;
+        --n-slate-4: #2a2b2f;
+        --n-slate-11: #b2b3b8;
+        --n-slate-12: #ededef;
+        --n-background: #18191b;
+        --n-solid-1: #111113;
+      }
+
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: #f9fafb;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      h1 {
+        color: #111827;
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        color: #6b7280;
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+
+      .section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e5e7eb;
+      }
+
+      .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      button {
+        padding: 8px 16px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        color: #374151;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.15s;
+      }
+
+      button:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+      }
+
+      button:active {
+        background: #e5e7eb;
+      }
+
+      button.primary {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+      }
+
+      button.primary:hover {
+        background: #1d4ed8;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      @media (max-width: 968px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .form-group {
+        margin-bottom: 12px;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 6px;
+      }
+
+      .form-group input[type="number"],
+      .form-group input[type="text"] {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+
+      .note {
+        color: #6b7280;
+        font-size: 12px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+        border-left: 3px solid #2563eb;
+        margin-top: 12px;
+      }
+
+      /* CKEditor5 Chatwoot 样式 */
+      .ckeditor5-wrapper {
+        width: 100%;
+      }
+
+      .ckeditor5-wrapper .ck-editor__editable {
+        min-height: var(--min-height, 300px);
+        max-height: 600px;
+        overflow-y: auto;
+      }
+
+      .ckeditor5-wrapper .ck.ck-editor {
+        border: var(--border-weak);
+      }
+
+      .ckeditor5-wrapper .ck.ck-toolbar {
+        background: var(--n-solid-2);
+        border: var(--border-weak);
+      }
+
+      .ckeditor5-wrapper .ck.ck-editor__editable {
+        background: var(--n-background);
+        color: var(--n-slate-12);
+      }
+
+      .ckeditor5-wrapper .ck.ck-editor__editable:focus {
+        border-color: var(--n-brand);
+        box-shadow: none;
+      }
+
+      .ckeditor5-wrapper .ck.ck-button {
+        color: var(--n-slate-11);
+      }
+
+      .ckeditor5-wrapper .ck.ck-button:hover {
+        background: var(--n-slate-3);
+      }
+
+      .ckeditor5-wrapper .ck.ck-button.ck-on {
+        background: var(--n-slate-4);
+        color: var(--n-slate-12);
+      }
+
+      .ckeditor5-wrapper .ck.ck-dropdown__panel {
+        background: var(--n-solid-2);
+        border: var(--border-weak);
+      }
+
+      .ckeditor5-wrapper .ck.ck-list__item {
+        color: var(--n-slate-12);
+      }
+
+      .ckeditor5-wrapper .ck.ck-list__item:hover {
+        background: var(--n-slate-3);
+      }
+
+      /* 暗色模式 */
+      .dark .ckeditor5-wrapper .ck.ck-editor__editable {
+        background: var(--n-solid-1);
+      }
+
+      /* 编辑器内图片样式 */
+      .ckeditor5-wrapper .ck-editor__editable .image {
+        display: table;
+        clear: both;
+        text-align: center;
+        margin: 1em auto;
+      }
+
+      .ckeditor5-wrapper .ck-editor__editable .image img {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        min-width: 50px;
+      }
+
+      .ckeditor5-wrapper .ck-editor__editable .image > figcaption {
+        display: table-caption;
+        caption-side: bottom;
+        word-break: break-word;
+        color: var(--n-slate-11);
+        background-color: var(--n-slate-2);
+        padding: 0.6em;
+        font-size: 0.75em;
+        outline-offset: -1px;
+      }
+
+      .theme-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+
+      .output-section {
+        background: #1f2937;
+        color: #d1d5db;
+        padding: 16px;
+        border-radius: 6px;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .content-preview {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 16px;
+        min-height: 200px;
+        line-height: 1.6;
+        color: #1c2024;
+      }
+
+      .dark .content-preview {
+        background: var(--n-solid-1);
+        border-color: #374151;
+        color: #ededef;
+      }
+
+      /* CKEditor5 内容样式 - 用于预览区域 */
+      .content-preview h1 {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 0.67em 0;
+      }
+
+      .content-preview h2 {
+        font-size: 1.5em;
+        font-weight: bold;
+        margin: 0.83em 0;
+      }
+
+      .content-preview h3 {
+        font-size: 1.17em;
+        font-weight: bold;
+        margin: 1em 0;
+      }
+
+      .content-preview p {
+        margin: 1em 0;
+      }
+
+      .content-preview blockquote {
+        border-left: 5px solid #ccc;
+        font-style: italic;
+        margin-left: 0;
+        margin-right: 0;
+        overflow: hidden;
+        padding-left: 1.5em;
+        padding-right: 1.5em;
+        background: #f9fafb;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+        margin: 1em 0;
+      }
+
+      .dark .content-preview blockquote {
+        background: #222326;
+        border-left-color: #4b5563;
+      }
+
+      .content-preview ul,
+      .content-preview ol {
+        margin: 1em 0;
+        padding-left: 2em;
+      }
+
+      .content-preview li {
+        margin: 0.5em 0;
+      }
+
+      .content-preview strong {
+        font-weight: bold;
+      }
+
+      .content-preview em {
+        font-style: italic;
+      }
+
+      .content-preview a {
+        color: var(--n-brand);
+        text-decoration: underline;
+      }
+
+      .content-preview a:hover {
+        color: #1d4ed8;
+      }
+
+      .content-preview img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 1em auto;
+      }
+
+      .content-preview figure {
+        display: table;
+        margin: 1em auto;
+        text-align: center;
+      }
+
+      .content-preview figure img {
+        display: block;
+        margin: 0 auto;
+      }
+
+      .content-preview figure figcaption {
+        display: table-caption;
+        caption-side: bottom;
+        word-break: break-word;
+        color: #6b7280;
+        background-color: #f3f4f6;
+        padding: 0.6em;
+        font-size: 0.75em;
+        text-align: center;
+        margin-top: 0.5em;
+      }
+
+      .dark .content-preview figure figcaption {
+        background-color: #222326;
+        color: #9ca3af;
+      }
+
+      .content-preview table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        border: 1px solid #e5e7eb;
+      }
+
+      .dark .content-preview table {
+        border-color: #374151;
+      }
+
+      .content-preview table th,
+      .content-preview table td {
+        border: 1px solid #e5e7eb;
+        padding: 0.5em;
+        text-align: left;
+      }
+
+      .dark .content-preview table th,
+      .dark .content-preview table td {
+        border-color: #374151;
+      }
+
+      .content-preview table th {
+        background: #f3f4f6;
+        font-weight: bold;
+      }
+
+      .dark .content-preview table th {
+        background: #222326;
+      }
+
+      .content-preview code {
+        background: #f3f4f6;
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 0.9em;
+      }
+
+      .dark .content-preview code {
+        background: #222326;
+      }
+
+      .content-preview .media {
+        margin: 1em auto;
+        max-width: 100%;
+      }
+
+      .content-preview oembed {
+        display: block;
+        margin: 1em auto;
+      }
+
+      .content-preview iframe {
+        max-width: 100%;
+        margin: 1em auto;
+        display: block;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .stat-card {
+        background: #f3f4f6;
+        padding: 12px;
+        border-radius: 6px;
+        text-align: center;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        color: #6b7280;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #111827;
+      }
+    </style>
+  </head>
+  <body>
+    <button class="theme-toggle primary" onclick="toggleTheme()">🌓 切换主题</button>
+
+    <div class="container">
+      <h1>📝 CKEditor5 样式测试 Playground</h1>
+      <p class="subtitle">测试和预览 Chatwoot 中 CKEditor5 的样式配置</p>
+
+      <div class="section">
+        <div class="section-title">⚙️ 编辑器配置</div>
+        <div class="toolbar">
+          <button onclick="setMinHeight('200px')">最小高度: 200px</button>
+          <button onclick="setMinHeight('300px')" class="primary">最小高度: 300px</button>
+          <button onclick="setMinHeight('400px')">最小高度: 400px</button>
+          <button onclick="setMinHeight('500px')">最小高度: 500px</button>
+        </div>
+        <div class="toolbar">
+          <button onclick="setPlaceholder('请输入内容...')">设置占位符</button>
+          <button onclick="clearEditor()">清空编辑器</button>
+          <button onclick="loadSampleContent()">加载示例内容</button>
+          <button onclick="focusEditor()" class="primary">聚焦编辑器</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="section">
+            <div class="section-title">✏️ CKEditor5 编辑器</div>
+            <div class="ckeditor5-wrapper" id="editor-wrapper">
+              <div id="editor"></div>
+            </div>
+
+            <div class="stats">
+              <div class="stat-card">
+                <div class="stat-label">字符数</div>
+                <div class="stat-value" id="charCount">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">单词数</div>
+                <div class="stat-value" id="wordCount">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">段落数</div>
+                <div class="stat-value" id="paragraphCount">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section">
+            <div class="section-title">👁️ HTML 输出</div>
+            <div class="output-section" id="htmlOutput">
+              &lt;p&gt;在左侧编辑器中输入内容，这里会实时显示 HTML 输出...&lt;/p&gt;
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">🎨 内容预览</div>
+            <div class="content-preview" id="contentPreview">
+              <p>在左侧编辑器中输入内容，这里会实时预览渲染效果...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🧪 测试工具</div>
+        <div class="toolbar">
+          <button onclick="insertImage()">插入示例图片</button>
+          <button onclick="insertTable()">插入表格</button>
+          <button onclick="insertList()">插入列表</button>
+          <button onclick="insertLink()">插入链接</button>
+          <button onclick="applyHeading('heading1')">应用 H1</button>
+          <button onclick="applyHeading('heading2')">应用 H2</button>
+          <button onclick="applyHeading('heading3')">应用 H3</button>
+        </div>
+        <div class="toolbar">
+          <button onclick="toggleBold()">切换粗体</button>
+          <button onclick="toggleItalic()">切换斜体</button>
+          <button onclick="insertBlockQuote()">插入引用</button>
+          <button onclick="insertMediaEmbed()">插入视频链接</button>
+          <button onclick="getEditorData()" class="primary">获取编辑器数据</button>
+        </div>
+      </div>
+
+      <div class="note">
+        💡 <strong>使用提示：</strong><br>
+        • 这个 playground 模拟了 Chatwoot 中 CKEditor5 的实际样式<br>
+        • 支持<strong>富文本编辑</strong>：粗体、斜体、标题、列表、引用、表格、链接、图片、视频嵌入等<br>
+        • <strong>右侧预览区域</strong>会实时显示内容的实际渲染效果（包括样式）<br>
+        • 可以切换亮/暗主题查看不同模式下的视觉效果<br>
+        • HTML 输出区域显示编辑器生成的原始代码
+      </div>
+
+      <div class="note" style="border-left-color: #f59e0b; background: #fffbeb;">
+        ⚠️ <strong>关于图片缩放功能：</strong><br>
+        • 此 playground 使用 <strong>CDN 版本的 CKEditor5 Classic Build</strong>，这是一个预编译的包<br>
+        • <strong>无法通过添加 script 标签来安装额外插件</strong>（如 ImageResize）<br>
+        • 如需图片缩放功能，需要在项目中通过 npm 安装并<strong>自定义构建</strong> CKEditor5<br>
+        • Chatwoot 主项目使用 npm 版本，支持完整的图片功能和自定义配置<br>
+        • 参考：<code>app/javascript/dashboard/components/widgets/CKEditor5/CKEditor5.vue</code>
+      </div>
+    </div>
+
+    <script>
+      let editorInstance = null;
+
+      // 初始化编辑器
+      ClassicEditor
+        .create(document.querySelector('#editor'), {
+          // CKEditor5 44.x+ 需要许可证密钥，GPL 用于开源项目
+          licenseKey: 'GPL',
+          placeholder: '开始输入内容...',
+          toolbar: {
+            items: [
+              'heading',
+              '|',
+              'bold',
+              'italic',
+              'link',
+              '|',
+              'bulletedList',
+              'numberedList',
+              '|',
+              'blockQuote',
+              'insertTable',
+              '|',
+              'imageUpload',
+              'mediaEmbed',
+              '|',
+              'undo',
+              'redo',
+            ],
+          },
+          image: {
+            toolbar: [
+              'imageTextAlternative',
+              'toggleImageCaption',
+              'imageStyle:inline',
+              'imageStyle:block',
+              'imageStyle:side',
+            ],
+          },
+          table: {
+            contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells'],
+          },
+          heading: {
+            options: [
+              {
+                model: 'paragraph',
+                title: 'Paragraph',
+                class: 'ck-heading_paragraph',
+              },
+              {
+                model: 'heading1',
+                view: 'h1',
+                title: 'Heading 1',
+                class: 'ck-heading_heading1',
+              },
+              {
+                model: 'heading2',
+                view: 'h2',
+                title: 'Heading 2',
+                class: 'ck-heading_heading2',
+              },
+              {
+                model: 'heading3',
+                view: 'h3',
+                title: 'Heading 3',
+                class: 'ck-heading_heading3',
+              },
+            ],
+          },
+          link: {
+            decorators: {
+              openInNewTab: {
+                mode: 'manual',
+                label: 'Open in a new tab',
+                attributes: {
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
+                },
+              },
+            },
+          },
+        })
+        .then(editor => {
+          editorInstance = editor;
+          console.log('✅ CKEditor5 初始化成功', editor);
+
+          // 监听内容变化
+          editor.model.document.on('change:data', () => {
+            updateOutput();
+            updateStats();
+          });
+
+          // 初始化输出
+          updateOutput();
+          updateStats();
+        })
+        .catch(error => {
+          console.error('❌ CKEditor5 初始化失败:', error);
+        });
+
+      // 更新输出区域
+      function updateOutput() {
+        if (!editorInstance) return;
+
+        const data = editorInstance.getData();
+
+        // 更新 HTML 输出
+        const htmlOutput = document.getElementById('htmlOutput');
+        htmlOutput.textContent = data || '<p>空内容</p>';
+
+        // 更新内容预览
+        const contentPreview = document.getElementById('contentPreview');
+        contentPreview.innerHTML = data || '<p>空内容</p>';
+      }
+
+      // 更新统计信息
+      function updateStats() {
+        if (!editorInstance) return;
+
+        const data = editorInstance.getData();
+        const text = data.replace(/<[^>]*>/g, ''); // 移除 HTML 标签
+
+        // 字符数
+        document.getElementById('charCount').textContent = text.length;
+
+        // 单词数（简单统计，基于空格分隔）
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+        document.getElementById('wordCount').textContent = words.length;
+
+        // 段落数
+        const paragraphs = data.match(/<p>/g);
+        document.getElementById('paragraphCount').textContent = paragraphs ? paragraphs.length : 0;
+      }
+
+      // 设置最小高度
+      function setMinHeight(height) {
+        document.documentElement.style.setProperty('--min-height', height);
+        console.log('✅ 最小高度设置为:', height);
+      }
+
+      // 设置占位符
+      function setPlaceholder(text) {
+        if (!editorInstance) return;
+        editorInstance.config.set('placeholder', text);
+        console.log('✅ 占位符已更新:', text);
+      }
+
+      // 清空编辑器
+      function clearEditor() {
+        if (!editorInstance) return;
+        editorInstance.setData('');
+        console.log('✅ 编辑器已清空');
+      }
+
+      // 加载示例内容
+      function loadSampleContent() {
+        if (!editorInstance) return;
+        const sampleContent = `
+          <h1>CKEditor5 示例文档</h1>
+          <p>这是一段示例文本，用于测试 <strong>CKEditor5</strong> 在 Chatwoot 中的样式效果。</p>
+          <h2>功能特性</h2>
+          <ul>
+            <li>支持富文本编辑</li>
+            <li>图片上传和管理</li>
+            <li>表格插入</li>
+            <li>链接管理</li>
+          </ul>
+          <h3>代码示例</h3>
+          <blockquote>
+            <p>这是一段引用文本，可以用来突出显示重要内容。</p>
+          </blockquote>
+          <p>访问 <a href="https://chatwoot.com" target="_blank" rel="noopener noreferrer">Chatwoot 官网</a> 了解更多信息。</p>
+        `;
+        editorInstance.setData(sampleContent);
+        console.log('✅ 示例内容已加载');
+      }
+
+      // 聚焦编辑器
+      function focusEditor() {
+        if (!editorInstance) return;
+        editorInstance.editing.view.focus();
+        console.log('✅ 编辑器已聚焦');
+      }
+
+      // 插入图片（演示用）
+      function insertImage() {
+        if (!editorInstance) return;
+        const imageUrl = 'https://picsum.photos/200/200';
+        editorInstance.model.change(writer => {
+          const imageElement = writer.createElement('imageBlock', {
+            src: imageUrl
+          });
+          editorInstance.model.insertContent(imageElement, editorInstance.model.document.selection);
+        });
+        console.log('✅ 图片已插入');
+      }
+
+      // 插入表格
+      function insertTable() {
+        if (!editorInstance) return;
+        editorInstance.execute('insertTable', { rows: 3, columns: 3 });
+        console.log('✅ 表格已插入');
+      }
+
+      // 插入列表
+      function insertList() {
+        if (!editorInstance) return;
+        editorInstance.execute('bulletedList');
+        console.log('✅ 列表已插入');
+      }
+
+      // 插入链接
+      function insertLink() {
+        if (!editorInstance) return;
+        const url = prompt('请输入链接地址:', 'https://chatwoot.com');
+        if (url) {
+          editorInstance.execute('link', url);
+          console.log('✅ 链接已插入:', url);
+        }
+      }
+
+      // 应用标题
+      function applyHeading(heading) {
+        if (!editorInstance) return;
+        editorInstance.execute('heading', { value: heading });
+        console.log('✅ 标题已应用:', heading);
+      }
+
+      // 切换粗体
+      function toggleBold() {
+        if (!editorInstance) return;
+        editorInstance.execute('bold');
+        console.log('✅ 粗体已切换');
+      }
+
+      // 切换斜体
+      function toggleItalic() {
+        if (!editorInstance) return;
+        editorInstance.execute('italic');
+        console.log('✅ 斜体已切换');
+      }
+
+      // 插入引用
+      function insertBlockQuote() {
+        if (!editorInstance) return;
+        editorInstance.execute('blockQuote');
+        console.log('✅ 引用已插入');
+      }
+
+      // 获取编辑器数据
+      function getEditorData() {
+        if (!editorInstance) return;
+        const data = editorInstance.getData();
+        console.log('📋 编辑器数据:', data);
+        alert('数据已输出到控制台，请按 F12 查看');
+      }
+
+      // 插入视频嵌入
+      function insertMediaEmbed() {
+        if (!editorInstance) return;
+        const url = prompt('请输入视频链接（支持 YouTube、Vimeo 等）:', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+        if (url) {
+          editorInstance.execute('mediaEmbed', url);
+          console.log('✅ 视频已嵌入:', url);
+        }
+      }
+
+      // 切换主题
+      function toggleTheme() {
+        document.documentElement.classList.toggle('dark');
+        const isDark = document.documentElement.classList.contains('dark');
+        console.log('🎨 主题已切换为:', isDark ? '暗色' : '亮色');
+      }
+    </script>
+  </body>
+</html>
+

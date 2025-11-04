@@ -19,7 +19,8 @@
     "story:build": "histoire build",
     "story:preview": "histoire preview",
     "sync:i18n": "bin/sync_i18n_file_change",
-    "playground:iframe": "node script/playground-iframe.mjs"
+    "playground:iframe": "node script/playground-iframe.mjs",
+    "playground:ckeditor5": "node script/playground-ckeditor5.mjs"
   },
   "size-limit": [
     {
