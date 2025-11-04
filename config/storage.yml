@@ -13,10 +13,6 @@ amazon:
   secret_access_key: <%= ENV.fetch('AWS_SECRET_ACCESS_KEY', '') %>
   region: <%= ENV.fetch('AWS_REGION', '') %>
   bucket: <%= ENV.fetch('S3_BUCKET_NAME', '') %>
-  # 可选：配置CloudFront CDN域名，避免重定向
-  <% if ENV['CLOUDFRONT_CDN_HOST'].present? %>
-  asset_host: <%= ENV['CLOUDFRONT_CDN_HOST'] %>
-  <% end %>
 
 # Remember not to checkin your GCS keyfile to a repository
 google:
