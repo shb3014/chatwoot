@@ -53,6 +53,19 @@
     height: auto;
   }
 
+  /* 支持段落内的多张图片在同一行显示 */
+  .article-content.ck-content p img,
+  .article-content p img {
+    display: inline-block !important;
+    vertical-align: middle;
+    margin-right: 0.5em;
+  }
+
+  .article-content.ck-content p img:last-child,
+  .article-content p img:last-child {
+    margin-right: 0;
+  }
+
   /* 媒体嵌入样式 */
   .article-content .oembed-wrapper {
     margin: 2em 0;
