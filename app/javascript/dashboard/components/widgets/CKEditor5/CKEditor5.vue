@@ -132,6 +132,7 @@ export default {
 
     // 编辑器配置
     const editorConfig = {
+      licenseKey: 'GPL',
       placeholder: props.placeholder,
       toolbar: {
         items: [
