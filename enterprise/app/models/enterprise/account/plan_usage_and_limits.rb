@@ -107,7 +107,8 @@ module Enterprise::Account::PlanUsageAndLimits
 #
 #     return GlobalConfig.get(config_name)[config_name] if GlobalConfig.get(config_name)[config_name].present?
 
-    ChatwootApp.max_limit
+#     ChatwootApp.max_limit
+    99999999
   end
 
   def validate_limit_keys
