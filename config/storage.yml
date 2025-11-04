@@ -13,6 +13,12 @@ amazon:
   secret_access_key: <%= ENV.fetch('AWS_SECRET_ACCESS_KEY', '') %>
   region: <%= ENV.fetch('AWS_REGION', '') %>
   bucket: <%= ENV.fetch('S3_BUCKET_NAME', '') %>
+  # CDN 配置：使用 CDN 域名代替 S3 直连
+  # 如果设置了 CDN_HOST，则使用 CDN；否则使用 S3 直连
+  public: true
+  <% if ENV['CDN_HOST'].present? %>
+  asset_host: <%= ENV.fetch('CDN_HOST', '') %>
+  <% end %>
 
 # Remember not to checkin your GCS keyfile to a repository
 google:

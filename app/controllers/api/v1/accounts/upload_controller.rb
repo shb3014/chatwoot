@@ -59,7 +59,15 @@ class Api::V1::Accounts::UploadController < Api::V1::Accounts::BaseController
   end
 
   def render_success(file_blob)
-    render json: { file_url: url_for(file_blob), blob_key: file_blob.key, blob_id: file_blob.id }
+    # 使用公开的 CDN URL 而不是重定向 URL
+    # service_url 会使用 storage.yml 中配置的 asset_host (CDN)
+    file_url = if Rails.application.config.active_storage.service == :amazon
+                 file_blob.url
+               else
+                 url_for(file_blob)
+               end
+
+    render json: { file_url: file_url, blob_key: file_blob.key, blob_id: file_blob.id }
   end
 
   def render_error(message, status)
