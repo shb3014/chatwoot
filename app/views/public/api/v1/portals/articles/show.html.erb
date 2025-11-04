@@ -36,13 +36,48 @@
 <% end %>
 
 <div class="flex max-w-5xl w-full px-4 md:px-8 mx-auto">
-  <article id="cw-article-content" class="article-content flex-grow flex-2 mx-auto text-slate-800 dark:text-slate-50 text-lg max-w-3xl prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-0 prose-h3:text-lg prose-code:[&>p]:p-1 prose-code:[&>p]:rounded-sm prose-code:[&>p]:bg-black-100 dark:prose-code:[&>p]:bg-black-600 prose-code:after:content-none prose-code:before:content-none prose dark:prose-invert break-words w-full <%= @is_plain_layout_enabled ? 'py-4' : 'pt-8 pb-12' %>">
+  <article id="cw-article-content" class="article-content ck-content flex-grow flex-2 mx-auto text-slate-800 dark:text-slate-50 text-lg max-w-3xl prose-h1:text-2xl prose-h2:text-xl prose-h2:mt-0 prose-h3:text-lg prose-code:[&>p]:p-1 prose-code:[&>p]:rounded-sm prose-code:[&>p]:bg-black-100 dark:prose-code:[&>p]:bg-black-600 prose-code:after:content-none prose-code:before:content-none prose dark:prose-invert break-words w-full <%= @is_plain_layout_enabled ? 'py-4' : 'pt-8 pb-12' %>">
     <%= @parsed_content %>
   </article>
   <div class="flex-1" id="cw-hc-toc"></div>
 </div>
 <style>
+  /* 微调以配合 Tailwind prose 和 CKEditor5 内容样式 */
   .article-content li > p {
     margin: 0;
+  }
+
+  /* 确保图片在容器内响应式显示 */
+  .article-content img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* 暗色模式支持 - 覆盖 CKEditor5 默认的亮色样式 */
+  .dark .article-content.ck-content {
+    color: inherit;
+  }
+
+  .dark .article-content.ck-content figcaption {
+    color: #9ca3af;
+  }
+
+  .dark .article-content.ck-content blockquote {
+    color: inherit;
+    border-left-color: #4b5563;
+  }
+
+  .dark .article-content.ck-content table,
+  .dark .article-content.ck-content table td,
+  .dark .article-content.ck-content table th {
+    border-color: #374151;
+  }
+
+  .dark .article-content.ck-content table th {
+    background-color: #1f2937;
+  }
+
+  .dark .article-content.ck-content code {
+    background-color: #374151;
   }
 </style>

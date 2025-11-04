@@ -93,13 +93,14 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
         ul ol li blockquote pre code span div
         table thead tbody tfoot tr th td caption
         figure figcaption iframe hr
+        oembed
       ]
       scrubber.attributes = %w[
         href title target rel class style
         src alt width height
         border cellpadding cellspacing colspan rowspan
-        frameborder allowfullscreen
-        id
+        frameborder allowfullscreen allow
+        id url
       ]
 
       ActionController::Base.helpers.sanitize(content, scrubber: scrubber).html_safe
