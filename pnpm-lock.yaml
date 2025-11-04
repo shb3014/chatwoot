@@ -142,6 +142,9 @@ importers:
       chart.js:
         specifier: ~4.4.4
         version: 4.4.4
+      ckeditor5:
+        specifier: ^47.1.0
+        version: 47.1.0
       color2k:
         specifier: ^2.0.2
         version: 2.0.3
@@ -5807,6 +5810,8 @@ snapshots:
       '@ckeditor/ckeditor5-core': 47.1.0
       '@ckeditor/ckeditor5-utils': 47.1.0
       ckeditor5: 47.1.0
+    transitivePeerDependencies:
+      - supports-color
 
   '@ckeditor/ckeditor5-code-block@44.3.0':
     dependencies:
@@ -5902,8 +5907,6 @@ snapshots:
       '@ckeditor/ckeditor5-utils': 47.1.0
       ckeditor5: 47.1.0
       es-toolkit: 1.39.5
-    transitivePeerDependencies:
-      - supports-color
 
   '@ckeditor/ckeditor5-editor-decoupled@44.3.0':
     dependencies:
@@ -6011,6 +6014,8 @@ snapshots:
       '@ckeditor/ckeditor5-core': 47.1.0
       '@ckeditor/ckeditor5-engine': 47.1.0
       '@ckeditor/ckeditor5-utils': 47.1.0
+    transitivePeerDependencies:
+      - supports-color
 
   '@ckeditor/ckeditor5-essentials@44.3.0':
     dependencies:
@@ -6684,8 +6689,6 @@ snapshots:
       '@ckeditor/ckeditor5-icons': 47.1.0
       '@ckeditor/ckeditor5-ui': 47.1.0
       '@ckeditor/ckeditor5-utils': 47.1.0
-    transitivePeerDependencies:
-      - supports-color
 
   '@ckeditor/ckeditor5-upload@44.3.0':
     dependencies:

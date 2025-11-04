@@ -7,20 +7,23 @@ import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { Ckeditor } from '@ckeditor/ckeditor5-vue';
 
+// 导入 CKEditor5 样式
+import 'ckeditor5/ckeditor5.css';
+
 // CKEditor5 核心编辑器
-import { ClassicEditor as ClassicEditorBase } from '@ckeditor/ckeditor5-editor-classic';
+import { ClassicEditor as ClassicEditorBase } from 'ckeditor5';
 
 // CKEditor5 插件
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { Link } from '@ckeditor/ckeditor5-link';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { List } from '@ckeditor/ckeditor5-list';
-import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
-import { Table, TableToolbar } from '@ckeditor/ckeditor5-table';
-import { MediaEmbed } from '@ckeditor/ckeditor5-media-embed';
-import { Undo } from '@ckeditor/ckeditor5-undo';
+import { Essentials } from 'ckeditor5';
+import { Bold, Italic } from 'ckeditor5';
+import { Link } from 'ckeditor5';
+import { Paragraph } from 'ckeditor5';
+import { Heading } from 'ckeditor5';
+import { List } from 'ckeditor5';
+import { BlockQuote } from 'ckeditor5';
+import { Table, TableToolbar } from 'ckeditor5';
+import { MediaEmbed } from 'ckeditor5';
+import { Undo } from 'ckeditor5';
 import {
   Image,
   ImageCaption,
@@ -28,7 +31,7 @@ import {
   ImageStyle,
   ImageToolbar,
   ImageUpload,
-} from '@ckeditor/ckeditor5-image';
+} from 'ckeditor5';
 
 export default {
   name: 'CKEditor5',
