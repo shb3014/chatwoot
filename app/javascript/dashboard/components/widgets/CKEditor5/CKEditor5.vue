@@ -9,6 +9,8 @@ import { Ckeditor } from '@ckeditor/ckeditor5-vue';
 
 // 导入 CKEditor5 样式
 import 'ckeditor5/ckeditor5.css';
+// 导入 CKEditor5 内容样式（用于编辑区域内的标题、段落等元素）
+import 'ckeditor5/ckeditor5-content.css';
 
 // CKEditor5 核心编辑器
 import { ClassicEditor as ClassicEditorBase } from 'ckeditor5';
@@ -351,6 +353,33 @@ export default {
 
     &:hover {
       @apply bg-n-slate-3;
+    }
+  }
+
+  // 图片 caption 样式
+  .ck-editor__editable {
+    figure.image {
+      margin: 1em auto;
+
+      figcaption {
+        padding: 0.5em 0.8em;
+        font-size: 0.875em;
+        line-height: 1.5;
+        min-height: auto !important;
+        max-height: 4em;
+        overflow: hidden;
+        word-wrap: break-word;
+
+        &:empty::before {
+          content: attr(data-placeholder);
+          color: #999;
+        }
+      }
+    }
+
+    // 图片调整大小手柄样式优化
+    .image-resizer {
+      display: block;
     }
   }
 
