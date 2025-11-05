@@ -121,7 +121,7 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
 
     # 匹配完整的 Active Storage URL（包含域名）
     # 格式: https://domain.com/rails/active_storage/blobs/redirect/{signed_id}/{filename}
-    content.gsub(%r{https?://[^/]+/rails/active_storage/blobs/redirect/([^/]+)/([^"'\s>]+)}) do |match|
+    replaced_content = content.gsub(%r{https?://[^/]+/rails/active_storage/blobs/redirect/([^/]+)/([^"'\s>]+)}) do |match|
       signed_id = Regexp.last_match(1)
       filename = Regexp.last_match(2)
 
@@ -141,6 +141,9 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
         match
       end
     end
+
+    # 保持 html_safe 标记
+    replaced_content.html_safe
   end
 
   # 为 S3 存储的 blob 生成 CDN URL
