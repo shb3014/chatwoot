@@ -85,29 +85,69 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
 
     # 检测内容格式：如果包含 HTML 标签，则视为 HTML 格式
     # CKEditor 5 存储 HTML，旧编辑器存储 Markdown
-    if content.strip.start_with?('<') || content.include?('<p>') || content.include?('<h1>') || content.include?('<h2>')
-      # HTML 格式 - 使用自定义的 sanitize 配置
-      scrubber = Rails::Html::PermitScrubber.new
-      scrubber.tags = %w[
-        p br strong em u s del b i a img h1 h2 h3 h4 h5 h6
-        ul ol li blockquote pre code span div
-        table thead tbody tfoot tr th td caption
-        figure figcaption iframe hr
-        oembed
-      ]
-      scrubber.attributes = %w[
-        href title target rel class style
-        src alt width height
-        border cellpadding cellspacing colspan rowspan
-        frameborder allowfullscreen allow
-        id url
-      ]
+    rendered_content = if content.strip.start_with?('<') || content.include?('<p>') || content.include?('<h1>') || content.include?('<h2>')
+                         # HTML 格式 - 使用自定义的 sanitize 配置
+                         scrubber = Rails::Html::PermitScrubber.new
+                         scrubber.tags = %w[
+                           p br strong em u s del b i a img h1 h2 h3 h4 h5 h6
+                           ul ol li blockquote pre code span div
+                           table thead tbody tfoot tr th td caption
+                           figure figcaption iframe hr
+                           oembed
+                         ]
+                         scrubber.attributes = %w[
+                           href title target rel class style
+                           src alt width height
+                           border cellpadding cellspacing colspan rowspan
+                           frameborder allowfullscreen allow
+                           id url
+                         ]
 
-      ActionController::Base.helpers.sanitize(content, scrubber: scrubber).html_safe
-    else
-      # Markdown 格式 - 使用现有的渲染器（向后兼容）
-      ChatwootMarkdownRenderer.new(content).render_article
+                         ActionController::Base.helpers.sanitize(content, scrubber: scrubber).html_safe
+                       else
+                         # Markdown 格式 - 使用现有的渲染器（向后兼容）
+                         ChatwootMarkdownRenderer.new(content).render_article
+                       end
+
+    # 如果配置了 CDN，替换 Active Storage URL
+    replace_urls_with_cdn(rendered_content)
+  end
+
+  # 替换内容中的 Active Storage URL 为 CDN 直链（仅限 Amazon S3）
+  def replace_urls_with_cdn(content)
+    return content if ENV['CLOUDFRONT_CDN_HOST'].blank?
+
+    cdn_host = ENV['CLOUDFRONT_CDN_HOST']
+
+    # 匹配所有 Active Storage 重定向 URL
+    # 格式: /rails/active_storage/blobs/redirect/{signed_id}/{filename}
+    content.gsub(%r{/rails/active_storage/blobs/redirect/([^/]+)/([^"'\s>]+)}) do |match|
+      signed_id = Regexp.last_match(1)
+      filename = Regexp.last_match(2)
+
+      begin
+        # 通过 signed_id 获取 blob
+        blob = ActiveStorage::Blob.find_signed(signed_id)
+
+        if blob && blob.service_name.to_sym.in?([:amazon, :s3_compatible])
+          # 只处理 Amazon S3 存储
+          generate_s3_cdn_url(blob, cdn_host)
+        else
+          # 非 S3 存储，保持原样
+          match
+        end
+      rescue ActiveSupport::MessageVerifier::InvalidSignature, ActiveRecord::RecordNotFound
+        # 签名无效或记录不存在，保持原样
+        match
+      end
     end
+  end
+
+  # 为 S3 存储的 blob 生成 CDN URL
+  def generate_s3_cdn_url(blob, cdn_host)
+    # 使用 CDN 域名 + blob key
+    # 格式: https://cdn.example.com/{key}
+    "#{cdn_host}/#{blob.key}"
   end
 end
 
