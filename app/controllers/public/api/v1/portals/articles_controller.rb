@@ -119,9 +119,9 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
 
     cdn_host = ENV['CLOUDFRONT_CDN_HOST']
 
-    # 匹配所有 Active Storage 重定向 URL
-    # 格式: /rails/active_storage/blobs/redirect/{signed_id}/{filename}
-    content.gsub(%r{/rails/active_storage/blobs/redirect/([^/]+)/([^"'\s>]+)}) do |match|
+    # 匹配完整的 Active Storage URL（包含域名）
+    # 格式: https://domain.com/rails/active_storage/blobs/redirect/{signed_id}/{filename}
+    content.gsub(%r{https?://[^/]+/rails/active_storage/blobs/redirect/([^/]+)/([^"'\s>]+)}) do |match|
       signed_id = Regexp.last_match(1)
       filename = Regexp.last_match(2)
 
@@ -130,7 +130,7 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
         blob = ActiveStorage::Blob.find_signed(signed_id)
 
         if blob && blob.service_name.to_sym.in?([:amazon, :s3_compatible])
-          # 只处理 Amazon S3 存储
+          # 只处理 Amazon S3 存储，生成 CDN URL
           generate_s3_cdn_url(blob, cdn_host)
         else
           # 非 S3 存储，保持原样
