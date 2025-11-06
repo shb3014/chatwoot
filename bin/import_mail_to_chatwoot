@@ -1,0 +1,8 @@
+INGRESS_PASSWORD=PlantsioEmail
+URL=http://chat.plantsio.com/rails/action_mailbox/relay/inbound_emails
+
+curl -sS -u "actionmailbox:$INGRESS_PASSWORD" \
+ -A "Action Mailbox curl relayer" \
+ -H "Content-Type: message/rfc822" \
+ --data-binary @- \
+ $URL
