@@ -505,6 +505,7 @@ Rails.application.routes.draw do
 
   # 自定义域名简化路由（仅当使用自定义域名时匹配）
   # 这些路由会通过 PublicController#ensure_custom_domain_request 来验证自定义域名
+  # 注意：根路径 (/) 必须放在最后，因为 Rails 路由从上到下匹配
   get ':locale/categories/:category_slug', to: 'public/api/v1/portals/categories#show', constraints: lambda { |request|
     domain = request.host
     !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
@@ -514,6 +515,14 @@ Rails.application.routes.draw do
     !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
   }
   get 'articles/:article_slug', to: 'public/api/v1/portals/articles#show', constraints: lambda { |request|
+    domain = request.host
+    !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
+  }
+  get ':locale', to: 'public/api/v1/portals#show', constraints: lambda { |request|
+    domain = request.host
+    !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
+  }
+  get '/', to: 'public/api/v1/portals#show', constraints: lambda { |request|
     domain = request.host
     !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
   }

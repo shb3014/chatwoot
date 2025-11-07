@@ -17,13 +17,19 @@ class Public::Api::V1::PortalsController < Public::Api::V1::Portals::BaseControl
   private
 
   def portal
-    @portal ||= Portal.find_by!(slug: params[:slug], archived: false)
-    @locale = params[:locale] || @portal.default_locale
+    # 使用 BaseController 的 portal 方法，它已经处理了自定义域名的情况
+    super
   end
 
   def redirect_to_portal_with_locale
     return if params[:locale].present?
 
-    redirect_to "/hc/#{@portal.slug}/#{@portal.default_locale}"
+    # 如果是自定义域名，重定向到 /:locale
+    # 否则重定向到标准路径 /hc/:slug/:locale
+    if !DomainHelper.chatwoot_domain?(request.host) && @portal&.custom_domain.present?
+      redirect_to "/#{@portal.default_locale}"
+    else
+      redirect_to "/hc/#{@portal.slug}/#{@portal.default_locale}"
+    end
   end
 end
