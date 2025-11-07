@@ -93,7 +93,7 @@ const onArticleClick = link => {
     <!-- 搜索框 -->
     <div class="relative">
       <div
-        class="left-0 w-8 top-0.5 h-8 flex justify-center items-center"
+        class="left-0 w-full top-0.5 h-8 flex justify-center items-center"
       >
         <svg
           class="w-4 h-4 text-n-slate-10 mr-2"
