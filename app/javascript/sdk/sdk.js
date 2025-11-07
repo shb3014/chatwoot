@@ -150,6 +150,7 @@ export const SDK_CSS = `
 
 .woot-widget-bubble.woot-elements--right {
   right: 20px;
+  bottom: 70px;
 }
 
 .woot-widget-bubble:hover {
