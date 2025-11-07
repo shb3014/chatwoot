@@ -92,13 +92,13 @@ const onArticleClick = link => {
 
     <!-- 搜索框 -->
     <div
-      class="group flex h-9 items-center rounded-md border border-n-weak bg-slate-100 px-3 transition-colors duration-200 hover:bg-[rgba(10,168,154,0.08)] focus-within:border-[rgb(10,168,154)] focus-within:bg-[rgba(10,168,154,0.08)]"
+      class="group flex h-9 items-center rounded-lg border border-n-weak bg-slate-100 px-3 transition-colors duration-200 hover:bg-[rgba(10,168,154,0.08)] focus-within:border-[rgb(10,168,154)] focus-within:bg-[rgba(10,168,154,0.08)]"
     >
       <input
         type="text"
         :value="searchQuery"
         :placeholder="$t('PORTAL.SEARCH_ARTICLES')"
-        class="flex-1 h-full rounded-full border-0 bg-slate-100 text-sm text-slate-600 placeholder:text-slate-400 transition-colors duration-200 group-hover:bg-transparent group-hover:text-[rgb(10,168,154)] group-focus-within:bg-transparent group-focus-within:text-[rgb(10,168,154)] focus:bg-transparent focus:outline-none focus:ring-0 focus:border-0 focus:text-[rgb(10,168,154)] focus:placeholder:text-[rgba(10,168,154,0.7)]"
+        class="flex-1 h-full rounded-full border-0 bg-slate-100 text-sm text-slate-600 placeholder:text-slate-400 transition-colors duration-200 group-hover:bg-transparent group-hover:text-[rgb(10,168,154)] group-focus-within:bg-transparent group-focus-within:text-[rgb(10,168,154)] focus:bg-transparent focus:outline-none focus:ring-0 focus:border-0 focus:text-[rgb(10,168,154)] focus:placeholder:text-[rgba(10,168,154,0.7)] search-input"
         @input="onSearchInput"
       />
       <svg
@@ -147,3 +147,17 @@ const onArticleClick = link => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.search-input {
+  background: transparent;
+  outline-width: 0;
+  outline-color: transparent;
+}
+
+.search-input:focus {
+  background-color: transparent !important; /* 聚焦时取消背景色 */
+  box-shadow: none !important; /* 去掉聚焦时的阴影效果 */
+  outline-color: transparent !important;
+}
+</style>
