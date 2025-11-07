@@ -145,6 +145,7 @@ export const SDK_CSS = `
 
 .woot-widget-bubble.woot-elements--left {
   left: 20px;
+  bottom: 70px;
 }
 
 .woot-widget-bubble.woot-elements--right {
