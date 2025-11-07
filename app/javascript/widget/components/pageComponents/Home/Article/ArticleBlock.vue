@@ -40,7 +40,9 @@ const articlesToDisplay = computed(() => {
 });
 
 const showNoResults = computed(() => {
-  return searchQuery.value && !isSearching.value && searchResults.value.length === 0;
+  return (
+    searchQuery.value && !isSearching.value && searchResults.value.length === 0
+  );
 });
 
 const performSearch = async query => {
@@ -90,9 +92,11 @@ const onArticleClick = link => {
 
     <!-- 搜索框 -->
     <div class="relative">
-      <div class="absolute left-0 w-8 top-0.5 h-8 flex justify-center items-center">
+      <div
+        class="left-0 w-8 top-0.5 h-8 flex justify-center items-center"
+      >
         <svg
-          class="w-4 h-4 text-n-slate-10"
+          class="w-4 h-4 text-n-slate-10 mr-2"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -104,22 +108,19 @@ const onArticleClick = link => {
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
         </svg>
+        <input
+          type="text"
+          :value="searchQuery"
+          :placeholder="$t('PORTAL.SEARCH_ARTICLES')"
+          class="w-full h-9 pl-8 pr-3 text-sm border border-solid border-n-weak rounded-md bg-n-slate-2 text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none focus:border-n-brand focus:ring-2 focus:ring-n-brand"
+          @input="onSearchInput"
+        />
       </div>
-      <input
-        type="text"
-        :value="searchQuery"
-        :placeholder="$t('PORTAL.SEARCH_ARTICLES')"
-        class="w-full h-9 pl-8 pr-3 text-sm border border-solid border-n-weak rounded-md bg-n-slate-2 text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none focus:border-n-brand focus:ring-2 focus:ring-n-brand"
-        @input="onSearchInput"
-      />
     </div>
 
     <!-- 文章列表 -->
     <div class="flex flex-col gap-4">
-      <div
-        v-if="isSearching"
-        class="text-center py-8 text-n-slate-10 text-sm"
-      >
+      <div v-if="isSearching" class="text-center py-8 text-n-slate-10 text-sm">
         {{ $t('PORTAL.SEARCHING') }}
       </div>
       <div
