@@ -107,6 +107,16 @@ const getMostReadArticles = (slug, locale) => ({
   },
 });
 
+const searchArticles = (slug, locale, query) => ({
+  url: `/hc/${slug}/${locale}/articles.json`,
+  params: {
+    query,
+    page: 1,
+    status: 1,
+    per_page: 6,
+  },
+});
+
 export default {
   createConversation,
   sendMessage,
@@ -117,4 +127,5 @@ export default {
   getCampaigns,
   triggerCampaign,
   getMostReadArticles,
+  searchArticles,
 };

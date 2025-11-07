@@ -125,6 +125,9 @@
   "PORTAL": {
     "POPULAR_ARTICLES": "Popular Articles",
     "VIEW_ALL_ARTICLES": "View all articles",
+    "SEARCH_ARTICLES": "Search articles",
+    "SEARCHING": "Searching...",
+    "NO_RESULTS": "No articles found",
     "IFRAME_LOAD_ERROR": "There was an error loading the article, please refresh the page and try again."
   },
   "ATTACHMENTS": {
