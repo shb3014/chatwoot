@@ -91,31 +91,27 @@ const onArticleClick = link => {
     </h3>
 
     <!-- 搜索框 -->
-    <div class="relative">
-      <div
-        class="left-0 w-full top-0.5 h-8 flex justify-center items-center"
+    <div class="relative flex items-center bg-slate-100 rounded-lg px-3 py-1 transition-colors duration-200 hover:bg-[rgba(10,168,154,0.08)] focus-within:bg-[rgba(10,168,154,0.08)] group">
+      <input
+        type="text"
+        :value="searchQuery"
+        :placeholder="$t('PORTAL.SEARCH_ARTICLES')"
+        class="flex-1 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:text-[rgb(10,168,154)] transition-colors duration-200"
+        @input="onSearchInput"
+      />
+      <svg
+        class="w-4 h-4 ml-2 text-slate-400 transition-colors duration-200 group-hover:text-[rgb(10,168,154)] group-focus-within:text-[rgb(10,168,154)]"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
       >
-        <svg
-          class="w-4 h-4 text-n-slate-10 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-        <input
-          type="text"
-          :value="searchQuery"
-          :placeholder="$t('PORTAL.SEARCH_ARTICLES')"
-          class="w-full h-9 pl-8 pr-3 text-sm border border-solid border-n-weak rounded-md bg-n-slate-2 text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none focus:border-n-brand focus:ring-2 focus:ring-n-brand"
-          @input="onSearchInput"
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         />
-      </div>
+      </svg>
     </div>
 
     <!-- 文章列表 -->
