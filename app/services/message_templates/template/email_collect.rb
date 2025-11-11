@@ -59,17 +59,21 @@ class MessageTemplates::Template::EmailCollect
   end
 
   def template_locale
-    locale_from_conversation =
-      conversation.additional_attributes&.dig('conversation_language') ||
-      conversation.additional_attributes&.dig('browser_language')
+    @template_locale ||= begin
+      locale_from_conversation =
+        conversation.additional_attributes&.dig('conversation_language') ||
+        conversation.additional_attributes&.dig('browser_language')
 
-    normalized_locale(locale_from_conversation) || normalized_locale(account.locale) || I18n.default_locale
+      normalized_locale(locale_from_conversation) ||
+        normalized_locale(account.locale) ||
+        I18n.default_locale
+    end
   end
 
   def normalized_locale(locale)
     return if locale.blank?
 
-    locale_str = locale.to_s
+    locale_str = locale.to_s.tr('-', '_')
     available_locales = I18n.available_locales.map(&:to_s)
     return locale_str if available_locales.include?(locale_str)
 
