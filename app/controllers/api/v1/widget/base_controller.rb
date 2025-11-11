@@ -17,7 +17,11 @@ class Api::V1::Widget::BaseController < ApplicationController
   end
 
   def conversation
-    @conversation ||= conversations.last
+    @conversation ||= begin
+      conv = conversations.last
+      update_conversation_language!(conv)
+      conv
+    end
   end
 
   def create_conversation
@@ -30,7 +34,7 @@ class Api::V1::Widget::BaseController < ApplicationController
 
   def conversation_params
     # FIXME: typo referrer in additional attributes, will probably require a migration.
-    {
+    params_hash = {
       account_id: inbox.account_id,
       inbox_id: inbox.id,
       contact_id: @contact.id,
@@ -43,10 +47,33 @@ class Api::V1::Widget::BaseController < ApplicationController
       },
       custom_attributes: permitted_params[:custom_attributes].presence || {}
     }
+    conversation_locale = conversation_locale_param
+    if conversation_locale
+      params_hash[:additional_attributes][:conversation_language] = conversation_locale
+    end
+    params_hash
   end
 
   def contact_email
     permitted_params.dig(:contact, :email)&.downcase
+  end
+
+  def update_conversation_language!(conversation_record)
+    conversation_locale = conversation_locale_param
+    return if conversation_record.blank? || conversation_locale.blank?
+
+    additional_attributes = conversation_record.additional_attributes || {}
+    return if additional_attributes['conversation_language'] == conversation_locale
+
+    conversation_record.update!(
+      additional_attributes: additional_attributes.merge('conversation_language' => conversation_locale)
+    )
+  end
+
+  def conversation_locale_param
+    return unless params[:locale].present?
+
+    validate_and_get_locale(params[:locale])
   end
 
   def contact_name

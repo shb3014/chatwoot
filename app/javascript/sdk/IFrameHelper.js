@@ -53,7 +53,12 @@ const updateCampaignReadStatus = baseDomain => {
 
 export const IFrameHelper = {
   getUrl({ baseUrl, websiteToken }) {
-    return `${baseUrl}/widget?website_token=${websiteToken}`;
+    const params = new URLSearchParams({ website_token: websiteToken });
+    const locale = window.$chatwoot?.locale;
+    if (locale) {
+      params.append('locale', locale);
+    }
+    return `${baseUrl}/widget?${params.toString()}`;
   },
   createFrame: ({ baseUrl, websiteToken }) => {
     if (IFrameHelper.getAppFrame()) {

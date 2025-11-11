@@ -17,7 +17,7 @@ class MessageTemplates::Template::EmailCollect
   delegate :inbox, to: :message
 
   def ways_to_reach_you_message_params
-    base_content = I18n.with_locale(account.locale) do
+    base_content = I18n.with_locale(template_locale) do
       I18n.t('conversations.templates.ways_to_reach_you_message_body',
              account_name: account.name)
     end
@@ -33,7 +33,7 @@ class MessageTemplates::Template::EmailCollect
   end
 
   def email_input_box_template_message_params
-    base_content = I18n.with_locale(account.locale) do
+    base_content = I18n.with_locale(template_locale) do
       I18n.t('conversations.templates.email_input_box_message_body',
              account_name: account.name)
     end
@@ -56,5 +56,24 @@ class MessageTemplates::Template::EmailCollect
   rescue StandardError => e
     Rails.logger.error "[EmailCollect] Translation failed: #{e.message}"
     message
+  end
+
+  def template_locale
+    locale_from_conversation =
+      conversation.additional_attributes&.dig('conversation_language') ||
+      conversation.additional_attributes&.dig('browser_language')
+
+    normalized_locale(locale_from_conversation) || normalized_locale(account.locale) || I18n.default_locale
+  end
+
+  def normalized_locale(locale)
+    return if locale.blank?
+
+    locale_str = locale.to_s
+    available_locales = I18n.available_locales.map(&:to_s)
+    return locale_str if available_locales.include?(locale_str)
+
+    locale_without_variant = locale_str.split('_')[0]
+    return locale_without_variant if available_locales.include?(locale_without_variant)
   end
 end
