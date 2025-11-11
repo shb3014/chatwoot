@@ -64,6 +64,12 @@ class MessageTemplates::Template::EmailCollect
         conversation.additional_attributes&.dig('conversation_language') ||
         conversation.additional_attributes&.dig('browser_language')
 
+      Rails.logger.info(
+        "[EmailCollect] resolved locale: conversation_language=#{conversation.additional_attributes&.dig('conversation_language')}, " \
+        "browser_language=#{conversation.additional_attributes&.dig('browser_language')}, " \
+        "account_locale=#{account.locale}"
+      )
+
       normalized_locale(locale_from_conversation) ||
         normalized_locale(account.locale) ||
         I18n.default_locale

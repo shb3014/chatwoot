@@ -50,6 +50,7 @@ class Api::V1::Widget::BaseController < ApplicationController
     conversation_locale = conversation_locale_param
     if conversation_locale
       params_hash[:additional_attributes][:conversation_language] = conversation_locale
+      params_hash[:additional_attributes][:browser_language] = conversation_locale
     end
     params_hash
   end
@@ -63,10 +64,15 @@ class Api::V1::Widget::BaseController < ApplicationController
     return if conversation_record.blank? || conversation_locale.blank?
 
     additional_attributes = conversation_record.additional_attributes || {}
-    return if additional_attributes['conversation_language'] == conversation_locale
+    return if additional_attributes['conversation_language'] == conversation_locale &&
+              additional_attributes['browser_language'] == conversation_locale
 
     conversation_record.update!(
-      additional_attributes: additional_attributes.merge('conversation_language' => conversation_locale)
+      additional_attributes:
+        additional_attributes.merge(
+          'conversation_language' => conversation_locale,
+          'browser_language' => conversation_locale
+        )
     )
   end
 
