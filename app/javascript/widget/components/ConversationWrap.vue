@@ -47,10 +47,15 @@ export default {
     showStatusIndicator() {
       const { status } = this.conversationAttributes;
       const isConversationInPendingStatus = status === 'pending';
-      const isLastMessageIncoming =
-        this.lastMessage.message_type === MESSAGE_TYPE.INCOMING;
+      const lastMessageType = this.lastMessage?.message_type;
+      const lastMessageContentType = this.lastMessage?.content_type;
+      const isLastMessageIncoming = lastMessageType === MESSAGE_TYPE.INCOMING;
+      const shouldForceIndicator =
+        lastMessageType === MESSAGE_TYPE.TEMPLATE &&
+        lastMessageContentType === 'input_email';
       return (
         this.isAgentTyping ||
+        shouldForceIndicator ||
         (isConversationInPendingStatus && isLastMessageIncoming)
       );
     },
