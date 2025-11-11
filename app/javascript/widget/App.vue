@@ -145,6 +145,11 @@ export default {
         lang => lang.iso_639_1_code === localeWithVariation
       );
 
+      console.log('hasLocaleWithVariation', hasLocaleWithVariation);
+      console.log('hasLocaleWithoutVariation', hasLocaleWithoutVariation);
+      console.log('localeWithVariation', localeWithVariation);
+      console.log('localeWithoutVariation', localeWithoutVariation);
+
       if (hasLocaleWithVariation) {
         this.$root.$i18n.locale = localeWithVariation;
       } else if (hasLocaleWithoutVariation) {
