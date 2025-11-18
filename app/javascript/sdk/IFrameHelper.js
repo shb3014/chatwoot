@@ -6,7 +6,6 @@ import {
   onLocationChangeListener,
 } from './DOMHelpers';
 import {
-  body,
   widgetHolder,
   createBubbleHolder,
   createBubbleIcon,
@@ -90,7 +89,15 @@ export const IFrameHelper = {
     widgetHolder.id = 'cw-widget-holder';
     widgetHolder.dataset.turboPermanent = true;
     widgetHolder.appendChild(iframe);
-    body.appendChild(widgetHolder);
+    
+    if (document.body) {
+      document.body.appendChild(widgetHolder);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        document.body.appendChild(widgetHolder);
+      });
+    }
+    
     IFrameHelper.initPostMessageCommunication();
     IFrameHelper.initWindowSizeListener();
     IFrameHelper.preventDefaultScroll();
