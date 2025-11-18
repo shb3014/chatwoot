@@ -6,7 +6,15 @@ export const loadCSS = () => {
   css.innerHTML = `${SDK_CSS}`;
   css.id = 'cw-widget-styles';
   css.dataset.turboPermanent = true;
-  document.body.appendChild(css);
+
+  if (document.body) {
+    document.body.appendChild(css);
+  } else {
+    // 如果 body 还不存在，等待 DOM 加载完成
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.appendChild(css);
+    });
+  }
 };
 
 // This is a method specific to Turbo
