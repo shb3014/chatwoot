@@ -126,6 +126,7 @@ const updateArticlesMeta = () => {
 };
 
 const handleArticleAction = async (action, { status, id }) => {
+  console.log('Action triggered:', action, id);
   const { portalSlug } = route.params;
 
   if (action === 'translate') {
