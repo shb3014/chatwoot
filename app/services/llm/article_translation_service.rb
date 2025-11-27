@@ -1,9 +1,15 @@
+require 'openai'
+
 module Llm
   class ArticleTranslationService
     def initialize(article, target_locale)
       @article = article
       @target_locale = target_locale
-      @client = Agents::OpenAI.new
+
+      api_key = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
+      @model = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value || 'gpt-4o-mini'
+
+      @client = OpenAI::Client.new(access_token: api_key)
     end
 
     def translate
@@ -12,7 +18,7 @@ module Llm
 
       translated_title = translate_text(@article.title, "title")
       translated_content = translate_text(@article.content, "content")
-      
+
       # Description is optional
       translated_description = @article.description.present? ? translate_text(@article.description, "description") : nil
 
@@ -36,7 +42,7 @@ module Llm
 
       response = @client.chat(
         parameters: {
-          model: Agents.config.default_model,
+          model: @model,
           messages: [
             { role: "system", content: prompt },
             { role: "user", content: text }
