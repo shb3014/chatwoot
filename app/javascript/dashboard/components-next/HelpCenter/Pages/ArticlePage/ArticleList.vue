@@ -167,7 +167,7 @@ const handleArticleAction = async (action, { status, id }) => {
 };
 
 const updateArticle = ({ action, value, id }) => {
-  const status = action !== 'delete' ? getArticleStatus(value) : null;
+  const status = action !== 'delete' && action !== 'translate' ? getArticleStatus(value) : null;
   handleArticleAction(action, { status, id });
 };
 
