@@ -43,7 +43,53 @@ class Api::V1::Accounts::ArticlesController < Api::V1::Accounts::BaseController
     head :ok
   end
 
+  def translate
+    # Get the target locale from params
+    target_locale = params[:target_locale]
+
+    # Validate target locale
+    render json: { error: 'Target locale is required' }, status: :unprocessable_entity and return unless target_locale.present?
+
+    # Create a new article with translated content
+    translated_article = @portal.articles.create!(
+      title: translate_content(@article.title, target_locale),
+      description: @article.description.present? ? translate_content(@article.description, target_locale) : nil,
+      content: translate_content(@article.content, target_locale),
+      author_id: @article.author_id,
+      category_id: @article.category_id,
+      locale: target_locale,
+      status: @article.status
+    )
+
+    # Associate with the original article
+    translated_article.associate_root_article(@article.associated_article_id || @article.id)
+
+    render json: { payload: translated_article }, status: :ok
+  end
+
   private
+
+  def translate_content(content, target_locale)
+    # Use the LLM service to translate content
+    llm_service = Llm::BaseOpenAiService.new
+
+    # Prepare the prompt for translation
+    prompt = <<~PROMPT
+      Translate the following content to #{target_locale}:
+
+      #{content}
+    PROMPT
+
+    # Call the OpenAI API
+    response = llm_service.send(:client).chat(parameters: {
+      model: llm_service.instance_variable_get(:@model),
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3
+    })
+
+    # Extract the translated content from the response
+    response.dig('choices', 0, 'message', 'content')
+  end
 
   def set_article_count
     # Search the params without status and author_id, use this to

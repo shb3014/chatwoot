@@ -91,6 +91,12 @@ export const ARTICLE_MENU_ITEMS = {
     action: 'archive',
     icon: 'i-lucide-archive-restore',
   },
+  translate: {
+    label: 'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.TRANSLATE',
+    value: 'translate',
+    action: 'translate',
+    icon: 'i-lucide-language',
+  },
   delete: {
     label: 'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.DELETE',
     value: 'delete',

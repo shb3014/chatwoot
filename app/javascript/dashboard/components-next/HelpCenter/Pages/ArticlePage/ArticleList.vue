@@ -10,6 +10,7 @@ import { getArticleStatus } from 'dashboard/helper/portalHelper.js';
 import wootConstants from 'dashboard/constants/globals';
 
 import ArticleCard from 'dashboard/components-next/HelpCenter/ArticleCard/ArticleCard.vue';
+import TranslateArticleDialog from 'dashboard/components-next/HelpCenter/Pages/ArticlePage/TranslateArticleDialog.vue';
 
 const props = defineProps({
   articles: {
@@ -30,6 +31,9 @@ const store = useStore();
 const { t } = useI18n();
 
 const localArticles = ref(props.articles);
+const translateDialogRef = ref(null);
+const currentArticle = ref(null);
+const portal = useMapGetter('portals/currentPortal');
 
 const dragEnabled = computed(() => {
   // Enable dragging only for category articles and when there's more than one article
@@ -121,6 +125,15 @@ const handleArticleAction = async (action, { status, id }) => {
         articleId: id,
       });
       useAlert(t('HELP_CENTER.DELETE_ARTICLE.API.SUCCESS_MESSAGE'));
+    } else if (action === 'translate') {
+      // Find the article by id
+      const article = localArticles.value.find(article => article.id === id);
+      if (article) {
+        currentArticle.value = article;
+        // Open the translate dialog
+        translateDialogRef.value?.dialogRef?.open();
+      }
+      return;
     } else {
       await store.dispatch('articles/update', {
         portalSlug,
@@ -138,13 +151,14 @@ const handleArticleAction = async (action, { status, id }) => {
     await updateArticlesMeta();
     await updatePortalMeta();
   } catch (error) {
-    const errorMessage =
-      error?.message ||
-      (action === 'delete'
-        ? t('HELP_CENTER.DELETE_ARTICLE.API.ERROR_MESSAGE')
-        : getStatusMessage(status, false));
+    const errorMessage = error?.message || (action === 'delete' ? t('HELP_CENTER.DELETE_ARTICLE.API.ERROR_MESSAGE') : getStatusMessage(status, false));
     useAlert(errorMessage);
   }
+};
+
+const handleTranslateSuccess = async () => {
+  await updateArticlesMeta();
+  await updatePortalMeta();
 };
 
 const updateArticle = ({ action, value, id }) => {
@@ -190,6 +204,12 @@ watch(
       </li>
     </template>
   </Draggable>
+  <TranslateArticleDialog
+    ref="translateDialogRef"
+    :article="currentArticle"
+    :portal="portal"
+    @translate-success="handleTranslateSuccess"
+  />
 </template>
 
 <style lang="scss" scoped>

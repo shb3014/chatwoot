@@ -315,6 +315,7 @@ Rails.application.routes.draw do
             resources :categories
             resources :articles do
               post :reorder, on: :collection
+              post :translate, on: :member
             end
           end
 
