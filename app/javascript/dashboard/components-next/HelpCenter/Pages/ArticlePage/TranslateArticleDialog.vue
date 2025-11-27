@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
@@ -27,11 +27,15 @@ const dialogRef = ref(null);
 const isUpdating = ref(false);
 const selectedLocale = ref('');
 
+onMounted(() => {
+  dialogRef.value?.open();
+});
+
 const portal = computed(() => getPortal.value(route.params.portalSlug));
 
 const locales = computed(() => {
   const allowedLocales = portal.value?.config?.allowed_locales || [];
-  
+
   return allowedLocales.map(localeCode => ({
     value: localeCode,
     label: `${allLocales[localeCode] || localeCode} (${localeCode})`,

@@ -90,6 +90,7 @@ const getCategory = categoryId => {
 };
 
 const openTranslateDialog = id => {
+  console.log('Opening Translate Dialog for ID:', id);
   selectedArticleId.value = id;
   showTranslateDialog.value = true;
 };
