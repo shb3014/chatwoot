@@ -66,7 +66,7 @@ const articleMenuItems = computed(() => {
     ARTICLE_MENU_OPTIONS[ARTICLE_STATUSES.PUBLISHED]
   ).map(key => commonItems[key]);
 
-  return [...statusItems, commonItems.translate, commonItems.delete];
+  return [...statusItems, commonItems.delete];
 });
 
 const statusTextColor = computed(() => {

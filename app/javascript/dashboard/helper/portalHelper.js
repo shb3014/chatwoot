@@ -91,24 +91,24 @@ export const ARTICLE_MENU_ITEMS = {
     action: 'archive',
     icon: 'i-lucide-archive-restore',
   },
-  translate: {
-    label: 'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.TRANSLATE',
-    value: 'translate',
-    action: 'translate',
-    icon: 'i-lucide-language',
-  },
   delete: {
     label: 'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.DELETE',
     value: 'delete',
     action: 'delete',
     icon: 'i-lucide-trash',
   },
+  translate: {
+    label: 'HELP_CENTER.ARTICLES_PAGE.ARTICLE_CARD.CARD.DROPDOWN_MENU.TRANSLATE',
+    value: 'translate',
+    action: 'translate',
+    icon: 'i-lucide-languages',
+  },
 };
 
 export const ARTICLE_MENU_OPTIONS = {
-  [ARTICLE_STATUSES.ARCHIVED]: ['publish', 'draft'],
-  [ARTICLE_STATUSES.DRAFT]: ['publish', 'archive'],
-  [ARTICLE_STATUSES.PUBLISHED]: ['draft', 'archive'],
+  [ARTICLE_STATUSES.ARCHIVED]: ['publish', 'draft', 'translate'],
+  [ARTICLE_STATUSES.DRAFT]: ['publish', 'archive', 'translate'],
+  [ARTICLE_STATUSES.PUBLISHED]: ['draft', 'archive', 'translate'],
 };
 
 export const ARTICLE_TABS = {

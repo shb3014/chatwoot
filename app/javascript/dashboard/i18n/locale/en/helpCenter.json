@@ -374,6 +374,19 @@
         "ERROR_MESSAGE": "Error while deleting article"
       }
     },
+    "TRANSLATE_ARTICLE_DIALOG": {
+      "TITLE": "Translate Article",
+      "DESCRIPTION": "Select the target language to translate this article to. The content will be translated using AI.",
+      "CONFIRM": "Translate",
+      "CANCEL": "Cancel",
+      "COMBOBOX": {
+        "PLACEHOLDER": "Select Language"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Article translated successfully",
+        "ERROR_MESSAGE": "Failed to translate article"
+      }
+    },
     "CREATE_ARTICLE": {
       "ERROR_MESSAGE": "Please add the article heading and content then only you can update the settings"
     },
@@ -503,7 +516,8 @@
             "PUBLISH": "Publish",
             "DRAFT": "Draft",
             "ARCHIVE": "Archive",
-            "DELETE": "Delete"
+            "DELETE": "Delete",
+            "TRANSLATE": "Translate"
           },
           "STATUS": {
             "DRAFT": "Draft",

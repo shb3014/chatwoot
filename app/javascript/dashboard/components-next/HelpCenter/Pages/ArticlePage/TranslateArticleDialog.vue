@@ -1,100 +1,96 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useStore } from 'dashboard/composables/store';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useRoute } from 'vue-router';
 import allLocales from 'shared/constants/locales.js';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
+import ArticlesAPI from 'dashboard/api/helpCenter/articles';
 
 const props = defineProps({
-  article: {
-    type: Object,
+  articleId: {
+    type: Number,
     required: true,
-  },
-  portal: {
-    type: Object,
-    default: () => ({}),
   },
 });
 
-const emit = defineEmits(['close', 'translate-success']);
+const emit = defineEmits(['success', 'close']);
 
 const { t } = useI18n();
 const store = useStore();
 const route = useRoute();
+const getPortal = useMapGetter('portals/portalBySlug');
 
 const dialogRef = ref(null);
-const isTranslating = ref(false);
-
+const isUpdating = ref(false);
 const selectedLocale = ref('');
 
-const allowedLocales = computed(() => {
-  const { allowed_locales: allowedLocales = [] } = props.portal?.config || {};
-  return allowedLocales.map(locale => locale.code);
-});
+const portal = computed(() => getPortal.value(route.params.portalSlug));
 
-const availableLocales = computed(() => {
-  return Object.keys(allLocales)
-    .map(key => {
-      return {
-        value: key,
-        label: `${allLocales[key]} (${key})`,
-      };
-    })
-    .filter(locale => allowedLocales.value.includes(locale.value) && locale.value !== props.article.locale);
+const locales = computed(() => {
+  const allowedLocales = portal.value?.config?.allowed_locales || [];
+  
+  return allowedLocales.map(localeCode => ({
+    value: localeCode,
+    label: `${allLocales[localeCode] || localeCode} (${localeCode})`,
+  }));
 });
 
 const onTranslate = async () => {
   if (!selectedLocale.value) return;
 
-  isTranslating.value = true;
-
+  isUpdating.value = true;
   try {
-    await store.dispatch('articles/translate', {
+    await ArticlesAPI.translateArticle({
       portalSlug: route.params.portalSlug,
-      articleId: props.article.id,
+      articleId: props.articleId,
       targetLocale: selectedLocale.value,
     });
 
+    useAlert(t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.API.SUCCESS_MESSAGE'));
+    emit('success');
     dialogRef.value?.close();
-    useAlert(
-      t('HELP_CENTER.TRANSLATE_ARTICLE.API.SUCCESS_MESSAGE')
-    );
-    emit('translate-success');
+    emit('close');
   } catch (error) {
     useAlert(
+      error?.response?.data?.error ||
       error?.message ||
-        t('HELP_CENTER.TRANSLATE_ARTICLE.API.ERROR_MESSAGE')
+      t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.API.ERROR_MESSAGE')
     );
   } finally {
-    isTranslating.value = false;
+    isUpdating.value = false;
   }
 };
 
-// Expose the dialogRef to the parent component
+const onClose = () => {
+  emit('close');
+};
+
 defineExpose({ dialogRef });
 </script>
 
 <template>
   <Dialog
     ref="dialogRef"
-    type="edit"
-    :title="t('HELP_CENTER.TRANSLATE_ARTICLE.DIALOG.TITLE')"
-    :description="t('HELP_CENTER.TRANSLATE_ARTICLE.DIALOG.DESCRIPTION')"
+    type="confirm"
+    :title="t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.TITLE')"
+    :description="t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.DESCRIPTION')"
+    :confirm-text="t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.CONFIRM')"
+    :cancel-text="t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.CANCEL')"
+    :is-loading="isUpdating"
     @confirm="onTranslate"
-    :is-submitting="isTranslating"
+    @close="onClose"
   >
     <div class="flex flex-col gap-6">
       <ComboBox
         v-model="selectedLocale"
-        :options="availableLocales"
-        :placeholder="
-          t('HELP_CENTER.TRANSLATE_ARTICLE.DIALOG.COMBOBOX.PLACEHOLDER')
-        "
+        :options="locales"
+        :placeholder="t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.COMBOBOX.PLACEHOLDER')"
         class="[&>div>button:not(.focused)]:!outline-n-slate-5 [&>div>button:not(.focused)]:dark:!outline-n-slate-5"
       />
     </div>
   </Dialog>
 </template>
+

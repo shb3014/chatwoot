@@ -74,9 +74,12 @@ class ArticlesAPI extends PortalsAPI {
   }
 
   translateArticle({ portalSlug, articleId, targetLocale }) {
-    return axios.post(`${this.url}/${portalSlug}/articles/${articleId}/translate`, {
-      target_locale: targetLocale,
-    });
+    return axios.post(
+      `${this.url}/${portalSlug}/articles/${articleId}/translate`,
+      {
+        target_locale: targetLocale,
+      }
+    );
   }
 }
 

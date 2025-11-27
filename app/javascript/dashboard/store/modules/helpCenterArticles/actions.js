@@ -180,18 +180,4 @@ export const actions = {
 
     return '';
   },
-
-  translate: async (_, { portalSlug, articleId, targetLocale }) => {
-    try {
-      await articlesAPI.translateArticle({
-        portalSlug,
-        articleId,
-        targetLocale,
-      });
-    } catch (error) {
-      throwErrorMessage(error);
-    }
-
-    return '';
-  },
 };
