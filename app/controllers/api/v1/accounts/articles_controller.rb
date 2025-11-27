@@ -47,37 +47,9 @@ class Api::V1::Accounts::ArticlesController < Api::V1::Accounts::BaseController
     target_locale = params[:target_locale]
     render json: { error: 'Target locale is required' }, status: :unprocessable_entity and return if target_locale.blank?
 
-    service = Llm::ArticleTranslationService.new(@article, target_locale)
-    translated_data = service.translate
+    ArticleTranslationJob.perform_later(@article.id, target_locale, Current.user.id)
 
-    render json: { error: 'Translation failed' }, status: :unprocessable_entity and return if translated_data.nil?
-
-    target_category = @portal.categories.find_by(slug: @article.category&.slug, locale: target_locale)
-    root_article_id = @article.associated_article_id || @article.id
-    existing_article = @portal.articles.find_by(associated_article_id: root_article_id, locale: target_locale)
-    existing_article ||= @article if @article.locale == target_locale
-
-    article_attributes = {
-      title: translated_data[:title],
-      content: translated_data[:content],
-      description: translated_data[:description],
-      locale: target_locale,
-      category_id: target_category&.id,
-      associated_article_id: root_article_id,
-      author_id: Current.user.id,
-      account_id: @portal.account_id,
-      portal_id: @portal.id
-    }
-
-    if existing_article
-      existing_article.update!(article_attributes.except(:associated_article_id, :account_id, :portal_id))
-      @translated_article = existing_article
-    else
-      @translated_article = @portal.articles.create!(article_attributes)
-      @translated_article.draft!
-    end
-
-    render json: @translated_article
+    render json: { message: 'Translation queued' }, status: :ok
   end
 
   private

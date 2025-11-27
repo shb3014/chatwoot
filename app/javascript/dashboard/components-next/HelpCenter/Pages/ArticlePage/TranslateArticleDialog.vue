@@ -57,7 +57,7 @@ const onTranslate = async () => {
     });
 
     useAlert(t('HELP_CENTER.TRANSLATE_ARTICLE_DIALOG.API.SUCCESS_MESSAGE'));
-    emit('success');
+    // emit('success'); // Don't emit success immediately as it's async now
     dialogRef.value?.close();
     emit('close');
   } catch (error) {
