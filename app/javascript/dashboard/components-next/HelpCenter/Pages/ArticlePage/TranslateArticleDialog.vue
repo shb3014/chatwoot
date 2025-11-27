@@ -36,10 +36,13 @@ const portal = computed(() => getPortal.value(route.params.portalSlug));
 const locales = computed(() => {
   const allowedLocales = portal.value?.config?.allowed_locales || [];
 
-  return allowedLocales.map(localeCode => ({
-    value: localeCode,
-    label: `${allLocales[localeCode] || localeCode} (${localeCode})`,
-  }));
+  return allowedLocales.map(locale => {
+    const localeCode = typeof locale === 'string' ? locale : locale.code;
+    return {
+      value: localeCode,
+      label: `${allLocales[localeCode] || localeCode} (${localeCode})`,
+    };
+  });
 });
 
 const onTranslate = async () => {
