@@ -9,7 +9,14 @@ module Llm
       api_key = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
       @model = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value || 'gpt-4o-mini'
 
-      @client = OpenAI::Client.new(access_token: api_key)
+      api_endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value
+      uri_base = api_endpoint.present? ? api_endpoint.chomp('/') : nil
+
+      @client = OpenAI::Client.new(
+        access_token: api_key,
+        uri_base: uri_base,
+        request_timeout: 60
+      )
     end
 
     def translate
