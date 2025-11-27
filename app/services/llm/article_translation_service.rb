@@ -3,7 +3,7 @@ module Llm
     def initialize(article, target_locale)
       @article = article
       @target_locale = target_locale
-      @client = Agents::OpenAI::Client.new
+      @client = Agents::OpenAI.new
     end
 
     def translate
