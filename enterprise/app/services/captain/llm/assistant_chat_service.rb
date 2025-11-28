@@ -3,10 +3,11 @@ require 'openai'
 class Captain::Llm::AssistantChatService < Llm::BaseOpenAiService
   include Captain::ChatHelper
 
-  def initialize(assistant: nil)
+  def initialize(assistant: nil, conversation: nil)
     super()
 
     @assistant = assistant
+    @conversation = conversation
     @messages = [system_message]
     @response = ''
     register_tools
@@ -28,7 +29,7 @@ class Captain::Llm::AssistantChatService < Llm::BaseOpenAiService
   private
 
   def register_tools
-    @tool_registry = Captain::ToolRegistryService.new(@assistant, user: nil)
+    @tool_registry = Captain::ToolRegistryService.new(@assistant, user: nil, conversation: @conversation)
     @tool_registry.register_tool(Captain::Tools::SearchDocumentationService)
   end
 

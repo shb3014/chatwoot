@@ -31,7 +31,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
                     message_history: collect_previous_messages
                   )
                 else
-                  Captain::Llm::AssistantChatService.new(assistant: @assistant).generate_response(
+                  Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
                     message_history: collect_previous_messages
                   )
                 end

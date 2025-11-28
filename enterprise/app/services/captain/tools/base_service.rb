@@ -1,9 +1,10 @@
 class Captain::Tools::BaseService
   attr_accessor :assistant
 
-  def initialize(assistant, user: nil)
+  def initialize(assistant, user: nil, conversation: nil)
     @assistant = assistant
     @user = user
+    @conversation = conversation
   end
 
   def name

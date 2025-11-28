@@ -52,16 +52,43 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     # Get embedding for the query
     embedding = Captain::Llm::EmbeddingService.new.get_embedding(query)
 
-    # Search through all article embeddings without filtering by category/locale/status
-    # to get the most relevant results
-    article_ids = ArticleEmbedding.nearest_neighbors(:embedding, embedding, distance: 'cosine')
-                                  .limit(5)
-                                  .pluck(:article_id)
+    # Try to find articles in the user's locale first
+    user_locale = detect_locale
+    if user_locale.present?
+      articles = search_with_embedding(embedding, locale: user_locale)
+      return articles if articles.present?
+    end
 
-    Article.where(id: article_ids)
+    # Fallback to global search if no articles found in specific locale
+    search_with_embedding(embedding)
   rescue StandardError => e
     Rails.logger.error { "Error searching articles: #{e.message}" }
     []
+  end
+
+  def detect_locale
+    return nil unless @conversation
+
+    # Check for explicit locale in custom attributes
+    locale = @conversation.custom_attributes['locale']
+
+    # Check browser language from conversation or contact
+    locale ||= @conversation.additional_attributes['browser_language']
+    locale ||= @conversation.contact&.additional_attributes&.dig('browser_language')
+
+    # Extract language code (e.g., 'en-US' -> 'en', 'zh_CN' -> 'zh')
+    locale.to_s.split(/[-_]/).first.presence
+  end
+
+  def search_with_embedding(embedding, locale: nil)
+    scope = ArticleEmbedding
+    scope = scope.joins(:article).where("articles.locale LIKE ?", "#{locale}%") if locale.present?
+
+    article_ids = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
+                       .limit(5)
+                       .pluck(:article_id)
+
+    Article.where(id: article_ids)
   end
 
   def format_response(response)

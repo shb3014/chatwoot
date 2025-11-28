@@ -1,15 +1,16 @@
 class Captain::ToolRegistryService
   attr_reader :registered_tools, :tools
 
-  def initialize(assistant, user: nil)
+  def initialize(assistant, user: nil, conversation: nil)
     @assistant = assistant
     @user = user
+    @conversation = conversation
     @registered_tools = []
     @tools = {}
   end
 
   def register_tool(tool_class)
-    tool = tool_class.new(@assistant, user: @user)
+    tool = tool_class.new(@assistant, user: @user, conversation: @conversation)
     return unless tool.active?
 
     @tools[tool.name] = tool
