@@ -85,7 +85,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     scope = scope.joins(:article).where("articles.locale LIKE ?", "#{locale}%") if locale.present?
 
     article_ids = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
-                       .limit(8)
+                       .limit(3)
                        .pluck(:article_id)
 
     Article.where(id: article_ids)
