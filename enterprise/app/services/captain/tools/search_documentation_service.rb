@@ -60,6 +60,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     end
 
     # Fallback to global search if no articles found in specific locale
+    Rails.logger.info "No articles found in locale #{user_locale}, falling back to global search" if user_locale.present?
     search_with_embedding(embedding)
   rescue StandardError => e
     Rails.logger.error { "Error searching articles: #{e.message}" }
