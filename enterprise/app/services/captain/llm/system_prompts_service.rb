@@ -198,8 +198,8 @@ class Captain::Llm::SystemPromptsService
         #{config['instructions'] || ''}
         ```json
         {
-          reasoning: '',
-          response: '',
+          "reasoning": "",
+          "response": ""
         }
         ```
         - If the answer is not provided in context sections, Respond to the customer and ask whether they want to talk to another support agent . If they ask to Chat with another agent, return `conversation_handoff' as the response in JSON response
