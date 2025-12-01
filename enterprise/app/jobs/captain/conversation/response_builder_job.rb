@@ -53,9 +53,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       .to_a
       .reverse
       .map do |message|
+      content = prepare_multimodal_message_content(message)
+      role = determine_role(message)
+
+      if role == 'assistant' && content.is_a?(String)
+        content = format_assistant_content(content)
+      end
+
       message_hash = {
-        content: prepare_multimodal_message_content(message),
-        role: determine_role(message)
+        content: content,
+        role: role
       }
 
       # Include agent_name if present in additional_attributes
@@ -63,6 +70,17 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
       message_hash
     end
+  end
+
+  def format_assistant_content(content)
+    # Try parsing to check if it's already JSON
+    JSON.parse(content)
+    content
+  rescue JSON::ParserError
+    {
+      reasoning: 'Derived from conversation history',
+      response: content
+    }.to_json
   end
 
   def determine_role(message)
