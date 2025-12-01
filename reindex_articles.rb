@@ -27,7 +27,9 @@ articles.find_each.with_index do |article, index|
     # 尝试先创建一个空的 embedding 记录关联文章
     # 这里的 term 必须非空，否则模型校验可能不过
     embedding_record = ArticleEmbedding.find_or_initialize_by(article: article)
-    embedding_record.term = article.content # 或者切片后的内容，这里简单起见用全文
+    # 去除 HTML 标签，只保留纯文本，提高向量检索的准确性
+    plain_text_content = ActionController::Base.helpers.strip_tags(article.content)
+    embedding_record.term = plain_text_content
 
     # 如果是新记录，保存会触发 after_commit 回调 -> 触发 Job
     if embedding_record.new_record? || embedding_record.embedding.nil?
