@@ -101,14 +101,22 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     scope = ArticleEmbedding
     scope = scope.joins(:article).where("articles.locale LIKE ?", "#{locale}%") if locale.present?
 
-    if threshold
-      # Filter by cosine distance (operator <=>)
-      scope = scope.where("embedding <=> ? < ?", embedding, threshold)
-    end
+    # Use nearest_neighbors to get candidates ordered by distance
+    scope = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
 
-    article_ids = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
-                       .limit(limit)
-                       .pluck(:article_id)
+    article_ids = if threshold
+                    # To filter by distance safely without raw SQL binding issues:
+                    # 1. Select distance explicitly using properly formatted vector string
+                    # 2. Filter in Ruby
+                    # Ensure embedding is formatted as a vector string '[x,y,z]'
+                    embedding_string = "[#{embedding.join(',')}]"
+                    candidates = scope.select("article_id", "embedding <=> '#{embedding_string}' as distance")
+                                      .limit(limit)
+
+                    candidates.select { |c| c.distance < threshold }.map(&:article_id)
+                  else
+                    scope.limit(limit).pluck(:article_id)
+                  end
 
     # Retrieve articles and preserve order based on nearest neighbors
     articles = Article.where(id: article_ids).index_by(&:id)
