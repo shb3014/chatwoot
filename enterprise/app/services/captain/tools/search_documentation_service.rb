@@ -51,17 +51,33 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
     # Get embedding for the query
     embedding = Captain::Llm::EmbeddingService.new.get_embedding(query)
-
-    # Try to find articles in the user's locale first
     user_locale = detect_locale
+
+    # 1. Search in user's locale (if present) with threshold 0.7
+    # We prioritize locale matches.
+    results = []
     if user_locale.present?
-      articles = search_with_embedding(embedding, locale: user_locale)
-      return articles if articles.present?
+      results += search_with_embedding(embedding, locale: user_locale, threshold: 0.7, limit: 3)
     end
 
-    # Fallback to global search if no articles found in specific locale
-    Rails.logger.info "No articles found in locale #{user_locale}, falling back to global search" if user_locale.present?
-    search_with_embedding(embedding)
+    # 2. Search Global (no locale filter) with threshold 0.7
+    # We append these to the locale results.
+    global_results = search_with_embedding(embedding, locale: nil, threshold: 0.7, limit: 3)
+    results += global_results
+
+    # Deduplicate based on article ID
+    results.uniq!(&:id)
+
+    # 3. Fallback: If we don't have enough results (less than 2),
+    # perform a broader global search without threshold to ensure we return something.
+    if results.size < 2
+      Rails.logger.info "Insufficient articles found (#{results.size}), falling back to broader search"
+      fallback_results = search_with_embedding(embedding, locale: nil, threshold: nil, limit: 2)
+      results = (results + fallback_results).uniq(&:id)
+    end
+
+    # Return top 3 results
+    results.first(3)
   rescue StandardError => e
     Rails.logger.error { "Error searching articles: #{e.message}" }
     []
@@ -81,15 +97,22 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     locale.to_s.split(/[-_]/).first.presence
   end
 
-  def search_with_embedding(embedding, locale: nil)
+  def search_with_embedding(embedding, locale: nil, threshold: nil, limit: 3)
     scope = ArticleEmbedding
     scope = scope.joins(:article).where("articles.locale LIKE ?", "#{locale}%") if locale.present?
 
+    if threshold
+      # Filter by cosine distance (operator <=>)
+      scope = scope.where("embedding <=> ? < ?", embedding, threshold)
+    end
+
     article_ids = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
-                       .limit(3)
+                       .limit(limit)
                        .pluck(:article_id)
 
-    Article.where(id: article_ids)
+    # Retrieve articles and preserve order based on nearest neighbors
+    articles = Article.where(id: article_ids).index_by(&:id)
+    article_ids.map { |id| articles[id] }.compact
   end
 
   def format_response(response)
