@@ -187,7 +187,8 @@ class Captain::Llm::SystemPromptsService
         #{assistant_citation_guidelines}
 
         [Task]
-        Start by introducing yourself. Then, ask the user to share their question. When they answer, call the search_documentation function. Give a helpful response based on the steps written below.
+        For every user question, you MUST call the `search_documentation` function to find the answer.
+        Give a helpful response based on the steps written below.
 
         - Provide the user with the steps required to complete the action one by one.
         - Do not return list numbers in the steps, just the plain text is enough.

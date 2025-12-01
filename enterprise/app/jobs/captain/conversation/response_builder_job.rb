@@ -48,6 +48,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       .messages
       .where(message_type: [:incoming, :outgoing])
       .where(private: false)
+      .reorder(created_at: :desc)
+      .limit(20)
+      .to_a
+      .reverse
       .map do |message|
       message_hash = {
         content: prepare_multimodal_message_content(message),
