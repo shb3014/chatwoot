@@ -18,31 +18,36 @@ articles.find_each.with_index do |article, index|
 
   puts "  - MISSING! Triggering embedding generation..."
 
-  # 创建占位记录并触发 Job
-  # 注意：ArticleEmbedding 通常由 Article 模型的回调管理，但为了强制生成，
-  # 我们直接模拟这一过程。
-
-  # 这里我们直接调用 Job 的逻辑，或者手动创建 embedding 记录来触发回调
   begin
-    # 尝试先创建一个空的 embedding 记录关联文章
-    # 这里的 term 必须非空，否则模型校验可能不过
-    embedding_record = ArticleEmbedding.find_or_initialize_by(article: article)
-    # 去除 HTML 标签，只保留纯文本，提高向量检索的准确性
-    plain_text_content = ActionController::Base.helpers.strip_tags(article.content)
-    embedding_record.term = plain_text_content
-
-    # 如果是新记录，保存会触发 after_commit 回调 -> 触发 Job
-    if embedding_record.new_record? || embedding_record.embedding.nil?
-      embedding_record.save!
-      puts "  - Job queued successfully."
+    # 优先使用系统原生的 AI 关键词生成逻辑（保持与现有数据一致）
+    # 注意：方法名在源码中拼写为 seach (缺少 r)，这里需保持一致
+    if article.respond_to?(:generate_and_save_article_seach_terms)
+      puts "  - Triggering AI to generate search terms..."
+      article.generate_and_save_article_seach_terms
+      puts "  - Success: Search terms generated."
     else
-       # 如果记录存在但没向量，强制重新跑 Job
-       Captain::Llm::UpdateEmbeddingJob.perform_later(embedding_record, article.content)
-       puts "  - Job queued (forced update)."
+      # 如果没有企业版功能或方法不存在，回退到使用 标题+描述
+      # 避免使用全文导致 term 过长影响检索效果
+      puts "  - Fallback: Using Title + Description."
+      embedding_record = ArticleEmbedding.find_or_initialize_by(article: article)
+      embedding_record.term = "#{article.title} #{article.description}".strip
+      embedding_record.save!
+      puts "  - Success: Fallback term saved."
     end
 
   rescue => e
-    puts "  - ERROR: #{e.message}"
+    puts "  - AI/System Error: #{e.message}"
+
+    # 如果 AI 调用失败（如 API Key 问题），降级处理
+    begin
+      puts "  - Fallback: Using Title + Description due to error."
+      embedding_record = ArticleEmbedding.find_or_initialize_by(article: article)
+      embedding_record.term = "#{article.title} #{article.description}".strip
+      embedding_record.save!
+      puts "  - Success: Fallback term saved."
+    rescue => e2
+      puts "  - CRITICAL ERROR: #{e2.message}"
+    end
   end
 end
 
