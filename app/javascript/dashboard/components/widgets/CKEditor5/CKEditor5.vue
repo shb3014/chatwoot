@@ -296,10 +296,12 @@ export default {
               const mimeType = mimeTypes[extension] || 'video/mp4';
 
               return (
-                '<video width="640" height="360" controls>' +
+                '<div style="text-align: center; margin: 1em 0;">' +
+                '<video width="640" height="360" controls style="max-width: 100%; height: auto;">' +
                 `<source src="${videoUrl}" type="${mimeType}">` +
                 'Your browser does not support the video tag.' +
-                '</video>'
+                '</video>' +
+                '</div>'
               );
             },
           },
