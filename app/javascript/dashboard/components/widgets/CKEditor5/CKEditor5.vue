@@ -236,6 +236,75 @@ export default {
           },
         },
       },
+      mediaEmbed: {
+        previewsInData: true,
+        providers: [
+          // YouTube (保留默认支持)
+          {
+            name: 'youtube',
+            url: [
+              /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+              /^https?:\/\/(?:www\.)?youtube\.com\/embed\/([^&\n?#]+)/,
+            ],
+            html: match => {
+              const videoId = match[1];
+              return (
+                '<div style="position: relative; padding-bottom: 56.25%; height: 0;">' +
+                `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}" ` +
+                'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
+                'frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ' +
+                'allowfullscreen></iframe></div>'
+              );
+            },
+          },
+          // Vimeo (保留默认支持)
+          {
+            name: 'vimeo',
+            url: [/^https?:\/\/(?:www\.)?vimeo\.com\/(\d+)/],
+            html: match => {
+              const videoId = match[1];
+              return (
+                '<div style="position: relative; padding-bottom: 56.25%; height: 0;">' +
+                `<iframe src="https://player.vimeo.com/video/${videoId}?dnt=true" ` +
+                'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
+                'frameborder="0" allow="autoplay; fullscreen; picture-in-picture" ' +
+                'allowfullscreen></iframe></div>'
+              );
+            },
+          },
+          // CDN 视频文件支持（.mp4, .webm, .ogg 等）
+          {
+            name: 'video',
+            url: [
+              /^https?:\/\/.+\.(mp4|webm|ogg|ogv|mov|avi|wmv|flv|mkv)(\?.*)?$/i,
+            ],
+            html: match => {
+              const videoUrl = match[0];
+              // 从 URL 中提取文件扩展名以确定 MIME 类型
+              const extension = videoUrl.match(/\.([^.?#]+)/)?.[1]?.toLowerCase();
+              const mimeTypes = {
+                mp4: 'video/mp4',
+                webm: 'video/webm',
+                ogg: 'video/ogg',
+                ogv: 'video/ogg',
+                mov: 'video/quicktime',
+                avi: 'video/x-msvideo',
+                wmv: 'video/x-ms-wmv',
+                flv: 'video/x-flv',
+                mkv: 'video/x-matroska',
+              };
+              const mimeType = mimeTypes[extension] || 'video/mp4';
+
+              return (
+                '<video width="640" height="360" controls>' +
+                `<source src="${videoUrl}" type="${mimeType}">` +
+                'Your browser does not support the video tag.' +
+                '</video>'
+              );
+            },
+          },
+        ],
+      },
     };
 
     // 监听 modelValue 变化
