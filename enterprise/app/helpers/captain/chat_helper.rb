@@ -10,6 +10,10 @@ module Captain::ChatHelper
       temperature: @assistant&.config&.[]('temperature').to_f || 1
     }
 
+    # Add thinking parameter if enabled (for models like DeepSeek-v3.2)
+    thinking_enabled = @assistant&.config&.[]('thinking_enabled')
+    parameters[:thinking] = thinking_enabled unless thinking_enabled.nil?
+
     response = @client.chat(parameters: parameters)
 
     handle_response(response)
