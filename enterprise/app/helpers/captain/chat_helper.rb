@@ -2,18 +2,34 @@ module Captain::ChatHelper
   def request_chat_completion
     log_chat_completion_request
 
+    # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
+    thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
+    thinking_enabled = thinking_config&.value.present? && ActiveModel::Type::Boolean.new.cast(thinking_config.value)
+
+    tools = @tool_registry&.registered_tools || []
+    has_tools = tools.any?
+
     parameters = {
       model: @model,
       messages: @messages,
-      tools: @tool_registry&.registered_tools || [],
-      response_format: { type: 'json_object' },
+      tools: tools,
       temperature: @assistant&.config&.[]('temperature').to_f || 1
     }
 
-    # Add thinking parameter if enabled (for models like DeepSeek-v3.2)
-    thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
-    if thinking_config&.value.present?
-      parameters[:thinking] = ActiveModel::Type::Boolean.new.cast(thinking_config.value)
+    # Some OpenAI-compatible providers require tool_choice explicitly for tool calling.
+    parameters[:tool_choice] = 'auto' if has_tools
+
+    # Only add response_format if thinking is NOT enabled
+    # (thinking mode conflicts with json_object format in DeepSeek-v3.2)
+    # When thinking is disabled, always use JSON format for structured outputs
+    unless thinking_enabled
+      parameters[:response_format] = { type: 'json_object' }
+    end
+
+    # Add thinking parameter if enabled (note: may not work well with tools)
+    if thinking_enabled
+      parameters[:thinking] = true
+      Rails.logger.warn "Thinking mode enabled - response format constraint removed, relying on prompt for JSON" if has_tools
     end
 
     response = @client.chat(parameters: parameters)
@@ -48,6 +64,13 @@ module Captain::ChatHelper
     Rails.logger.info "Full response: #{response.to_json}"
 
     message = response.dig('choices', 0, 'message')
+    
+    # Log reasoning content if present (from thinking mode)
+    reasoning_content = message['reasoning_content']
+    if reasoning_content.present?
+      Rails.logger.info "Reasoning content (thinking mode): #{reasoning_content}"
+    end
+    
     Rails.logger.info "Message extracted: #{message.to_json}"
     Rails.logger.info "Tool calls present: #{message['tool_calls'].present?}"
     Rails.logger.info "Tool calls content: #{message['tool_calls'].to_json}" if message['tool_calls']
@@ -59,11 +82,27 @@ module Captain::ChatHelper
     else
       Rails.logger.info "No tool calls, parsing message content as JSON..."
       content = message['content'].strip
+      
       # Strip markdown code fences if present (some models like DeepSeek wrap JSON in ```json ... ```)
       content = content.gsub(/\A```json\n/, '').gsub(/\n```\z/, '')
-      message = JSON.parse(content)
-      persist_message(message, 'assistant')
-      message
+      
+      begin
+        parsed_message = JSON.parse(content)
+        persist_message(parsed_message, 'assistant')
+        parsed_message
+      rescue JSON::ParserError => e
+        Rails.logger.error "Failed to parse response as JSON: #{e.message}"
+        Rails.logger.error "Response content: #{content}"
+        
+        # Fallback: wrap plain text response in expected JSON structure
+        fallback_message = {
+          'reasoning' => reasoning_content || 'Model returned non-JSON response',
+          'response' => content
+        }
+        Rails.logger.warn "Using fallback JSON structure: #{fallback_message.to_json}"
+        persist_message(fallback_message, 'assistant')
+        fallback_message
+      end
     end
   end
 
