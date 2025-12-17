@@ -9,15 +9,19 @@ class Captain::LlmService
     @logger = Rails.logger
   end
 
-  def call(messages, functions = [], thinking_enabled: nil)
+  def call(messages, functions = [])
     openai_params = {
       model: model,
       response_format: { type: 'json_object' },
       messages: messages
     }
     openai_params[:tools] = functions if functions.any?
+    
     # Add thinking parameter if enabled (for models like DeepSeek-v3.2)
-    openai_params[:thinking] = thinking_enabled unless thinking_enabled.nil?
+    thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
+    if thinking_config&.value.present?
+      openai_params[:thinking] = ActiveModel::Type::Boolean.new.cast(thinking_config.value)
+    end
 
     response = @client.chat(parameters: openai_params)
     handle_response(response)

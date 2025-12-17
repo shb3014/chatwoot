@@ -11,8 +11,10 @@ module Captain::ChatHelper
     }
 
     # Add thinking parameter if enabled (for models like DeepSeek-v3.2)
-    thinking_enabled = @assistant&.config&.[]('thinking_enabled')
-    parameters[:thinking] = thinking_enabled unless thinking_enabled.nil?
+    thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
+    if thinking_config&.value.present?
+      parameters[:thinking] = ActiveModel::Type::Boolean.new.cast(thinking_config.value)
+    end
 
     response = @client.chat(parameters: parameters)
 

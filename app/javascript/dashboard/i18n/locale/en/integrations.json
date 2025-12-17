@@ -440,10 +440,6 @@
           "LABEL": "Response Temperature",
           "DESCRIPTION": "Adjust how creative or restrictive the assistant's responses should be. Lower values produce more focused and deterministic responses, while higher values allow for more creative and varied outputs."
         },
-        "THINKING_ENABLED": {
-          "LABEL": "Enable Thinking",
-          "DESCRIPTION": "Enable the model's thinking process for more thoughtful responses. This is useful for models like DeepSeek-v3.2 that support reasoning capabilities."
-        },
         "DESCRIPTION": {
           "LABEL": "Description",
           "PLACEHOLDER": "Enter assistant description",

@@ -46,6 +46,7 @@ module Enterprise::SuperAdmin::AppConfigsController
       CAPTAIN_EMBEDDING_ENDPOINT
       CAPTAIN_EMBEDDING_API_KEY
       CAPTAIN_FIRECRAWL_API_KEY
+      CAPTAIN_THINKING_ENABLED
     ]
   end
 end

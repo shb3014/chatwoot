@@ -193,6 +193,12 @@
   description: 'The FireCrawl API key for the Captain AI service'
   locked: false
   type: secret
+- name: CAPTAIN_THINKING_ENABLED
+  display_title: 'Enable Thinking Mode'
+  description: 'Enable the model thinking process for more thoughtful responses. Useful for models like DeepSeek-v3.2 that support reasoning capabilities.'
+  value: false
+  locked: false
+  type: boolean
 - name: CAPTAIN_CLOUD_PLAN_LIMITS
   display_title: 'Captain Cloud Plan Limits'
   description: 'The limits for the Captain AI service for different plans'

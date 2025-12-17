@@ -6,7 +6,6 @@ import { minLength } from '@vuelidate/validators';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
-import Switch from 'next/switch/Switch.vue';
 
 const props = defineProps({
   assistant: {
@@ -23,7 +22,6 @@ const initialState = {
   handoffMessage: '',
   resolutionMessage: '',
   temperature: 1,
-  thinkingEnabled: false,
 };
 
 const state = reactive({ ...initialState });
@@ -49,7 +47,6 @@ const updateStateFromAssistant = assistant => {
   state.handoffMessage = config.handoff_message;
   state.resolutionMessage = config.resolution_message;
   state.temperature = config.temperature || 1;
-  state.thinkingEnabled = config.thinking_enabled || false;
 };
 
 const handleSystemMessagesUpdate = async () => {
@@ -65,7 +62,6 @@ const handleSystemMessagesUpdate = async () => {
       handoff_message: state.handoffMessage,
       resolution_message: state.resolutionMessage,
       temperature: state.temperature || 1,
-      thinking_enabled: state.thinkingEnabled,
     },
   };
 
@@ -117,20 +113,6 @@ watch(
       <p class="text-sm text-n-slate-11 italic">
         {{ t('CAPTAIN.ASSISTANTS.FORM.TEMPERATURE.DESCRIPTION') }}
       </p>
-    </div>
-
-    <div class="flex flex-col gap-2">
-      <div class="flex items-center justify-between">
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-n-slate-12">
-            {{ t('CAPTAIN.ASSISTANTS.FORM.THINKING_ENABLED.LABEL') }}
-          </label>
-          <p class="text-sm text-n-slate-11 italic">
-            {{ t('CAPTAIN.ASSISTANTS.FORM.THINKING_ENABLED.DESCRIPTION') }}
-          </p>
-        </div>
-        <Switch v-model="state.thinkingEnabled" />
-      </div>
     </div>
 
     <div>
