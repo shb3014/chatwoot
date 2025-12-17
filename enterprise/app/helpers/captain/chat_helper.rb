@@ -28,7 +28,9 @@ module Captain::ChatHelper
 
     # Add thinking parameter if enabled (note: may not work well with tools)
     if thinking_enabled
-      parameters[:thinking] = true
+      # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
+      # See Ark model docs for DeepSeek-V3.2.
+      parameters[:thinking] = deepseek_v32_model?(@model) ? ark_thinking_param(true) : true
       Rails.logger.warn "Thinking mode enabled - response format constraint removed, relying on prompt for JSON" if has_tools
     end
 
@@ -57,6 +59,15 @@ module Captain::ChatHelper
   end
 
   private
+
+  def deepseek_v32_model?(model_name)
+    model = model_name.to_s
+    model.match?(/deepseek[-_]?v3[-_]?2/i) || model.match?(/deepseek[-_]?v3\.2/i)
+  end
+
+  def ark_thinking_param(enabled)
+    { type: enabled ? 'enabled' : 'disabled' }
+  end
 
   def handle_response(response)
     Rails.logger.info "=" * 80

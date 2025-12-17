@@ -28,8 +28,12 @@ class Captain::LlmService
       openai_params[:tool_choice] = 'auto'
     end
     
-    # Add thinking parameter if enabled
-    openai_params[:thinking] = true if thinking_enabled
+    # Add thinking parameter if enabled.
+    if thinking_enabled
+      # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
+      # See Ark model docs for DeepSeek-V3.2.
+      openai_params[:thinking] = deepseek_v32_model?(model) ? ark_thinking_param(true) : true
+    end
 
     response = @client.chat(parameters: openai_params)
     handle_response(response)
@@ -38,6 +42,15 @@ class Captain::LlmService
   end
 
   private
+
+  def deepseek_v32_model?(model_name)
+    model_str = model_name.to_s
+    model_str.match?(/deepseek[-_]?v3[-_]?2/i) || model_str.match?(/deepseek[-_]?v3\.2/i)
+  end
+
+  def ark_thinking_param(enabled)
+    { type: enabled ? 'enabled' : 'disabled' }
+  end
 
   def model
     InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || ENV.fetch('OPENAI_GPT_MODEL', 'gpt-4o-mini')
