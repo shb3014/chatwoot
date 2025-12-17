@@ -19,8 +19,10 @@ class Captain::LlmService
       messages: messages
     }
     
-    # Only add response_format if thinking is NOT enabled (thinking mode conflicts with json_object format)
-    openai_params[:response_format] = { type: 'json_object' } unless thinking_enabled
+    is_deepseek_v32 = deepseek_v32_model?(model)
+
+    # response_format: json_object is not supported by Ark DeepSeek-V3.2 (even when thinking is disabled).
+    openai_params[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32
     
     if functions.any?
       openai_params[:tools] = functions
@@ -28,11 +30,11 @@ class Captain::LlmService
       openai_params[:tool_choice] = 'auto'
     end
     
-    # Add thinking parameter if enabled.
-    if thinking_enabled
-      # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
-      # See Ark model docs for DeepSeek-V3.2.
-      openai_params[:thinking] = deepseek_v32_model?(model) ? ark_thinking_param(true) : true
+    # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
+    if is_deepseek_v32
+      openai_params[:thinking] = ark_thinking_param(thinking_enabled)
+    elsif thinking_enabled
+      openai_params[:thinking] = true
     end
 
     response = @client.chat(parameters: openai_params)

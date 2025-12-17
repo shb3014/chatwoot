@@ -19,18 +19,19 @@ module Captain::ChatHelper
     # Some OpenAI-compatible providers require tool_choice explicitly for tool calling.
     parameters[:tool_choice] = 'auto' if has_tools
 
-    # Only add response_format if thinking is NOT enabled
-    # (thinking mode conflicts with json_object format in DeepSeek-v3.2)
-    # When thinking is disabled, always use JSON format for structured outputs
-    unless thinking_enabled
-      parameters[:response_format] = { type: 'json_object' }
-    end
+    is_deepseek_v32 = deepseek_v32_model?(@model)
 
-    # Add thinking parameter if enabled (note: may not work well with tools)
-    if thinking_enabled
-      # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
-      # See Ark model docs for DeepSeek-V3.2.
-      parameters[:thinking] = deepseek_v32_model?(@model) ? ark_thinking_param(true) : true
+    # response_format: json_object is not supported by Ark DeepSeek-V3.2 (even when thinking is disabled).
+    # So we only enforce response_format for non-DeepSeek-V3.2 models.
+    parameters[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32
+
+    # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
+    if is_deepseek_v32
+      parameters[:thinking] = ark_thinking_param(thinking_enabled)
+      Rails.logger.warn "DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON" if has_tools
+    elsif thinking_enabled
+      # Non-Ark providers typically accept boolean.
+      parameters[:thinking] = true
       Rails.logger.warn "Thinking mode enabled - response format constraint removed, relying on prompt for JSON" if has_tools
     end
 
