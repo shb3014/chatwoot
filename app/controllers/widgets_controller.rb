@@ -9,6 +9,7 @@ class WidgetsController < ActionController::Base
   before_action :set_token
   before_action :set_contact
   before_action :build_contact
+  before_action :detect_widget_locale
   after_action :allow_iframe_requests
 
   private
@@ -66,7 +67,7 @@ class WidgetsController < ActionController::Base
   end
 
   def permitted_params
-    params.permit(:website_token, :cw_conversation)
+    params.permit(:website_token, :cw_conversation, :locale)
   end
 
   def allow_iframe_requests
@@ -76,6 +77,73 @@ class WidgetsController < ActionController::Base
       domains = @web_widget.allowed_domains.split(',').map(&:strip).join(' ')
       response.headers['Content-Security-Policy'] = "frame-ancestors #{domains}"
     end
+  end
+
+  def detect_widget_locale
+    # Priority: URL param > Cookie > Browser Accept-Language > Account default
+    url_locale = permitted_params[:locale]
+    cookie_locale = cookies[:chatwoot_widget_locale]
+    browser_locale = locale_from_browser_for_widget
+    account_locale = @web_widget.account.locale
+
+    Rails.logger.info "[Widget] Locale detection - URL: #{url_locale}, Cookie: #{cookie_locale}, Browser: #{browser_locale}, Account: #{account_locale}"
+
+    detected_locale = url_locale || cookie_locale || browser_locale || account_locale
+    @widget_locale = validate_widget_locale(detected_locale)
+
+    # Save user's locale preference in a cookie if it's from browser detection or URL param
+    if url_locale.present? || (browser_locale.present? && cookie_locale.blank?)
+      cookies[:chatwoot_widget_locale] = { value: @widget_locale, expires: 1.year.from_now }
+    end
+
+    Rails.logger.info "[Widget] Final locale: #{@widget_locale}"
+  end
+
+  def locale_from_browser_for_widget
+    return nil unless request.headers['HTTP_ACCEPT_LANGUAGE'].present?
+
+    accept_language = request.headers['HTTP_ACCEPT_LANGUAGE']
+
+    # Parse and sort by quality value
+    locales = accept_language.split(',').map do |lang|
+      locale, quality = lang.strip.split(';q=')
+      quality = quality ? quality.to_f : 1.0
+      normalized_locale = locale.strip.tr('-', '_')
+      [normalized_locale, quality]
+    end.sort_by { |_, q| -q }.map(&:first)
+
+    # Find first supported locale
+    locales.find { |locale| widget_supports_locale?(locale) }
+  end
+
+  def widget_supports_locale?(locale)
+    return false if locale.blank?
+
+    # Get available locales from I18n (widget supports all Chatwoot locales)
+    available_locales = I18n.available_locales.map(&:to_s)
+
+    # Check exact match
+    return true if available_locales.include?(locale)
+
+    # Check base language match (e.g., zh_CN -> zh)
+    locale_base = locale.split('_').first
+    available_locales.include?(locale_base)
+  end
+
+  def validate_widget_locale(locale)
+    return @web_widget.account.locale if locale.blank?
+
+    available_locales = I18n.available_locales.map(&:to_s)
+
+    # Check exact match
+    return locale if available_locales.include?(locale)
+
+    # Check base language match (e.g., zh_CN -> zh)
+    locale_base = locale.split('_').first
+    return locale_base if available_locales.include?(locale_base)
+
+    # Fall back to account default
+    @web_widget.account.locale
   end
 end
 
