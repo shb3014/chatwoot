@@ -95,8 +95,9 @@ export const InitializationHelpers = {
         const { portalSlug, customDomain, articleTranslations, currentArticleSlug, defaultLocale } = window.portalConfig || {};
 
         // Save locale preference in cookie (expires in 1 year)
+        // Use SameSite=None and Secure so widget iframe can read the cookie
         const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; SameSite=Lax`;
+        document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; SameSite=None; Secure`;
 
         // Close desktop dropdown if open
         if (dropdown) {
