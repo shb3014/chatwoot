@@ -92,8 +92,7 @@ export const InitializationHelpers = {
 
       if (localeBtn && menu) {
         const selectedLocale = localeBtn.dataset.locale;
-        const { portalSlug } = menu.dataset;
-        const { customDomain } = window.portalConfig || {};
+        const { portalSlug, customDomain, articleTranslations, currentArticleSlug, defaultLocale } = window.portalConfig || {};
 
         // Save locale preference in cookie (expires in 1 year)
         const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
@@ -112,11 +111,32 @@ export const InitializationHelpers = {
           }, 300);
         }
 
-        // 如果使用自定义域名，使用简化路径
-        if (customDomain) {
-          window.location.href = `/${encodeURIComponent(selectedLocale)}/`;
+        // Check if we're on an article page and have translations available
+        if (articleTranslations && currentArticleSlug && articleTranslations[selectedLocale]) {
+          const translatedSlug = articleTranslations[selectedLocale];
+          const includeLocale = selectedLocale !== defaultLocale;
+          
+          // Navigate to translated article
+          if (customDomain) {
+            if (includeLocale) {
+              window.location.href = `/${encodeURIComponent(selectedLocale)}/articles/${encodeURIComponent(translatedSlug)}`;
+            } else {
+              window.location.href = `/articles/${encodeURIComponent(translatedSlug)}`;
+            }
+          } else {
+            if (includeLocale) {
+              window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/articles/${encodeURIComponent(translatedSlug)}`;
+            } else {
+              window.location.href = `/hc/${encodeURIComponent(portalSlug)}/articles/${encodeURIComponent(translatedSlug)}`;
+            }
+          }
         } else {
-          window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/`;
+          // No translation available or not on article page, go to index
+          if (customDomain) {
+            window.location.href = `/${encodeURIComponent(selectedLocale)}/`;
+          } else {
+            window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/`;
+          }
         }
       }
     });

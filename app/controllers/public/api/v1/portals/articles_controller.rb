@@ -61,6 +61,34 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
   def set_article
     @article = @portal.articles.find_by(slug: permitted_params[:article_slug])
     @parsed_content = render_article_content(@article.content)
+    
+    # Get all translations of this article
+    @article_translations = get_article_translations(@article)
+  end
+
+  def get_article_translations(article)
+    # Get all associated articles (translations) including the root article
+    translations = {}
+    
+    # If this article has a root article, get all siblings
+    if article.associated_article_id.present?
+      root_id = article.associated_article_id
+      Article.where(associated_article_id: root_id)
+             .or(Article.where(id: root_id))
+             .pluck(:locale, :slug)
+             .each { |locale, slug| translations[locale] = slug }
+    elsif article.associated_articles.any?
+      # This article is the root, get all translations
+      translations[article.locale] = article.slug
+      article.associated_articles.pluck(:locale, :slug).each do |locale, slug|
+        translations[locale] = slug
+      end
+    else
+      # No translations, just the current article
+      translations[article.locale] = article.slug
+    end
+    
+    translations
   end
 
   def set_category

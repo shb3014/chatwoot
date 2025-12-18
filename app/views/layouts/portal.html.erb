@@ -151,7 +151,12 @@ By default, it renders:
         resultsTitle: '<%= I18n.t('public_portal.search.results_title') %>',
       },
       isPlainLayoutEnabled: '<%= @is_plain_layout_enabled %>',
-      tocHeader: '<%= I18n.t('public_portal.toc_header') %>'
+      tocHeader: '<%= I18n.t('public_portal.toc_header') %>',
+      <% if defined?(@article_translations) && @article_translations.present? %>
+      articleTranslations: <%= raw @article_translations.to_json %>,
+      currentArticleSlug: '<%= @article&.slug %>',
+      <% end %>
+      defaultLocale: '<%= @portal.default_locale %>'
     };
   </script>
   <% if @portal.channel_web_widget.present? && !@is_plain_layout_enabled %>
