@@ -29,7 +29,7 @@
         <div class="flex content-center justify-between h-8 my-1">
           <a
             class="leading-8 text-slate-800 dark:text-slate-50 hover:underline"
-            href="<%= generate_article_link(portal.slug, article.slug, @theme_from_params, @is_plain_layout_enabled) %>"
+            href="<%= generate_article_link(portal.slug, article.slug, @theme_from_params, @is_plain_layout_enabled, article.locale) %>"
           >
             <%= article.title %>
           </a>

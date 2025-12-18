@@ -2,7 +2,7 @@
 <sitemapindex>
   <% @portal.articles.where(status: :published).each do |article| %>
     <sitemap>
-      <loc><%= @help_center_url %><%= generate_article_link(@portal.slug, article.slug, false, false) %></loc>
+      <loc><%= @help_center_url %><%= generate_article_link(@portal.slug, article.slug, false, false, article.locale) %></loc>
       <lastmod><%= article.updated_at.strftime("%Y-%m-%d") %></lastmod>
     </sitemap>
   <% end %>

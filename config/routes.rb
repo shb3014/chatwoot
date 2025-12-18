@@ -501,7 +501,10 @@ Rails.application.routes.draw do
   get 'hc/:slug/:locale/categories', to: 'public/api/v1/portals/categories#index'
   get 'hc/:slug/:locale/categories/:category_slug', to: 'public/api/v1/portals/categories#show'
   get 'hc/:slug/:locale/categories/:category_slug/articles', to: 'public/api/v1/portals/articles#index'
+  # Locale-specific article routes
+  get 'hc/:slug/:locale/articles/:article_slug', to: 'public/api/v1/portals/articles#show'
   get 'hc/:slug/articles/:article_slug.png', to: 'public/api/v1/portals/articles#tracking_pixel'
+  # Default locale article routes (fallback for backward compatibility)
   get 'hc/:slug/articles/:article_slug', to: 'public/api/v1/portals/articles#show'
 
   # 自定义域名简化路由（仅当使用自定义域名时匹配）
@@ -515,6 +518,12 @@ Rails.application.routes.draw do
     domain = request.host
     !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
   }
+  # Locale-specific article routes (e.g., /zh/articles/slug)
+  get ':locale/articles/:article_slug', to: 'public/api/v1/portals/articles#show', constraints: lambda { |request|
+    domain = request.host
+    !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)
+  }
+  # Default locale article routes (e.g., /articles/slug)
   get 'articles/:article_slug', to: 'public/api/v1/portals/articles#show', constraints: lambda { |request|
     domain = request.host
     !DomainHelper.chatwoot_domain?(domain) && Portal.exists?(custom_domain: domain)

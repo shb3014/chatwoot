@@ -189,7 +189,33 @@ class Article < ApplicationRecord
   end
 
   def ensure_article_slug
-    self.slug ||= "#{Time.now.utc.to_i}-#{title.underscore.parameterize(separator: '-')}" if title.present?
+    return if slug.present? || title.blank?
+
+    # Use English title for slug generation across all locales
+    slug_title = english_title_for_slug
+    timestamp = Time.now.utc.to_i
+    self.slug = "#{timestamp}-#{slug_title.underscore.parameterize(separator: '-')}"
+  end
+
+  # Get the English title for slug generation
+  # Priority: 1) Current article if English, 2) Root article (English version), 3) Current title
+  def english_title_for_slug
+    # If this is already an English article, use its title
+    return title if locale == 'en'
+
+    # If this article has a root article (English version), use that title
+    if root_article.present? && root_article.locale == 'en'
+      return root_article.title
+    end
+
+    # Find English version among associated articles (siblings)
+    if associated_article_id.present?
+      english_sibling = Article.find_by(associated_article_id: associated_article_id, locale: 'en')
+      return english_sibling.title if english_sibling.present?
+    end
+
+    # Fallback: use current title (can be translated to English if needed)
+    title
   end
 end
 Article.include_mod_with('Concerns::Article')

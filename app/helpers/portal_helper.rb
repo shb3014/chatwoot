@@ -87,20 +87,45 @@ module PortalHelper
     end
   end
 
-  def generate_article_link(portal_slug, article_slug, theme, is_plain_layout_enabled)
+  def generate_article_link(portal_slug, article_slug, theme, is_plain_layout_enabled, article_locale = nil)
+    # Determine if we need to include locale in the URL
+    # Include locale for non-default locales
+    default_locale = @portal&.default_locale || 'en'
+    include_locale = article_locale.present? && article_locale != default_locale
+    
     # 如果使用自定义域名，使用简化路径
     if @portal&.custom_domain.present? && request.host == @portal.custom_domain
-      if is_plain_layout_enabled
-        "/articles/#{article_slug}#{theme_query_string(theme)}"
+      if include_locale
+        # Non-default locale: /zh/articles/slug
+        if is_plain_layout_enabled
+          "/#{article_locale}/articles/#{article_slug}#{theme_query_string(theme)}"
+        else
+          "/#{article_locale}/articles/#{article_slug}"
+        end
       else
-        "/articles/#{article_slug}"
+        # Default locale: /articles/slug
+        if is_plain_layout_enabled
+          "/articles/#{article_slug}#{theme_query_string(theme)}"
+        else
+          "/articles/#{article_slug}"
+        end
       end
     else
       # 标准路径（包含 portal slug）
-      if is_plain_layout_enabled
-        "/hc/#{portal_slug}/articles/#{article_slug}#{theme_query_string(theme)}"
+      if include_locale
+        # Non-default locale: /hc/slug/zh/articles/article-slug
+        if is_plain_layout_enabled
+          "/hc/#{portal_slug}/#{article_locale}/articles/#{article_slug}#{theme_query_string(theme)}"
+        else
+          "/hc/#{portal_slug}/#{article_locale}/articles/#{article_slug}"
+        end
       else
-        "/hc/#{portal_slug}/articles/#{article_slug}"
+        # Default locale: /hc/slug/articles/article-slug
+        if is_plain_layout_enabled
+          "/hc/#{portal_slug}/articles/#{article_slug}#{theme_query_string(theme)}"
+        else
+          "/hc/#{portal_slug}/articles/#{article_slug}"
+        end
       end
     end
   end
