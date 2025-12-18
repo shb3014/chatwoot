@@ -41,21 +41,17 @@ class Api::V1::Widget::ConfigsController < Api::V1::Widget::BaseController
   end
 
   def detect_widget_locale
-    # Priority: URL param > Cookie > Browser Accept-Language > Account default
+    # Priority: URL param > Help Center cookie > Browser Accept-Language > Account default
+    # Check help center cookie first since users set their preference there
     url_locale = params[:locale]
-    cookie_locale = cookies[:chatwoot_widget_locale]
+    help_center_locale = cookies[:help_center_locale]
     browser_locale = locale_from_browser_for_widget
     account_locale = @web_widget.account.locale
 
-    Rails.logger.info "[Widget API] Locale detection - URL: #{url_locale}, Cookie: #{cookie_locale}, Browser: #{browser_locale}, Account: #{account_locale}"
+    Rails.logger.info "[Widget API] Locale detection - URL: #{url_locale}, HelpCenter: #{help_center_locale}, Browser: #{browser_locale}, Account: #{account_locale}"
 
-    detected_locale = url_locale || cookie_locale || browser_locale || account_locale
+    detected_locale = url_locale || help_center_locale || browser_locale || account_locale
     @widget_locale = validate_widget_locale(detected_locale)
-
-    # Save user's locale preference in a cookie if it's from browser detection or URL param
-    if url_locale.present? || (browser_locale.present? && cookie_locale.blank?)
-      cookies[:chatwoot_widget_locale] = { value: @widget_locale, expires: 1.year.from_now }
-    end
 
     Rails.logger.info "[Widget API] Final locale: #{@widget_locale}"
   end
