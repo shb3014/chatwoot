@@ -9,6 +9,7 @@ import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength, helpers, url } from '@vuelidate/validators';
 import { isValidSlug } from 'shared/helpers/Validators';
+import allLocales from 'shared/constants/locales.js';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -45,6 +46,7 @@ const state = reactive({
   liveChatWidgetInboxId: '',
   logoUrl: '',
   avatarBlobId: '',
+  defaultLocale: '',
 });
 
 const originalState = reactive({ ...state });
@@ -65,6 +67,16 @@ const liveChatWidgets = computed(() => {
     },
     ...widgetOptions,
   ];
+});
+
+const localeOptions = computed(() => {
+  if (!props.activePortal?.config?.allowed_locales) {
+    return [];
+  }
+  return props.activePortal.config.allowed_locales.map(locale => ({
+    value: locale.code,
+    label: `${allLocales[locale.code]} (${locale.code})`,
+  }));
 });
 
 const rules = {
@@ -117,6 +129,7 @@ watch(
         homePageLink: newVal.homepage_link,
         slug: newVal.slug,
         liveChatWidgetInboxId: newVal.inbox?.id || '',
+        defaultLocale: newVal.meta?.default_locale || newVal.config?.default_locale || 'en',
       });
       if (newVal.logo) {
         const {
@@ -149,6 +162,10 @@ const handleUpdatePortal = () => {
     homepage_link: state.homePageLink,
     blob_id: state.avatarBlobId,
     inbox_id: state.liveChatWidgetInboxId,
+    config: {
+      default_locale: state.defaultLocale,
+      allowed_locales: props.activePortal?.config?.allowed_locales || [],
+    },
   };
   emit('updatePortal', portal);
 };
@@ -283,6 +300,26 @@ const handleAvatarDelete = () => {
           custom-input-class="!bg-transparent dark:!bg-transparent"
           @input="v$.homePageLink.$touch()"
           @blur="v$.homePageLink.$touch()"
+        />
+      </div>
+      <div
+        class="grid items-start justify-between w-full gap-2 grid-cols-[200px,1fr]"
+      >
+        <label
+          class="text-sm font-medium whitespace-nowrap py-2.5 text-n-slate-12"
+        >
+          {{ t('HELP_CENTER.PORTAL_SETTINGS.FORM.DEFAULT_LOCALE.LABEL') }}
+        </label>
+        <ComboBox
+          v-model="state.defaultLocale"
+          :options="localeOptions"
+          :placeholder="
+            t('HELP_CENTER.PORTAL_SETTINGS.FORM.DEFAULT_LOCALE.PLACEHOLDER')
+          "
+          :message="
+            t('HELP_CENTER.PORTAL_SETTINGS.FORM.DEFAULT_LOCALE.HELP_TEXT')
+          "
+          class="[&>div>button:not(.focused)]:!outline-n-weak"
         />
       </div>
       <div

@@ -26,6 +26,7 @@ class Public::Api::V1::Portals::BaseController < PublicController
       @portal ||= Portal.find_by!(slug: params[:slug], archived: false)
     end
     @locale = params[:locale] || @portal.default_locale
+    @selected_locale = @locale
     @portal
   end
 
@@ -38,6 +39,7 @@ class Public::Api::V1::Portals::BaseController < PublicController
 
   def switch_locale_with_portal(&)
     @locale = validate_and_get_locale(params[:locale])
+    @selected_locale = @locale
 
     I18n.with_locale(@locale, &)
   end
@@ -53,6 +55,8 @@ class Public::Api::V1::Portals::BaseController < PublicController
                        article.portal.default_locale
                      end
     @locale = validate_and_get_locale(article_locale)
+    # Preserve user's selected locale for the locale switcher widget
+    @selected_locale ||= params[:locale] || @locale
     I18n.with_locale(@locale, &)
   end
 

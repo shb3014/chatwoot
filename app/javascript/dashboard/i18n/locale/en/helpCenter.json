@@ -748,6 +748,11 @@
           "PLACEHOLDER": "Portal home page link",
           "ERROR": "Enter a valid URL. The Home page link must start with 'http://' or 'https://'."
         },
+        "DEFAULT_LOCALE": {
+          "LABEL": "Default locale",
+          "PLACEHOLDER": "Select default locale",
+          "HELP_TEXT": "This locale will be used as the default language when visitors first access your help center"
+        },
         "SLUG": {
           "LABEL": "Slug",
           "PLACEHOLDER": "Portal slug"
