@@ -97,7 +97,18 @@ export const InitializationHelpers = {
         // Save locale preference in cookie (expires in 1 year)
         // Set on parent domain so all subdomains (help.*, chat.*, etc.) can access it
         const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-        const domain = window.location.hostname.split('.').slice(-2).join('.'); // e.g., plantsio.com
+        const pastDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
+        const hostname = window.location.hostname;
+        const domain = hostname.split('.').slice(-2).join('.'); // e.g., plantsio.com
+        
+        // Delete any existing cookies (subdomain-specific and parent domain)
+        document.cookie = `help_center_locale=; expires=${pastDate}; path=/`;
+        document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=${hostname}`;
+        document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=.${hostname}`;
+        document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=${domain}`;
+        document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=.${domain}`;
+        
+        // Now set the new cookie on parent domain
         document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; domain=.${domain}; SameSite=None; Secure`;
 
         // Close desktop dropdown if open

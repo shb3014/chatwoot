@@ -144,6 +144,10 @@ class DashboardController < ActionController::Base
   end
 
   def set_help_center_locale_cookie(locale)
+    # Delete any existing subdomain-specific cookie first
+    cookies.delete(:help_center_locale)
+    cookies.delete(:help_center_locale, domain: request.host)
+    
     # Set cookie on parent domain so all subdomains can access it
     # This allows widget on chat.plantsio.com to read locale from help.plantsio.com
     cookie_options = {
@@ -159,6 +163,8 @@ class DashboardController < ActionController::Base
     end
     
     cookies[:help_center_locale] = cookie_options
+    
+    Rails.logger.info "[HelpCenter] Cookie set: locale=#{locale}, domain=parent"
   end
 
   def app_config

@@ -42,6 +42,10 @@ class Public::Api::V1::Portals::BaseController < PublicController
     @locale = validate_and_get_locale(params[:locale])
     @selected_locale = @locale
     
+    # Delete any existing subdomain-specific cookie first
+    cookies.delete(:help_center_locale)
+    cookies.delete(:help_center_locale, domain: request.host)
+    
     # Save user's locale preference on parent domain so all subdomains can access it
     cookie_options = {
       value: @locale,
