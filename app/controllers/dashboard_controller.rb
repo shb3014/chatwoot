@@ -55,8 +55,88 @@ class DashboardController < ActionController::Base
     @portal = Portal.find_by(custom_domain: domain)
     return unless @portal
 
-    @locale = @portal.default_locale
+    # Check if locale is in the URL path (e.g., /en, /zh)
+    locale_from_path = extract_locale_from_path
+    
+    if locale_from_path.present?
+      # User has explicitly navigated to a locale path, use it
+      @locale = validate_portal_locale(locale_from_path)
+      @selected_locale = @locale
+    else
+      # No locale in URL, detect and redirect
+      detected_locale = detect_user_locale_for_portal(@portal)
+      Rails.logger.info "[HelpCenter] DashboardController redirecting to locale: #{detected_locale}"
+      redirect_to "/#{detected_locale}" and return
+    end
+    
     render 'public/api/v1/portals/show', layout: 'portal', portal: @portal and return
+  end
+
+  def extract_locale_from_path
+    # Extract locale from paths like /en, /zh, /en/articles, etc.
+    path_parts = request.path.split('/').reject(&:blank?)
+    return nil if path_parts.empty?
+    
+    # First path segment might be a locale
+    potential_locale = path_parts.first
+    
+    # Check if it looks like a locale code (e.g., en, zh, pt_BR, zh_CN)
+    potential_locale if potential_locale.match?(/^[a-z]{2,3}(_[A-Z]{2})?$/i)
+  end
+
+  def detect_user_locale_for_portal(portal)
+    # Priority: Cookie > Browser Accept-Language > Portal default
+    cookie_locale = cookies[:help_center_locale]
+    browser_locale = locale_from_browser_for_portal(portal)
+    default_locale = portal.default_locale
+    
+    Rails.logger.info "[HelpCenter] Locale detection - Cookie: #{cookie_locale}, Browser: #{browser_locale}, Default: #{default_locale}"
+    
+    locale = cookie_locale || browser_locale || default_locale
+    validate_portal_locale(locale)
+  end
+
+  def locale_from_browser_for_portal(portal)
+    return nil unless request.headers['HTTP_ACCEPT_LANGUAGE'].present?
+
+    accept_language = request.headers['HTTP_ACCEPT_LANGUAGE']
+    
+    # Parse and sort by quality value
+    locales = accept_language.split(',').map do |lang|
+      locale, quality = lang.strip.split(';q=')
+      quality = quality ? quality.to_f : 1.0
+      normalized_locale = locale.strip.tr('-', '_')
+      [normalized_locale, quality]
+    end.sort_by { |_, q| -q }.map(&:first)
+
+    # Find first supported locale
+    locales.find { |locale| portal_supports_locale?(portal, locale) }
+  end
+
+  def portal_supports_locale?(portal, locale)
+    return false if locale.blank?
+
+    portal_config = portal.config || {}
+    allowed_locales = portal_config['allowed_locales'] || []
+    return true if allowed_locales.empty?
+
+    locale_base = locale.split('_').first
+    allowed_locales.include?(locale) || allowed_locales.include?(locale_base)
+  end
+
+  def validate_portal_locale(locale)
+    return @portal.default_locale if locale.blank?
+
+    portal_config = @portal.config || {}
+    allowed_locales = portal_config['allowed_locales'] || []
+    return locale if allowed_locales.empty?
+
+    return locale if allowed_locales.include?(locale)
+
+    locale_base = locale.split('_').first
+    return locale_base if allowed_locales.include?(locale_base)
+
+    @portal.default_locale
   end
 
   def app_config
