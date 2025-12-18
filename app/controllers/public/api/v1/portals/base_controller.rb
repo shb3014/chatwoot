@@ -42,15 +42,24 @@ class Public::Api::V1::Portals::BaseController < PublicController
     @locale = validate_and_get_locale(params[:locale])
     @selected_locale = @locale
     
+    # Calculate parent domain (e.g., help.plantsio.com -> .plantsio.com)
+    host_parts = request.host.split('.')
+    parent_domain = if host_parts.length > 2
+                      ".#{host_parts[-2..-1].join('.')}" # .plantsio.com
+                    else
+                      request.host # localhost or single domain
+                    end
+    
     # Delete any existing subdomain-specific cookie first
     cookies.delete(:help_center_locale)
     cookies.delete(:help_center_locale, domain: request.host)
+    cookies.delete(:help_center_locale, domain: parent_domain)
     
     # Save user's locale preference on parent domain so all subdomains can access it
     cookie_options = {
       value: @locale,
       expires: 1.year.from_now,
-      domain: :all # Sets cookie on parent domain (e.g., .plantsio.com)
+      domain: parent_domain
     }
     
     # Only set SameSite=None if on HTTPS (required for cross-site cookies)
@@ -60,6 +69,8 @@ class Public::Api::V1::Portals::BaseController < PublicController
     end
     
     cookies[:help_center_locale] = cookie_options
+    
+    Rails.logger.info "[Portal] Cookie set: locale=#{@locale}, domain=#{parent_domain}"
 
     I18n.with_locale(@locale, &)
   end
