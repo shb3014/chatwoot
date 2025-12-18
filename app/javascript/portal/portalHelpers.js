@@ -59,18 +59,65 @@ export const openExternalLinksInNewTab = () => {
 
 export const InitializationHelpers = {
   navigateToLocalePage: () => {
-    document.addEventListener('change', e => {
-      const localeSwitcher = e.target.closest('.locale-switcher');
-      if (!localeSwitcher) return;
+    const toggle = document.getElementById('toggle-locale');
+    const dropdown = document.getElementById('locale-dropdown');
+    
+    // Desktop locale dropdown handler
+    if (toggle && dropdown) {
+      // Toggle locale dropdown
+      toggle.addEventListener('click', e => {
+        e.stopPropagation();
+        dropdown.dataset.dropdownOpen = String(
+          dropdown.dataset.dropdownOpen !== 'true'
+        );
+      });
 
-      const { portalSlug } = localeSwitcher.dataset;
-      const { customDomain } = window.portalConfig || {};
+      document.addEventListener('click', ({ target }) => {
+        if (toggle.contains(target)) return;
 
-      // 如果使用自定义域名，使用简化路径
-      if (customDomain) {
-        window.location.href = `/${encodeURIComponent(localeSwitcher.value)}/`;
-      } else {
-        window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(localeSwitcher.value)}/`;
+        // Close the locale dropdown if clicked outside
+        if (
+          dropdown.dataset.dropdownOpen === 'true' &&
+          !dropdown.contains(target)
+        ) {
+          dropdown.dataset.dropdownOpen = 'false';
+        }
+      });
+    }
+
+    // Handle both desktop and mobile locale button clicks
+    document.addEventListener('click', ({ target }) => {
+      const localeBtn = target.closest('.locale-menu button[data-locale]');
+      const menu = localeBtn?.closest('.locale-menu');
+
+      if (localeBtn && menu) {
+        const selectedLocale = localeBtn.dataset.locale;
+        const { portalSlug } = menu.dataset;
+        const { customDomain } = window.portalConfig || {};
+
+        // Save locale preference in cookie (expires in 1 year)
+        const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; SameSite=Lax`;
+
+        // Close desktop dropdown if open
+        if (dropdown) {
+          dropdown.dataset.dropdownOpen = 'false';
+        }
+
+        // Close mobile menu if this was a mobile click
+        if (menu.id === 'mobile-locale-dropdown') {
+          setTimeout(() => {
+            const mobileToggle = document.getElementById('mobile-menu-toggle');
+            if (mobileToggle) mobileToggle.checked = false;
+          }, 300);
+        }
+
+        // 如果使用自定义域名，使用简化路径
+        if (customDomain) {
+          window.location.href = `/${encodeURIComponent(selectedLocale)}/`;
+        } else {
+          window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/`;
+        }
       }
     });
   },

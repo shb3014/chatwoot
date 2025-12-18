@@ -25,8 +25,9 @@ class Public::Api::V1::Portals::BaseController < PublicController
       # 否则通过 slug 查找
       @portal ||= Portal.find_by!(slug: params[:slug], archived: false)
     end
-    @locale = params[:locale] || @portal.default_locale
-    @selected_locale = @locale
+    # Priority: URL param > Cookie > Portal default
+    @selected_locale = params[:locale] || cookies[:help_center_locale] || @portal.default_locale
+    @locale = @selected_locale
     @portal
   end
 
@@ -40,6 +41,8 @@ class Public::Api::V1::Portals::BaseController < PublicController
   def switch_locale_with_portal(&)
     @locale = validate_and_get_locale(params[:locale])
     @selected_locale = @locale
+    # Save user's locale preference in a cookie
+    cookies[:help_center_locale] = { value: @locale, expires: 1.year.from_now }
 
     I18n.with_locale(@locale, &)
   end
@@ -55,8 +58,9 @@ class Public::Api::V1::Portals::BaseController < PublicController
                        article.portal.default_locale
                      end
     @locale = validate_and_get_locale(article_locale)
-    # Preserve user's selected locale for the locale switcher widget
-    @selected_locale ||= params[:locale] || @locale
+    # Preserve user's selected locale from cookie or URL for the locale switcher widget
+    # This ensures the switcher shows what the user selected, even if the article is in a different language
+    @selected_locale = params[:locale] || cookies[:help_center_locale] || @locale
     I18n.with_locale(@locale, &)
   end
 
