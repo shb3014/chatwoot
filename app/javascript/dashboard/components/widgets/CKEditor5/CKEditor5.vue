@@ -297,8 +297,8 @@ export default {
 
               return (
                 '<div style="display: flex;justify-content: center;">' +
-                '<video width="320" height="180" controls style="max-width: 100%; height: auto;">' +
-                `<source src="${videoUrl}" type="${mimeType}">` +
+                '<video width="320" height="180" playsinline preload="metadata" controls style="max-width: 100%; height: auto;">' +
+                `<source src="${videoUrl}#t=0.001" type="${mimeType}">` +
                 'Your browser does not support the video tag.' +
                 '</video>' +
                 '</div>'
