@@ -41,8 +41,21 @@ class Public::Api::V1::Portals::BaseController < PublicController
   def switch_locale_with_portal(&)
     @locale = validate_and_get_locale(params[:locale])
     @selected_locale = @locale
-    # Save user's locale preference in a cookie
-    cookies[:help_center_locale] = { value: @locale, expires: 1.year.from_now }
+    
+    # Save user's locale preference in a cookie with SameSite=None and Secure
+    # so it's accessible in widget iframes
+    cookie_options = {
+      value: @locale,
+      expires: 1.year.from_now
+    }
+    
+    # Only set SameSite=None if on HTTPS (required for cross-site cookies)
+    if request.ssl? || Rails.env.production?
+      cookie_options[:same_site] = :none
+      cookie_options[:secure] = true
+    end
+    
+    cookies[:help_center_locale] = cookie_options
 
     I18n.with_locale(@locale, &)
   end

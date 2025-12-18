@@ -62,10 +62,14 @@ class DashboardController < ActionController::Base
       # User has explicitly navigated to a locale path, use it
       @locale = validate_portal_locale(locale_from_path)
       @selected_locale = @locale
+      # Save the locale so widget can access it
+      set_help_center_locale_cookie(@locale)
     else
       # No locale in URL, detect and redirect
       detected_locale = detect_user_locale_for_portal(@portal)
       Rails.logger.info "[HelpCenter] DashboardController redirecting to locale: #{detected_locale}"
+      # Set cookie before redirect so widget can access it
+      set_help_center_locale_cookie(detected_locale)
       redirect_to "/#{detected_locale}" and return
     end
     
@@ -137,6 +141,24 @@ class DashboardController < ActionController::Base
     return locale_base if allowed_locales.include?(locale_base)
 
     @portal.default_locale
+  end
+
+  def set_help_center_locale_cookie(locale)
+    # Set cookie with SameSite=None and Secure so it's accessible in widget iframes
+    # This allows the widget to read the user's help center language preference
+    # Note: SameSite=None requires Secure=true (HTTPS)
+    cookie_options = {
+      value: locale,
+      expires: 1.year.from_now
+    }
+    
+    # Only set SameSite=None if on HTTPS (required for cross-site cookies)
+    if request.ssl? || Rails.env.production?
+      cookie_options[:same_site] = :none
+      cookie_options[:secure] = true
+    end
+    
+    cookies[:help_center_locale] = cookie_options
   end
 
   def app_config
