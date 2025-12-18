@@ -96,14 +96,15 @@
                class="locale-menu absolute hidden flex-col w-auto min-w-[160px] h-auto bg-white border border-solid rounded dark:bg-slate-900 top-9 ltr:right-1 rtl:left-1 border-slate-100 dark:border-slate-800 shadow-lg transition-all duration-200 ease-out opacity-0 scale-95 data-[dropdown-open=true]:opacity-100 data-[dropdown-open=true]:scale-100 data-[dropdown-open=true]:flex" 
                aria-hidden="true" 
                data-dropdown="locale-dropdown">
-            <% @portal.config["allowed_locales"].each_with_index do |locale, index| %>
+            <% @portal.config["allowed_locales"].each_with_index do |locale_obj, index| %>
+              <% locale_code = locale_obj.is_a?(Hash) ? (locale_obj['code'] || locale_obj[:code]) : locale_obj %>
               <button 
                 class="desktop-locale-button flex flex-row items-center justify-between gap-2 px-2 py-2 <%= index < @portal.config["allowed_locales"].length - 1 ? 'border-b border-solid border-slate-100 dark:border-slate-800' : '' %> stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors <%= index == @portal.config["allowed_locales"].length - 1 ? 'rounded-b' : '' %>" 
-                data-locale="<%= locale %>">
+                data-locale="<%= locale_code %>">
                 <div class="flex flex-row items-center gap-2">
-                  <span class="text-xs font-medium whitespace-nowrap"><%= language_name(locale) %></span>
+                  <span class="text-xs font-medium whitespace-nowrap"><%= language_name(locale_code) %></span>
                 </div>
-                <span class="check-mark-icon <%= locale %>-locale <%= locale == @selected_locale ? 'opacity-100' : 'opacity-0' %>">
+                <span class="check-mark-icon <%= locale_code %>-locale <%= locale_code == @selected_locale ? 'opacity-100' : 'opacity-0' %>">
                   <%= render partial: 'icons/check-mark' %>
                 </span>
               </button>

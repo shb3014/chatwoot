@@ -58,11 +58,12 @@
               <%= I18n.t('public_portal.header.language', default: 'Language') %>
             </h3>
             <div id="mobile-locale-dropdown" data-current-locale="<%= selected_locale %>" data-portal-slug="<%= portal.slug %>" class="locale-menu space-y-1">
-              <% portal.config["allowed_locales"].each do |loc| %>
-                <button class="mobile-locale-button group flex items-center gap-3 justify-start w-full py-2 hover:text-slate-700 dark:hover:text-slate-200 text-slate-800 dark:text-slate-100 transition-colors stroke-slate-800 dark:stroke-slate-100" data-locale="<%= loc %>">
+              <% portal.config["allowed_locales"].each do |locale_obj| %>
+                <% locale_code = locale_obj.is_a?(Hash) ? (locale_obj['code'] || locale_obj[:code]) : locale_obj %>
+                <button class="mobile-locale-button group flex items-center gap-3 justify-start w-full py-2 hover:text-slate-700 dark:hover:text-slate-200 text-slate-800 dark:text-slate-100 transition-colors stroke-slate-800 dark:stroke-slate-100" data-locale="<%= locale_code %>">
                   <%= render partial: 'icons/globe' %>
-                  <span class="text-lg font-medium"><%= language_name(loc) %></span>
-                  <span class="check-mark-icon <%= loc %>-locale ml-auto <%= loc == selected_locale ? 'opacity-100' : 'opacity-0' %>">
+                  <span class="text-lg font-medium"><%= language_name(locale_code) %></span>
+                  <span class="check-mark-icon <%= locale_code %>-locale ml-auto <%= locale_code == selected_locale ? 'opacity-100' : 'opacity-0' %>">
                     <%= render partial: 'icons/check-mark' %>
                   </span>
                 </button>
