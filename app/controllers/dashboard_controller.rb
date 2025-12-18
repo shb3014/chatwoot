@@ -144,12 +144,12 @@ class DashboardController < ActionController::Base
   end
 
   def set_help_center_locale_cookie(locale)
-    # Set cookie with SameSite=None and Secure so it's accessible in widget iframes
-    # This allows the widget to read the user's help center language preference
-    # Note: SameSite=None requires Secure=true (HTTPS)
+    # Set cookie on parent domain so all subdomains can access it
+    # This allows widget on chat.plantsio.com to read locale from help.plantsio.com
     cookie_options = {
       value: locale,
-      expires: 1.year.from_now
+      expires: 1.year.from_now,
+      domain: :all # Sets cookie on parent domain (e.g., .plantsio.com)
     }
     
     # Only set SameSite=None if on HTTPS (required for cross-site cookies)

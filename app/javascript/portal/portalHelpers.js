@@ -95,9 +95,10 @@ export const InitializationHelpers = {
         const { portalSlug, customDomain, articleTranslations, currentArticleSlug, defaultLocale } = window.portalConfig || {};
 
         // Save locale preference in cookie (expires in 1 year)
-        // Use SameSite=None and Secure so widget iframe can read the cookie
+        // Set on parent domain so all subdomains (help.*, chat.*, etc.) can access it
         const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; SameSite=None; Secure`;
+        const domain = window.location.hostname.split('.').slice(-2).join('.'); // e.g., plantsio.com
+        document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; domain=.${domain}; SameSite=None; Secure`;
 
         // Close desktop dropdown if open
         if (dropdown) {

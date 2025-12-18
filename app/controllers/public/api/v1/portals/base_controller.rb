@@ -42,11 +42,11 @@ class Public::Api::V1::Portals::BaseController < PublicController
     @locale = validate_and_get_locale(params[:locale])
     @selected_locale = @locale
     
-    # Save user's locale preference in a cookie with SameSite=None and Secure
-    # so it's accessible in widget iframes
+    # Save user's locale preference on parent domain so all subdomains can access it
     cookie_options = {
       value: @locale,
-      expires: 1.year.from_now
+      expires: 1.year.from_now,
+      domain: :all # Sets cookie on parent domain (e.g., .plantsio.com)
     }
     
     # Only set SameSite=None if on HTTPS (required for cross-site cookies)
