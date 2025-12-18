@@ -26,21 +26,33 @@ class Public::Api::V1::PortalsController < Public::Api::V1::Portals::BaseControl
 
     detected_locale = detect_user_locale
     
+    Rails.logger.info "[HelpCenter] Redirecting to locale: #{detected_locale} for portal: #{@portal.slug}"
+    
     # 如果是自定义域名，重定向到 /:locale
     # 否则重定向到标准路径 /hc/:slug/:locale
     if !DomainHelper.chatwoot_domain?(request.host) && @portal&.custom_domain.present?
-      redirect_to "/#{detected_locale}"
+      redirect_to("/#{detected_locale}") and return
     else
-      redirect_to "/hc/#{@portal.slug}/#{detected_locale}"
+      redirect_to("/hc/#{@portal.slug}/#{detected_locale}") and return
     end
   end
 
   def detect_user_locale
     # Priority: Cookie > Browser Accept-Language > Portal default
-    locale = cookies[:help_center_locale] || locale_from_browser || @portal.default_locale
+    cookie_locale = cookies[:help_center_locale]
+    browser_locale = locale_from_browser
+    default_locale = @portal.default_locale
+    
+    Rails.logger.info "[HelpCenter] Locale detection - Cookie: #{cookie_locale}, Browser: #{browser_locale}, Default: #{default_locale}"
+    
+    locale = cookie_locale || browser_locale || default_locale
     
     # Ensure the locale is supported by the portal
-    supported_locale(locale)
+    final_locale = supported_locale(locale)
+    
+    Rails.logger.info "[HelpCenter] Final locale: #{final_locale} (from: #{locale})"
+    
+    final_locale
   end
 
   def locale_from_browser
@@ -65,8 +77,11 @@ class Public::Api::V1::PortalsController < Public::Api::V1::Portals::BaseControl
   def supported_locale?(locale)
     return false if locale.blank?
 
-    allowed_locales = @portal.config['allowed_locales'] || []
-    return @portal.default_locale == locale if allowed_locales.empty?
+    portal_config = @portal.config || {}
+    allowed_locales = portal_config['allowed_locales'] || []
+    
+    # If no allowed_locales configured, accept any locale
+    return true if allowed_locales.empty?
 
     # Check exact match or base language match (e.g., zh_CN -> zh)
     locale_base = locale.split('_').first
@@ -76,8 +91,13 @@ class Public::Api::V1::PortalsController < Public::Api::V1::Portals::BaseControl
   def supported_locale(locale)
     return @portal.default_locale if locale.blank?
 
-    allowed_locales = @portal.config['allowed_locales'] || []
-    return @portal.default_locale if allowed_locales.empty?
+    # If portal config is nil or allowed_locales is not set, return the locale if it matches default
+    # or just return the default locale
+    portal_config = @portal.config || {}
+    allowed_locales = portal_config['allowed_locales'] || []
+    
+    # If no allowed_locales configured, just use the locale as-is (portal might not have locale restrictions)
+    return locale if allowed_locales.empty?
 
     # Check exact match
     return locale if allowed_locales.include?(locale)
