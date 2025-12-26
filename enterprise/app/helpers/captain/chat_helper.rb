@@ -2,6 +2,11 @@ module Captain::ChatHelper
   def request_chat_completion
     log_chat_completion_request
 
+    # Initialize response validator if not already present
+    # Strictness can be configured via assistant config
+    strictness = @assistant&.config&.[]('validation_strictness')&.to_sym || :moderate
+    @response_validator ||= Captain::ResponseValidatorService.new(strictness: strictness)
+
     # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
     thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
     thinking_enabled = thinking_config&.value.present? && ActiveModel::Type::Boolean.new.cast(thinking_config.value)
@@ -110,6 +115,38 @@ module Captain::ChatHelper
       
       begin
         parsed_message = JSON.parse(content)
+        
+        # Validate response against captured tool results
+        if @response_validator
+          validation = @response_validator.validate_response(parsed_message['response'] || '')
+          
+          Rails.logger.info "=" * 80
+          Rails.logger.info "Response Validation:"
+          Rails.logger.info "Valid: #{validation[:valid]}"
+          Rails.logger.info "Reason: #{validation[:reason]}"
+          Rails.logger.info "Confidence: #{validation[:confidence]}"
+          Rails.logger.info "Should Reject: #{validation[:should_reject]}"
+          Rails.logger.info "Strictness: #{@response_validator.instance_variable_get(:@strictness)}"
+          Rails.logger.info "Documentation content available: #{@response_validator.get_documentation_content.length} chars"
+          Rails.logger.info "Indicators: #{validation[:indicators]&.join(', ') || 'none'}" if validation[:indicators]
+          Rails.logger.info "=" * 80
+          
+          # If validation determines response should be rejected, force a safe response
+          if validation[:should_reject]
+            Rails.logger.error "VALIDATION REJECTED: #{validation[:reason]}"
+            Rails.logger.error "Original response: #{parsed_message['response']}"
+            
+            # Force a safe response
+            parsed_message = {
+              'reasoning' => "Response validation detected potential issues. Unable to provide accurate information from documentation.",
+              'response' => "I apologize, but I couldn't find reliable information about that in our documentation. Would you like to speak with a support agent who can help you better?"
+            }
+          elsif !validation[:valid]
+            # Log warning but allow response (based on strictness setting)
+            Rails.logger.warn "VALIDATION WARNING: #{validation[:reason]} (allowed due to strictness setting)"
+          end
+        end
+        
         persist_message(parsed_message, 'assistant')
         parsed_message
       rescue JSON::ParserError => e
@@ -157,6 +194,11 @@ module Captain::ChatHelper
       'assistant_thinking'
     )
     result = @tool_registry.send(function_name, arguments)
+    
+    # Capture tool result for validation
+    @response_validator ||= Captain::ResponseValidatorService.new
+    @response_validator.capture_tool_result(function_name, result)
+    
     persist_message(
       {
         content: I18n.t('captain.copilot.completed_tool_call', function_name: function_name),
