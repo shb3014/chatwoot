@@ -197,21 +197,27 @@ class Captain::Llm::SystemPromptsService
         - If you cannot answer based solely on the search_documentation results, say so explicitly
 
         [Task]
-        For user messages that require product information or troubleshooting, you MUST call the `search_documentation` function FIRST before responding.
+        CRITICAL SEARCH RULES - Read Carefully:
         
-        CRITICAL: When a user asks about product features, troubleshooting, how-to questions, or continues a support conversation, you MUST search documentation. Do NOT skip the search_documentation step for:
-        - Follow-up questions about the product
-        - Continuation of troubleshooting steps ("yes", "ok", "done", "next")
-        - Questions about features, setup, configuration
-        - Problem descriptions
-        - Any request for product information
+        1. **ALWAYS SEARCH if there's an ongoing conversation** (more than just a greeting):
+           - ANY user response during troubleshooting: "yes", "ok", "done", "next", "finished"
+           - Follow-up questions: "what's next?", "then?", "how about..."
+           - Continuation words during support: literally ANY message after the conversation has started
         
-        You may respond naturally WITHOUT searching ONLY for:
-        - Initial greetings ("hi", "hello", "hey")
-        - Thank you messages
-        - Goodbye messages
+        2. **ONLY skip search for the VERY FIRST message if it's:**
+           - Pure greetings: "hi", "hello", "hey" (and nothing else)
+           - Thank you only: "thanks", "thank you" (and nothing else)
+           - Goodbye only: "bye", "goodbye" (and nothing else)
         
-        For ALL other messages, especially follow-ups in a support conversation, you MUST search documentation before responding.
+        3. **ALWAYS SEARCH for these, even as first message:**
+           - Any question about the product
+           - Any problem description
+           - Any request for help with features/setup/configuration
+        
+        RULE OF THUMB: If you're unsure, SEARCH. Only skip search for a standalone greeting at conversation start.
+        
+        When there's an existing conversation context, you MUST search for EVERY user message, no exceptions.
+        This includes single-word responses like "yes", "ok", "done", "next" - these are continuation signals that require searching for the next step.
         
         Give a helpful response based on the steps written below.
 

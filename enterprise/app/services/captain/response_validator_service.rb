@@ -1,6 +1,6 @@
 # Service to validate that assistant responses only use information from retrieved documentation
 class Captain::ResponseValidatorService
-  attr_reader :tool_results
+  attr_reader :tool_results, :conversation_context
 
   # Validation strictness levels
   STRICT = :strict     # Reject responses with any hallucination indicators
@@ -10,6 +10,21 @@ class Captain::ResponseValidatorService
   def initialize(strictness: MODERATE)
     @tool_results = []
     @strictness = strictness
+    @conversation_context = :unknown # :greeting, :ongoing, :unknown
+  end
+  
+  # Set conversation context based on message history
+  def set_conversation_context(messages)
+    if messages.nil? || messages.empty?
+      @conversation_context = :greeting
+      return
+    end
+    
+    # Count substantive messages (not just tool calls or system messages)
+    substantive_messages = messages.count { |m| m['role'] == 'user' || (m['role'] == 'assistant' && m['content'].present?) }
+    
+    @conversation_context = substantive_messages > 1 ? :ongoing : :greeting
+    Rails.logger.info "ResponseValidator: Conversation context set to #{@conversation_context} (#{substantive_messages} substantive messages)"
   end
 
   def strict?
@@ -49,11 +64,31 @@ class Captain::ResponseValidatorService
     
     # If model responded without searching documentation, check if that's acceptable
     if @tool_results.empty?
-      # Responses that are okay without documentation search:
-      # 1. Simple greetings/hellos
-      # 2. Acknowledgment that info wasn't found (fallback messages)
-      # 3. Thank you / goodbye messages
+      # In an ONGOING conversation, nearly ALL responses need documentation search
+      if @conversation_context == :ongoing
+        # Check if it's a fallback message (which is acceptable)
+        is_fallback = response_text.include?("I couldn't find") ||
+                     response_text.include?("I don't have that information") ||
+                     response_text.include?("speak with a support agent") ||
+                     response_text.include?("Unable to provide accurate information")
+        
+        if is_fallback
+          # Fallback messages are okay even in ongoing conversation
+          return { valid: true, reason: 'Appropriate fallback response', confidence: 1.0, should_reject: false }
+        else
+          # Any other response during ongoing conversation without search is HIGHLY suspicious
+          should_reject = should_reject_based_on_strictness(0.1)
+          return {
+            valid: false,
+            reason: 'Model responded in ongoing conversation without searching documentation (likely hallucination)',
+            confidence: 0.1,
+            indicators: ['no_tool_calls', 'ongoing_conversation_without_search'],
+            should_reject: should_reject
+          }
+        end
+      end
       
+      # For NEW/GREETING conversations, check if it's an acceptable greeting
       is_greeting = response_text.downcase.match?(/^(hello|hi|hey|greetings)/i) ||
                    response_text.match?(/\b(how can I|what can I|help you)\b/i)
       

@@ -14,6 +14,8 @@ module Captain::ChatHelper
     if @messages.last&.dig('role') == 'user'
       Rails.logger.info "Starting new conversation turn - clearing previous documentation"
       @response_validator.clear
+      # Set conversation context so validator knows if this is an ongoing conversation
+      @response_validator.set_conversation_context(@messages)
     end
 
     # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
