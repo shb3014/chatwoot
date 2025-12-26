@@ -440,6 +440,15 @@
           "LABEL": "Response Temperature",
           "DESCRIPTION": "Adjust how creative or restrictive the assistant's responses should be. Lower values produce more focused and deterministic responses, while higher values allow for more creative and varied outputs."
         },
+        "VALIDATION_STRICTNESS": {
+          "LABEL": "Response Validation Strictness",
+          "DESCRIPTION": "Control how strictly the assistant is validated against documentation. This prevents hallucinations by ensuring responses only use information from retrieved documentation.",
+          "OPTIONS": {
+            "STRICT": "Strict - Reject any response that might use training data (most accurate, may produce more 'I don't know' responses)",
+            "MODERATE": "Moderate - Reject obvious hallucinations (recommended, balanced accuracy and usability)",
+            "LENIENT": "Lenient - Only log warnings, never reject (use for testing or when human review is available)"
+          }
+        },
         "DESCRIPTION": {
           "LABEL": "Description",
           "PLACEHOLDER": "Enter assistant description",

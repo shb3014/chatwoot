@@ -22,6 +22,7 @@ const initialState = {
   handoffMessage: '',
   resolutionMessage: '',
   temperature: 1,
+  validationStrictness: 'moderate',
 };
 
 const state = reactive({ ...initialState });
@@ -47,6 +48,7 @@ const updateStateFromAssistant = assistant => {
   state.handoffMessage = config.handoff_message;
   state.resolutionMessage = config.resolution_message;
   state.temperature = config.temperature || 1;
+  state.validationStrictness = config.validation_strictness || 'moderate';
 };
 
 const handleSystemMessagesUpdate = async () => {
@@ -62,6 +64,7 @@ const handleSystemMessagesUpdate = async () => {
       handoff_message: state.handoffMessage,
       resolution_message: state.resolutionMessage,
       temperature: state.temperature || 1,
+      validation_strictness: state.validationStrictness || 'moderate',
     },
   };
 
@@ -112,6 +115,29 @@ watch(
       </div>
       <p class="text-sm text-n-slate-11 italic">
         {{ t('CAPTAIN.ASSISTANTS.FORM.TEMPERATURE.DESCRIPTION') }}
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-sm font-medium text-n-slate-12">
+        {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.LABEL') }}
+      </label>
+      <select
+        v-model="state.validationStrictness"
+        class="w-full rounded-md border border-n-slate-7 bg-n-white px-3 py-2 text-sm text-n-slate-12 focus:border-w-500 focus:outline-none focus:ring-1 focus:ring-w-500"
+      >
+        <option value="strict">
+          {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.STRICT') }}
+        </option>
+        <option value="moderate">
+          {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.MODERATE') }}
+        </option>
+        <option value="lenient">
+          {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.LENIENT') }}
+        </option>
+      </select>
+      <p class="text-sm text-n-slate-11 italic">
+        {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.DESCRIPTION') }}
       </p>
     </div>
 
