@@ -16,6 +16,15 @@ module Captain::ChatHelper
       @response_validator.clear
       # Set conversation context so validator knows if this is an ongoing conversation
       @response_validator.set_conversation_context(@messages)
+      
+      # Force search for continuation words in ongoing conversations
+      # This is a safety mechanism because some models (like Qwen) ignore system prompt instructions
+      if should_force_search?
+        Rails.logger.warn "🔒 FORCED SEARCH: Detected continuation signal in ongoing conversation"
+        force_documentation_search
+        # Return early - the forced search will recursively call request_chat_completion
+        return
+      end
     end
 
     # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
@@ -295,5 +304,90 @@ module Captain::ChatHelper
     Rails.logger.info "Tools: #{(@tool_registry&.registered_tools || []).to_json}"
     Rails.logger.info "Messages: #{@messages.to_json}"
     Rails.logger.info "=" * 80
+  end
+
+  # Check if we should force a documentation search
+  # This happens when:
+  # 1. We're in an ongoing conversation (not the first message)
+  # 2. The user sent a continuation signal (yes, ok, done, next, etc.)
+  # 3. The search_documentation tool is available
+  def should_force_search?
+    return false unless @messages.length > 2 # Need at least: system, user, assistant, user
+    return false unless @tool_registry&.respond_to?(:search_documentation)
+    
+    last_user_message = @messages.last&.dig('content')&.strip&.downcase
+    return false if last_user_message.nil?
+    
+    # Continuation signals that indicate the user completed a step and wants to continue
+    continuation_signals = [
+      'yes', 'yep', 'yeah', 'yup', 'ok', 'okay', 'sure',
+      'done', 'finished', 'completed', 'ready',
+      'next', 'continue', 'go on', 'proceed',
+      'i did', "i've done", 'all set'
+    ]
+    
+    # Check if message is ONLY a continuation signal (or very short affirmation)
+    is_continuation = continuation_signals.any? { |signal| last_user_message == signal || last_user_message.start_with?(signal) }
+    
+    if is_continuation
+      Rails.logger.info "Detected continuation signal: '#{last_user_message}'"
+      return true
+    end
+    
+    false
+  end
+
+  # Force a documentation search with context from the conversation
+  def force_documentation_search
+    # Build search query from conversation context
+    # Look back at the last few messages to understand what we're troubleshooting
+    recent_context = @messages.last(5)
+                              .select { |m| m['role'] == 'user' || m['role'] == 'assistant' }
+                              .map { |m| m['content'] }
+                              .join(' ')
+    
+    # Extract key terms (simplified - just use the original problem description)
+    user_messages = @messages.select { |m| m['role'] == 'user' }
+    original_problem = user_messages.find { |m| m['content'].length > 20 }&.dig('content')
+    
+    search_query = original_problem || recent_context.slice(0, 200)
+    
+    Rails.logger.info "Force searching with query: #{search_query}"
+    
+    # Execute the search
+    if @tool_registry.respond_to?(:search_documentation)
+      result = @tool_registry.search_documentation({ 'search_query' => search_query })
+      
+      # Capture result for validation
+      @response_validator ||= Captain::ResponseValidatorService.new
+      @response_validator.capture_tool_result('search_documentation', result)
+      
+      Rails.logger.info "Forced search returned #{result.length} chars of documentation"
+      
+      # Append tool call and response to messages (so model knows we searched)
+      tool_call_id = "forced_#{SecureRandom.hex(8)}"
+      
+      @messages << {
+        role: 'assistant',
+        content: nil,
+        tool_calls: [{
+          id: tool_call_id,
+          type: 'function',
+          function: {
+            name: 'search_documentation',
+            arguments: { search_query: search_query }.to_json
+          }
+        }]
+      }
+      
+      @messages << {
+        role: 'tool',
+        tool_call_id: tool_call_id,
+        content: result
+      }
+      
+      # Now request chat completion with the search results in context
+      request_chat_completion
+    end
   end
 end
