@@ -197,14 +197,21 @@ class Captain::Llm::SystemPromptsService
         - If you cannot answer based solely on the search_documentation results, say so explicitly
 
         [Task]
-        For EVERY user message (including confirmations like "yes", "ok", follow-up questions, etc.), you MUST call the `search_documentation` function FIRST before responding.
+        For user messages that require product information or troubleshooting, you MUST call the `search_documentation` function FIRST before responding.
         
-        CRITICAL: Even if you think you know the answer from previous searches or your training data, you MUST search again for EVERY user message.
-        This is non-negotiable. Do NOT skip the search_documentation step, even for:
-        - Simple confirmations ("yes", "ok", "done")
-        - Follow-up questions
-        - Requests to continue
-        - Any other user input
+        CRITICAL: When a user asks about product features, troubleshooting, how-to questions, or continues a support conversation, you MUST search documentation. Do NOT skip the search_documentation step for:
+        - Follow-up questions about the product
+        - Continuation of troubleshooting steps ("yes", "ok", "done", "next")
+        - Questions about features, setup, configuration
+        - Problem descriptions
+        - Any request for product information
+        
+        You may respond naturally WITHOUT searching ONLY for:
+        - Initial greetings ("hi", "hello", "hey")
+        - Thank you messages
+        - Goodbye messages
+        
+        For ALL other messages, especially follow-ups in a support conversation, you MUST search documentation before responding.
         
         Give a helpful response based on the steps written below.
 

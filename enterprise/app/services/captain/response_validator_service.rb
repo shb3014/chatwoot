@@ -47,24 +47,49 @@ class Captain::ResponseValidatorService
   def validate_response(response_text)
     documentation = get_documentation_content
     
-    # If model responded without searching documentation, this is highly suspicious
+    # If model responded without searching documentation, check if that's acceptable
     if @tool_results.empty?
-      # Check if response is trying to answer vs just greeting/clarifying
-      is_substantive_answer = response_text.length > 50 && 
-                             !response_text.downcase.match?(/\b(hello|hi|how can|what can|help you)\b/)
+      # Responses that are okay without documentation search:
+      # 1. Simple greetings/hellos
+      # 2. Acknowledgment that info wasn't found (fallback messages)
+      # 3. Thank you / goodbye messages
       
-      if is_substantive_answer
+      is_greeting = response_text.downcase.match?(/^(hello|hi|hey|greetings)/i) ||
+                   response_text.match?(/\b(how can I|what can I|help you)\b/i)
+      
+      is_fallback = response_text.include?("I couldn't find") ||
+                   response_text.include?("I don't have that information") ||
+                   response_text.include?("speak with a support agent")
+      
+      is_thanks_goodbye = response_text.downcase.match?(/\b(thank|thanks|goodbye|bye|see you)\b/)
+      
+      # Product information or troubleshooting without search is suspicious
+      contains_product_info = response_text.match?(/\b(connect|wifi|battery|setup|configure|install|troubleshoot|error|issue|problem)\b/i)
+      contains_specific_steps = response_text.match?(/\b(first|next|then|step|ensure|make sure|check)\b/i) && response_text.length > 80
+      
+      if is_greeting || is_fallback || is_thanks_goodbye
+        # These are okay without documentation
+        return { valid: true, reason: 'Appropriate response without needing documentation', confidence: 1.0, should_reject: false }
+      elsif contains_product_info || contains_specific_steps
+        # Product information or detailed steps without search is hallucination
         should_reject = should_reject_based_on_strictness(0.2)
         return {
           valid: false,
-          reason: 'Model provided substantive answer without searching documentation',
+          reason: 'Model provided product information or troubleshooting steps without searching documentation',
           confidence: 0.2,
-          indicators: ['no_tool_calls'],
+          indicators: ['no_tool_calls', 'product_info_without_search'],
           should_reject: should_reject
         }
       else
-        # Simple greeting or clarification is okay
-        return { valid: true, reason: 'Simple greeting/clarification without needing docs', confidence: 1.0, should_reject: false }
+        # Other responses without search - warn but allow based on strictness
+        should_reject = should_reject_based_on_strictness(0.5)
+        return {
+          valid: !should_reject,
+          reason: 'Response without documentation search',
+          confidence: 0.5,
+          indicators: ['no_tool_calls'],
+          should_reject: should_reject
+        }
       end
     end
 
