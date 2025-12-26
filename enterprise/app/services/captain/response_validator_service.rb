@@ -159,6 +159,11 @@ class Captain::ResponseValidatorService
     }
   end
 
+  # Clear captured tool results (called at the start of each new conversation turn)
+  def clear
+    @tool_results = []
+  end
+
   private
 
   def should_reject_based_on_strictness(confidence)
@@ -269,10 +274,6 @@ class Captain::ResponseValidatorService
 
     # Clean and deduplicate
     numbers.map(&:downcase).uniq
-  end
-
-  def clear
-    @tool_results = []
   end
 end
 
