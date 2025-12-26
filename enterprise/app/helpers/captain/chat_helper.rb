@@ -3,8 +3,10 @@ module Captain::ChatHelper
     log_chat_completion_request
 
     # Initialize response validator if not already present
-    # Strictness can be configured via assistant config
-    strictness = @assistant&.config&.[]('validation_strictness')&.to_sym || :moderate
+    # Strictness can be configured via assistant config or globally via InstallationConfig
+    strictness = @assistant&.config&.[]('validation_strictness')&.to_sym ||
+                 InstallationConfig.find_by(name: 'CAPTAIN_VALIDATION_STRICTNESS')&.value&.to_sym ||
+                 :moderate
     @response_validator ||= Captain::ResponseValidatorService.new(strictness: strictness)
 
     # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
@@ -14,11 +16,15 @@ module Captain::ChatHelper
     tools = @tool_registry&.registered_tools || []
     has_tools = tools.any?
 
+    # Temperature: use assistant config, fallback to global config, then default to 1
+    default_temp = InstallationConfig.find_by(name: 'CAPTAIN_DEFAULT_TEMPERATURE')&.value&.to_f || 1
+    temperature = @assistant&.config&.[]('temperature')&.to_f || default_temp
+
     parameters = {
       model: @model,
       messages: @messages,
       tools: tools,
-      temperature: @assistant&.config&.[]('temperature').to_f || 1
+      temperature: temperature
     }
 
     # Some OpenAI-compatible providers require tool_choice explicitly for tool calling.
