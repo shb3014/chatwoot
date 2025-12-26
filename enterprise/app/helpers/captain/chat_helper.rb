@@ -23,9 +23,8 @@ module Captain::ChatHelper
       Rails.logger.debug "Checking should_force_search? - messages length: #{@messages.length}, last message: '#{@messages.last&.dig(:content) || @messages.last&.dig('content')}'"
       if should_force_search?
         Rails.logger.warn "🔒 FORCED SEARCH: Detected continuation signal in ongoing conversation"
-        force_documentation_search
-        # Return early - the forced search will recursively call request_chat_completion
-        return
+        # Return the result from the forced search (which calls request_chat_completion recursively)
+        return force_documentation_search
       else
         Rails.logger.debug "should_force_search? returned false - continuing normal flow"
       end
@@ -392,8 +391,8 @@ module Captain::ChatHelper
         content: result
       }
       
-      # Now request chat completion with the search results in context
-      request_chat_completion
+      # Now request chat completion with the search results in context and return the result
+      return request_chat_completion
     end
   end
 end
