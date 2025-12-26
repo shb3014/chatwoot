@@ -20,11 +20,16 @@ class Captain::LlmService
     }
     
     is_deepseek_v32 = deepseek_v32_model?(model)
+    is_qwen = qwen_model?(model)
+    has_tools = functions.any?
 
     # response_format: json_object is not supported by Ark DeepSeek-V3.2 (even when thinking is disabled).
-    openai_params[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32
+    # Qwen models also don't work well with response_format when tools are present - they return JSON content
+    # directly instead of using tool_calls mechanism.
+    # So we only enforce response_format for models that support it properly.
+    openai_params[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32 && !is_qwen
     
-    if functions.any?
+    if has_tools
       openai_params[:tools] = functions
       # Some OpenAI-compatible providers require tool_choice explicitly for tool calling.
       openai_params[:tool_choice] = 'auto'
@@ -33,8 +38,12 @@ class Captain::LlmService
     # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
     if is_deepseek_v32
       openai_params[:thinking] = ark_thinking_param(thinking_enabled)
+      @logger.warn "DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON" if has_tools
     elsif thinking_enabled
       openai_params[:thinking] = true
+      @logger.warn "Thinking mode enabled - response format constraint removed, relying on prompt for JSON" if has_tools
+    elsif is_qwen && has_tools
+      @logger.info "Qwen model detected with tools: response_format disabled to enable proper tool calling"
     end
 
     response = @client.chat(parameters: openai_params)
@@ -48,6 +57,11 @@ class Captain::LlmService
   def deepseek_v32_model?(model_name)
     model_str = model_name.to_s
     model_str.match?(/deepseek[-_]?v3[-_]?2/i) || model_str.match?(/deepseek[-_]?v3\.2/i)
+  end
+
+  def qwen_model?(model_name)
+    model_str = model_name.to_s
+    model_str.match?(/qwen/i)
   end
 
   def ark_thinking_param(enabled)

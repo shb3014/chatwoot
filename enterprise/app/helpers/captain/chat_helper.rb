@@ -20,10 +20,13 @@ module Captain::ChatHelper
     parameters[:tool_choice] = 'auto' if has_tools
 
     is_deepseek_v32 = deepseek_v32_model?(@model)
+    is_qwen = qwen_model?(@model)
 
     # response_format: json_object is not supported by Ark DeepSeek-V3.2 (even when thinking is disabled).
-    # So we only enforce response_format for non-DeepSeek-V3.2 models.
-    parameters[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32
+    # Qwen models also don't work well with response_format when tools are present - they return JSON content
+    # directly instead of using tool_calls mechanism.
+    # So we only enforce response_format for models that support it properly.
+    parameters[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32 && !is_qwen
 
     # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
     if is_deepseek_v32
@@ -33,6 +36,8 @@ module Captain::ChatHelper
       # Non-Ark providers typically accept boolean.
       parameters[:thinking] = true
       Rails.logger.warn "Thinking mode enabled - response format constraint removed, relying on prompt for JSON" if has_tools
+    elsif is_qwen && has_tools
+      Rails.logger.info "Qwen model detected with tools: response_format disabled to enable proper tool calling"
     end
 
     response = @client.chat(parameters: parameters)
@@ -64,6 +69,11 @@ module Captain::ChatHelper
   def deepseek_v32_model?(model_name)
     model = model_name.to_s
     model.match?(/deepseek[-_]?v3[-_]?2/i) || model.match?(/deepseek[-_]?v3\.2/i)
+  end
+
+  def qwen_model?(model_name)
+    model = model_name.to_s
+    model.match?(/qwen/i)
   end
 
   def ark_thinking_param(enabled)

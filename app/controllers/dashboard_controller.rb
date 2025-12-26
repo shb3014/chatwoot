@@ -62,8 +62,9 @@ class DashboardController < ActionController::Base
       # User has explicitly navigated to a locale path, use it
       @locale = validate_portal_locale(locale_from_path)
       @selected_locale = @locale
-      # Save the locale so widget can access it
-      set_help_center_locale_cookie(@locale)
+      # Don't set cookie here - the locale switcher JavaScript already did it on parent domain
+      # Setting it here might create a subdomain-specific cookie that conflicts
+      Rails.logger.info "[HelpCenter] Locale in path: #{@locale}, not setting cookie (JS already did)"
     else
       # No locale in URL, detect and redirect
       detected_locale = detect_user_locale_for_portal(@portal)
@@ -152,6 +153,9 @@ class DashboardController < ActionController::Base
                       request.host # localhost or single domain
                     end
     
+    # Log what cookies we see before deletion
+    Rails.logger.info "[HelpCenter] BEFORE: cookies[:help_center_locale]=#{cookies[:help_center_locale]}, all_cookies=#{request.cookies['help_center_locale']}"
+    
     # Delete any existing subdomain-specific cookie first
     cookies.delete(:help_center_locale)
     cookies.delete(:help_center_locale, domain: request.host)
@@ -172,7 +176,7 @@ class DashboardController < ActionController::Base
     
     cookies[:help_center_locale] = cookie_options
     
-    Rails.logger.info "[HelpCenter] Cookie set: locale=#{locale}, domain=#{parent_domain}, host=#{request.host}"
+    Rails.logger.info "[HelpCenter] AFTER: Cookie set with options=#{cookie_options.inspect}"
   end
 
   def app_config
