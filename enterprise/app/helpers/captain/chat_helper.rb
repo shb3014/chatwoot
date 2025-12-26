@@ -11,7 +11,8 @@ module Captain::ChatHelper
     
     # Clear validator at the start of a new user turn (not during recursive tool processing)
     # We detect a new turn by checking if the last message is from the user
-    if @messages.last&.dig('role') == 'user'
+    last_message_role = @messages.last&.dig(:role) || @messages.last&.dig('role')
+    if last_message_role == 'user'
       Rails.logger.info "Starting new conversation turn - clearing previous documentation"
       @response_validator.clear
       # Set conversation context so validator knows if this is an ongoing conversation
@@ -19,11 +20,14 @@ module Captain::ChatHelper
       
       # Force search for continuation words in ongoing conversations
       # This is a safety mechanism because some models (like Qwen) ignore system prompt instructions
+      Rails.logger.debug "Checking should_force_search? - messages length: #{@messages.length}, last message: '#{@messages.last&.dig(:content) || @messages.last&.dig('content')}'"
       if should_force_search?
         Rails.logger.warn "🔒 FORCED SEARCH: Detected continuation signal in ongoing conversation"
         force_documentation_search
         # Return early - the forced search will recursively call request_chat_completion
         return
+      else
+        Rails.logger.debug "should_force_search? returned false - continuing normal flow"
       end
     end
 
@@ -315,7 +319,8 @@ module Captain::ChatHelper
     return false unless @messages.length > 2 # Need at least: system, user, assistant, user
     return false unless @tool_registry&.respond_to?(:search_documentation)
     
-    last_user_message = @messages.last&.dig('content')&.strip&.downcase
+    # Handle both symbol and string keys
+    last_user_message = (@messages.last&.dig(:content) || @messages.last&.dig('content'))&.strip&.downcase
     return false if last_user_message.nil?
     
     # Continuation signals that indicate the user completed a step and wants to continue
@@ -342,13 +347,13 @@ module Captain::ChatHelper
     # Build search query from conversation context
     # Look back at the last few messages to understand what we're troubleshooting
     recent_context = @messages.last(5)
-                              .select { |m| m['role'] == 'user' || m['role'] == 'assistant' }
-                              .map { |m| m['content'] }
+                              .select { |m| (m[:role] || m['role']) == 'user' || (m[:role] || m['role']) == 'assistant' }
+                              .map { |m| m[:content] || m['content'] }
                               .join(' ')
     
     # Extract key terms (simplified - just use the original problem description)
-    user_messages = @messages.select { |m| m['role'] == 'user' }
-    original_problem = user_messages.find { |m| m['content'].length > 20 }&.dig('content')
+    user_messages = @messages.select { |m| (m[:role] || m['role']) == 'user' }
+    original_problem = user_messages.find { |m| (m[:content] || m['content']).to_s.length > 20 }&.then { |msg| msg[:content] || msg['content'] }
     
     search_query = original_problem || recent_context.slice(0, 200)
     
@@ -365,17 +370,18 @@ module Captain::ChatHelper
       Rails.logger.info "Forced search returned #{result.length} chars of documentation"
       
       # Append tool call and response to messages (so model knows we searched)
+      # Use symbol keys to match the rest of the message structure
       tool_call_id = "forced_#{SecureRandom.hex(8)}"
       
       @messages << {
         role: 'assistant',
         content: nil,
         tool_calls: [{
-          id: tool_call_id,
-          type: 'function',
-          function: {
-            name: 'search_documentation',
-            arguments: { search_query: search_query }.to_json
+          'id' => tool_call_id,
+          'type' => 'function',
+          'function' => {
+            'name' => 'search_documentation',
+            'arguments' => { 'search_query' => search_query }.to_json
           }
         }]
       }
