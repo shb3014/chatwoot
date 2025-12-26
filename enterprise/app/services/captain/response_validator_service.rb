@@ -45,9 +45,28 @@ class Captain::ResponseValidatorService
   # Validate if response appears to use only documented information
   # Returns: { valid: boolean, reason: string, confidence: float, should_reject: boolean }
   def validate_response(response_text)
-    return { valid: true, reason: 'No validation needed', confidence: 1.0, should_reject: false } if @tool_results.empty?
-
     documentation = get_documentation_content
+    
+    # If model responded without searching documentation, this is highly suspicious
+    if @tool_results.empty?
+      # Check if response is trying to answer vs just greeting/clarifying
+      is_substantive_answer = response_text.length > 50 && 
+                             !response_text.downcase.match?(/\b(hello|hi|how can|what can|help you)\b/)
+      
+      if is_substantive_answer
+        should_reject = should_reject_based_on_strictness(0.2)
+        return {
+          valid: false,
+          reason: 'Model provided substantive answer without searching documentation',
+          confidence: 0.2,
+          indicators: ['no_tool_calls'],
+          should_reject: should_reject
+        }
+      else
+        # Simple greeting or clarification is okay
+        return { valid: true, reason: 'Simple greeting/clarification without needing docs', confidence: 1.0, should_reject: false }
+      end
+    end
 
     # If no documentation was found, response should indicate this
     if documentation.blank? || documentation.include?('No documentation found')

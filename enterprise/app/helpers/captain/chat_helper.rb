@@ -8,6 +8,13 @@ module Captain::ChatHelper
                  InstallationConfig.find_by(name: 'CAPTAIN_VALIDATION_STRICTNESS')&.value&.to_sym ||
                  :moderate
     @response_validator ||= Captain::ResponseValidatorService.new(strictness: strictness)
+    
+    # Clear validator at the start of a new user turn (not during recursive tool processing)
+    # We detect a new turn by checking if the last message is from the user
+    if @messages.last&.dig('role') == 'user'
+      Rails.logger.info "Starting new conversation turn - clearing previous documentation"
+      @response_validator.clear
+    end
 
     # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
     thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
@@ -165,6 +172,38 @@ module Captain::ChatHelper
           'response' => content
         }
         Rails.logger.warn "Using fallback JSON structure: #{fallback_message.to_json}"
+        
+        # Validate the fallback response too
+        if @response_validator
+          validation = @response_validator.validate_response(fallback_message['response'] || '')
+          
+          Rails.logger.info "=" * 80
+          Rails.logger.info "Response Validation (Fallback):"
+          Rails.logger.info "Valid: #{validation[:valid]}"
+          Rails.logger.info "Reason: #{validation[:reason]}"
+          Rails.logger.info "Confidence: #{validation[:confidence]}"
+          Rails.logger.info "Should Reject: #{validation[:should_reject]}"
+          Rails.logger.info "Strictness: #{@response_validator.instance_variable_get(:@strictness)}"
+          Rails.logger.info "Documentation content available: #{@response_validator.get_documentation_content.length} chars"
+          Rails.logger.info "Indicators: #{validation[:indicators]&.join(', ') || 'none'}" if validation[:indicators]
+          Rails.logger.info "=" * 80
+          
+          # If validation determines response should be rejected, force a safe response
+          if validation[:should_reject]
+            Rails.logger.error "VALIDATION REJECTED (Fallback): #{validation[:reason]}"
+            Rails.logger.error "Original response: #{fallback_message['response']}"
+            
+            # Force a safe response
+            fallback_message = {
+              'reasoning' => "Response validation detected potential issues. Unable to provide accurate information from documentation.",
+              'response' => "I apologize, but I couldn't find reliable information about that in our documentation. Would you like to speak with a support agent who can help you better?"
+            }
+          elsif !validation[:valid]
+            # Log warning but allow response (based on strictness setting)
+            Rails.logger.warn "VALIDATION WARNING (Fallback): #{validation[:reason]} (allowed due to strictness setting)"
+          end
+        end
+        
         persist_message(fallback_message, 'assistant')
         fallback_message
       end

@@ -197,7 +197,15 @@ class Captain::Llm::SystemPromptsService
         - If you cannot answer based solely on the search_documentation results, say so explicitly
 
         [Task]
-        For every user question, you MUST call the `search_documentation` function to find the answer.
+        For EVERY user message (including confirmations like "yes", "ok", follow-up questions, etc.), you MUST call the `search_documentation` function FIRST before responding.
+        
+        CRITICAL: Even if you think you know the answer from previous searches or your training data, you MUST search again for EVERY user message.
+        This is non-negotiable. Do NOT skip the search_documentation step, even for:
+        - Simple confirmations ("yes", "ok", "done")
+        - Follow-up questions
+        - Requests to continue
+        - Any other user input
+        
         Give a helpful response based on the steps written below.
 
         - Provide the user with the steps required to complete the action one by one.
