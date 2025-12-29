@@ -314,15 +314,93 @@ module Captain::ChatHelper
   # 1. We're in an ongoing conversation (not the first message)
   # 2. The user sent a continuation signal (yes, ok, done, next, etc.)
   # 3. The search_documentation tool is available
+  # 4. The assistant didn't just offer a handoff (to avoid interfering with handoff flow)
   def should_force_search?
     return false unless @messages.length > 2 # Need at least: system, user, assistant, user
     return false unless @tool_registry&.respond_to?(:search_documentation)
     
     # Handle both symbol and string keys
-    last_user_message = (@messages.last&.dig(:content) || @messages.last&.dig('content'))&.strip&.downcase
+    last_user_message = @messages.last&.dig(:content) || @messages.last&.dig('content')
+    return false if last_user_message.nil? || last_user_message.strip.empty?
+    
+    # Use LLM to intelligently classify the user's message
+    classification = classify_user_message_intent(last_user_message)
+    
+    case classification
+    when 'continuation'
+      # User is continuing troubleshooting (e.g., "yes", "done", "next")
+      Rails.logger.info "LLM classified as continuation signal - forcing search"
+      true
+    when 'handoff_confirmation'
+      # User is confirming a handoff request (e.g., "yes" after "Would you like to speak with an agent?")
+      Rails.logger.info "LLM classified as handoff confirmation - skipping forced search"
+      false
+    when 'new_question'
+      # User asked a new question - let model decide whether to search
+      Rails.logger.info "LLM classified as new question - letting model decide"
+      false
+    else
+      # Fallback: use simple pattern matching if LLM classification fails
+      Rails.logger.warn "LLM classification failed, falling back to pattern matching"
+      fallback_should_force_search(last_user_message)
+    end
+  rescue StandardError => e
+    Rails.logger.error "Error in should_force_search?: #{e.message}, falling back to pattern matching"
+    fallback_should_force_search(last_user_message&.strip&.downcase)
+  end
+  
+  # Use LLM to classify user message intent based on conversation context
+  def classify_user_message_intent(user_message)
+    # Get last assistant message for context
+    last_assistant_msg = @messages.reverse.find do |m|
+      role = m[:role] || m['role']
+      role == 'assistant'
+    end
+    
+    assistant_content = extract_message_content(last_assistant_msg)
+    
+    # Create a lightweight classification prompt
+    classification_prompt = <<~PROMPT
+      You are a conversation analyzer. Classify the user's response based on context.
+      
+      Assistant's last message: "#{assistant_content}"
+      User's response: "#{user_message}"
+      
+      Classify the user's response as ONE of:
+      - "continuation": User acknowledging completion of a step and ready to continue (e.g., "yes", "done", "ok", "next")
+      - "handoff_confirmation": User confirming they want to speak with a human agent (only if assistant offered handoff)
+      - "new_question": User asking a new question or providing new information
+      
+      Respond with ONLY the classification keyword, nothing else.
+    PROMPT
+    
+    # Use a lightweight, fast model for classification
+    classification_response = @client.chat(
+      parameters: {
+        model: classification_model,
+        messages: [
+          { role: 'system', content: 'You are a precise classifier. Respond with only the classification keyword.' },
+          { role: 'user', content: classification_prompt }
+        ],
+        temperature: 0.0,
+        max_tokens: 10
+      }
+    )
+    
+    result = classification_response.dig('choices', 0, 'message', 'content')&.strip&.downcase
+    Rails.logger.info "LLM classification result: #{result}"
+    
+    # Validate result is one of expected values
+    %w[continuation handoff_confirmation new_question].include?(result) ? result : nil
+  rescue StandardError => e
+    Rails.logger.error "LLM classification error: #{e.message}"
+    nil
+  end
+  
+  # Fallback pattern matching if LLM classification fails
+  def fallback_should_force_search(last_user_message)
     return false if last_user_message.nil?
     
-    # Continuation signals that indicate the user completed a step and wants to continue
     continuation_signals = [
       'yes', 'yep', 'yeah', 'yup', 'ok', 'okay', 'sure',
       'done', 'finished', 'completed', 'ready',
@@ -330,15 +408,75 @@ module Captain::ChatHelper
       'i did', "i've done", 'all set'
     ]
     
-    # Check if message is ONLY a continuation signal (or very short affirmation)
-    is_continuation = continuation_signals.any? { |signal| last_user_message == signal || last_user_message.start_with?(signal) }
+    is_continuation = continuation_signals.any? { |signal| 
+      last_user_message == signal || last_user_message.start_with?(signal) 
+    }
     
     if is_continuation
-      Rails.logger.info "Detected continuation signal: '#{last_user_message}'"
+      # Check if assistant offered handoff using fallback pattern matching
+      if fallback_assistant_offered_handoff?
+        Rails.logger.info "Fallback: detected handoff offer - skipping forced search"
+        return false
+      end
+      
+      Rails.logger.info "Fallback: detected continuation signal"
       return true
     end
     
     false
+  end
+  
+  # Fallback pattern matching for handoff detection
+  def fallback_assistant_offered_handoff?
+    last_assistant_msg = @messages.reverse.find do |m|
+      role = m[:role] || m['role']
+      role == 'assistant'
+    end
+    
+    return false unless last_assistant_msg
+    
+    content = extract_message_content(last_assistant_msg)
+    return false unless content.is_a?(String)
+    
+    handoff_patterns = [
+      'would you like to speak with',
+      'speak with a support agent',
+      'talk to a human'
+    ]
+    
+    content_lower = content.downcase
+    handoff_patterns.any? { |pattern| content_lower.include?(pattern) }
+  end
+  
+  # Extract message content, handling both plain text and JSON format
+  def extract_message_content(message)
+    return nil unless message
+    
+    content = message[:content] || message['content']
+    return nil unless content
+    
+    # Handle JSON-formatted content ({"reasoning": "...", "response": "..."})
+    if content.is_a?(String) && content.strip.start_with?('{')
+      begin
+        parsed = JSON.parse(content)
+        content = parsed['response'] || parsed[:response] || content
+      rescue JSON::ParserError
+        # Not JSON, use as-is
+      end
+    end
+    
+    content
+  end
+  
+  # Determine which model to use for classification
+  # Use the cheapest/fastest available model, or fall back to main model
+  def classification_model
+    # Check for classification-specific model config
+    classification_model_config = InstallationConfig.find_by(name: 'CAPTAIN_CLASSIFICATION_MODEL')
+    return classification_model_config.value if classification_model_config&.value.present?
+    
+    # Fall back to main model (though ideally use something lighter/cheaper)
+    @model
   end
 
   # Force a documentation search with context from the conversation
