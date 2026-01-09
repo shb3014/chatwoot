@@ -7,12 +7,25 @@ require 'rack-timeout'
 require Rails.root.join('lib/middlewares/action_mailbox_timeout')
 
 # Ensure this runs before Rack::Timeout so per-request overrides take effect.
-# Note: Some stacks may insert Rack::Timeout at the beginning of the middleware chain.
-# In that case, inserting at index 0 is not sufficient because Rack::Timeout would still wrap
-# this middleware. Always prefer inserting explicitly before Rack::Timeout when available.
-if defined?(Rack::Timeout)
-  Rails.application.config.middleware.insert_before Rack::Timeout, Middlewares::ActionMailboxTimeout
-else
-  Rails.application.config.middleware.insert_before 0, Middlewares::ActionMailboxTimeout
+#
+# We observed Rack::Timeout still timing out ActionMailbox relay at 15s, which strongly suggests
+# Rack::Timeout is currently wrapping this middleware (i.e. timer starts before we can set env overrides).
+# To make this robust across middleware insertion order, we explicitly re-order the stack:
+# - place Middlewares::ActionMailboxTimeout before Rack::Timeout
+# - ensure Rack::Timeout remains immediately after it
+middleware = Rails.application.config.middleware
+
+begin
+  middleware.delete(Middlewares::ActionMailboxTimeout)
+rescue StandardError
+  # noop
 end
 
+begin
+  middleware.delete(Rack::Timeout)
+rescue StandardError
+  # noop
+end
+
+middleware.insert_before 0, Middlewares::ActionMailboxTimeout
+middleware.insert_after Middlewares::ActionMailboxTimeout, Rack::Timeout
