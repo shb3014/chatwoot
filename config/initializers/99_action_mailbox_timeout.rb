@@ -6,5 +6,6 @@
 require 'rack-timeout'
 require Rails.root.join('lib/middlewares/action_mailbox_timeout')
 
-Rails.application.config.middleware.insert_before Rack::Timeout, Middlewares::ActionMailboxTimeout
+# Ensure this runs before Rack::Timeout so per-request overrides take effect.
+Rails.application.config.middleware.insert_before 0, Middlewares::ActionMailboxTimeout
 
