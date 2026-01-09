@@ -13,10 +13,15 @@ module Middlewares
       path = env['PATH_INFO'].to_s
       if path == ACTION_MAILBOX_RELAY_PATH
         timeout = action_mailbox_timeout_seconds
+        # rack-timeout supports per-request overrides via env. Different versions have used
+        # slightly different key namespaces, so we set both for compatibility.
         env['rack.timeout.service_timeout'] = timeout
+        env['rack-timeout.service_timeout'] = timeout
         # If the app is under load, requests can sit in Puma's queue.
         # Increase wait timeout for this endpoint to avoid premature rack-timeout failures.
-        env['rack.timeout.wait_timeout'] = action_mailbox_wait_timeout_seconds(timeout)
+        wait_timeout = action_mailbox_wait_timeout_seconds(timeout)
+        env['rack.timeout.wait_timeout'] = wait_timeout
+        env['rack-timeout.wait_timeout'] = wait_timeout
       end
 
       @app.call(env)
