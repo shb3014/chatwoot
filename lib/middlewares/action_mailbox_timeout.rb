@@ -25,12 +25,14 @@ module Middlewares
     private
 
     def action_mailbox_timeout_seconds
-      Integer(
-        ENV.fetch(
-          'ACTION_MAILBOX_RACK_TIMEOUT',
-          ENV.fetch('RACK_TIMEOUT_SERVICE_TIMEOUT', DEFAULT_TIMEOUT_SECONDS.to_s)
-        )
-      )
+      action_mailbox_timeout = ENV['ACTION_MAILBOX_RACK_TIMEOUT']
+      return Integer(action_mailbox_timeout) if action_mailbox_timeout.present?
+
+      # If the app has a low global rack-timeout (e.g. 15s), inbound email relay can still
+      # take longer (raw email persistence + attachments). Ensure a safe minimum for this
+      # endpoint without affecting the rest of the app.
+      global_timeout = Integer(ENV['RACK_TIMEOUT_SERVICE_TIMEOUT']) if ENV['RACK_TIMEOUT_SERVICE_TIMEOUT'].present?
+      [DEFAULT_TIMEOUT_SECONDS, global_timeout].compact.max
     rescue ArgumentError, TypeError
       DEFAULT_TIMEOUT_SECONDS
     end
