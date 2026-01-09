@@ -69,11 +69,6 @@ module Chatwoot
     # Disable PDF/video preview generation as we don't use them
     config.active_storage.previewers = []
 
-    # Increase rack-timeout only for ActionMailbox relay endpoint.
-    # Large emails with multiple attachments can take longer to persist (Active Storage/S3),
-    # and we don't want to increase timeouts for the entire application.
-    config.middleware.insert_before 'Rack::Timeout', 'Middlewares::ActionMailboxTimeout'
-
     # Active Record Encryption configuration
     # Required for MFA/2FA features - skip if not using encryption
     if ENV['ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY'].present?
