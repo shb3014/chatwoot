@@ -15,6 +15,7 @@
     },
     "FILTER_ALL": "所有的",
     "ASSIGNEE_TYPE_TABS": {
+      "unresolved": "未解决",
       "me": "我的",
       "unassigned": "未分配的",
       "all": "所有的"

@@ -244,10 +244,10 @@ const conversationCustomAttributes = useFunctionGetter(
 );
 
 const activeAssigneeTabCount = computed(() => {
-  const count = assigneeTabItems.value.find(
+  const tab = assigneeTabItems.value.find(
     item => item.key === activeAssigneeTab.value
-  ).count;
-  return count;
+  );
+  return tab ? tab.count : 0;
 });
 
 const conversationListPagination = computed(() => {
@@ -266,12 +266,16 @@ const conversationListPagination = computed(() => {
   if (isNoFiltersOrFoldersAndChatListNotEmpty && isUnderPerPage) {
     return 1;
   }
+  
+  // if (activeAssigneeTab.value === 'unresolved' && conversationList.value.length === 0) {
+  //   return 1;
+  // }
 
   return currentPage.value + 1;
 });
 
 const conversationFilters = computed(() => {
-  return {
+  const filters = {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType: activeAssigneeTab.value,
     status: activeStatus.value,
@@ -281,6 +285,12 @@ const conversationFilters = computed(() => {
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
   };
+
+  if (activeAssigneeTab.value === 'unresolved') {
+    filters.status = 'all';
+  }
+
+  return filters;
 });
 
 const activeTeam = computed(() => {
