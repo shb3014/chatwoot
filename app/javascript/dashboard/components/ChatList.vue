@@ -266,12 +266,9 @@ const conversationListPagination = computed(() => {
   if (isNoFiltersOrFoldersAndChatListNotEmpty && isUnderPerPage) {
     return 1;
   }
-  
-  // if (activeAssigneeTab.value === 'unresolved' && conversationList.value.length === 0) {
-  //   return 1;
-  // }
 
-  return currentPage.value + 1;
+  const safeCurrentPage = Number(currentPage.value);
+  return (Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0) + 1;
 });
 
 const conversationFilters = computed(() => {
@@ -407,7 +404,8 @@ function emitConversationLoaded() {
 
 function fetchFilteredConversations(payload) {
   payload = useSnakeCase(payload);
-  let page = currentFiltersPage.value + 1;
+  const safeCurrentPage = Number(currentFiltersPage.value);
+  const page = (Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0) + 1;
   store
     .dispatch('fetchFilteredConversations', {
       queryData: filterQueryGenerator(payload),
@@ -420,7 +418,8 @@ function fetchFilteredConversations(payload) {
 
 function fetchSavedFilteredConversations(payload) {
   payload = useSnakeCase(payload);
-  let page = currentFiltersPage.value + 1;
+  const safeCurrentPage = Number(currentFiltersPage.value);
+  const page = (Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0) + 1;
   store
     .dispatch('fetchFilteredConversations', {
       queryData: payload,
