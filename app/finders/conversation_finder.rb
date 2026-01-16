@@ -39,10 +39,11 @@ class ConversationFinder
   def perform
     set_up
 
-    mine_count, unassigned_count, all_count, = set_count_for_all_conversations
+    mine_count, unassigned_count, all_count, unresolved_count = set_count_for_all_conversations
     assigned_count = all_count - unassigned_count
 
     filter_by_assignee_type
+    filter_by_status unless params[:q]
 
     {
       conversations: conversations,
@@ -50,7 +51,8 @@ class ConversationFinder
         mine_count: mine_count,
         assigned_count: assigned_count,
         unassigned_count: unassigned_count,
-        all_count: all_count
+        all_count: all_count,
+        unresolved_count: unresolved_count
       }
     }
   end
@@ -63,7 +65,6 @@ class ConversationFinder
     set_assignee_type
 
     find_all_conversations
-    filter_by_status unless params[:q]
     filter_by_team
     filter_by_labels
     filter_by_query
@@ -114,6 +115,8 @@ class ConversationFinder
       @conversations = @conversations.unassigned
     when 'assigned'
       @conversations = @conversations.assigned
+    when 'unresolved'
+      @conversations
     end
     @conversations
   end
@@ -143,6 +146,11 @@ class ConversationFinder
 
   def filter_by_status
     return if params[:status] == 'all'
+    
+    if @assignee_type == 'unresolved'
+      @conversations = @conversations.where.not(status: 'resolved')
+      return
+    end
 
     @conversations = @conversations.where(status: params[:status] || DEFAULT_STATUS)
   end
@@ -170,7 +178,8 @@ class ConversationFinder
     [
       @conversations.assigned_to(current_user).count,
       @conversations.unassigned.count,
-      @conversations.count
+      @conversations.count,
+      @conversations.where.not(status: 'resolved').count
     ]
   end
 

@@ -331,14 +331,16 @@ const deleteConversation = () => {
             <fluent-icon icon="person" size="12" class="text-n-slate-11" />
             {{ assignee.name }}
           </span>
-          <span
-            v-if="status"
-            class="text-xxs font-semibold px-1.5 py-0.5 rounded ml-1 flex-shrink-0"
-            :class="statusClass"
-          >
-            {{ statusText }}
-          </span>
-          <PriorityMark :priority="chat.priority" class="flex-shrink-0" />
+          <div class="flex items-center gap-2">
+            <span
+              v-if="status"
+              class="text-xxs font-semibold px-1.5 py-0.5 rounded ml-1 flex-shrink-0"
+              :class="statusClass"
+            >
+              {{ statusText }}
+            </span>
+            <PriorityMark :priority="chat.priority" class="flex-shrink-0" />
+          </div>
         </div>
       </div>
       <h4
