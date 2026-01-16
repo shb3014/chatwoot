@@ -20,6 +20,12 @@
       "unassigned": "Unassigned",
       "all": "All"
     },
+    "HEADER": {
+      "MORE_ACTIONS": "More actions",
+      "ACTIONS": {
+        "RESOLVE_READ": "Resolve read"
+      }
+    },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {
         "TEXT": "Open"

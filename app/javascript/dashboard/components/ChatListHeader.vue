@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { formatNumber } from '@chatwoot/utils';
 import wootConstants from 'dashboard/constants/globals';
@@ -7,6 +7,8 @@ import wootConstants from 'dashboard/constants/globals';
 import ConversationBasicFilter from './widgets/conversation/ConversationBasicFilter.vue';
 import SwitchLayout from 'dashboard/routes/dashboard/conversation/search/SwitchLayout.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
   pageTitle: { type: String, required: true },
@@ -16,6 +18,7 @@ const props = defineProps({
   isOnExpandedLayout: { type: Boolean, required: true },
   conversationStats: { type: Object, required: true },
   isListLoading: { type: Boolean, required: true },
+  hasReadConversationsToResolve: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -24,9 +27,13 @@ const emit = defineEmits([
   'resetFilters',
   'basicFilterChange',
   'filtersModal',
+  'resolveReadConversations',
 ]);
 
 const { uiSettings, updateUISettings } = useUISettings();
+const { t } = useI18n();
+
+const showMoreActionsDropdown = ref(false);
 
 const onBasicFilterChange = (value, type) => {
   emit('basicFilterChange', value, type);
@@ -52,6 +59,24 @@ const toggleConversationLayout = () => {
     conversation_display_type: newViewType,
     previously_used_conversation_display_type: newViewType,
   });
+};
+
+const moreActionsMenuItems = computed(() => {
+  return [
+    {
+      label: t('CHAT_LIST.HEADER.ACTIONS.RESOLVE_READ'),
+      action: 'resolveRead',
+      value: 'resolveRead',
+      icon: 'i-lucide-check-check',
+      disabled: !props.hasReadConversationsToResolve,
+    },
+  ];
+});
+
+const handleMoreAction = ({ action }) => {
+  if (action === 'resolveRead') {
+    emit('resolveReadConversations');
+  }
 };
 </script>
 
@@ -163,6 +188,26 @@ const toggleConversationLayout = () => {
         :is-on-expanded-layout="isOnExpandedLayout"
         @toggle="toggleConversationLayout"
       />
+      <div
+        v-on-clickaway="() => (showMoreActionsDropdown = false)"
+        class="relative"
+      >
+        <NextButton
+          v-tooltip.top-end="t('CHAT_LIST.HEADER.MORE_ACTIONS')"
+          icon="i-lucide-ellipsis-vertical"
+          slate
+          xs
+          faded
+          :class="showMoreActionsDropdown ? 'bg-n-alpha-2' : ''"
+          @click="showMoreActionsDropdown = !showMoreActionsDropdown"
+        />
+        <DropdownMenu
+          v-if="showMoreActionsDropdown"
+          :menu-items="moreActionsMenuItems"
+          class="ltr:right-0 rtl:left-0 mt-1 w-56 top-full"
+          @action="handleMoreAction($event)"
+        />
+      </div>
     </div>
   </div>
 </template>

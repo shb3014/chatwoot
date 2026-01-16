@@ -353,6 +353,19 @@ const conversationList = computed(() => {
   return localConversationList;
 });
 
+const readUnresolvedConversationIds = computed(() => {
+  return conversationList.value
+    .filter(
+      conversation =>
+        conversation.unread_count === 0 && conversation.status !== 'resolved'
+    )
+    .map(conversation => conversation.id);
+});
+
+const hasReadConversationsToResolve = computed(() => {
+  return readUnresolvedConversationIds.value.length > 0;
+});
+
 const showEndOfListMessage = computed(() => {
   return (
     conversationList.value.length &&
@@ -686,6 +699,25 @@ function redirectToConversationList() {
   );
 }
 
+async function resolveReadConversations() {
+  const ids = readUnresolvedConversationIds.value;
+  if (!ids.length) return;
+
+  try {
+    await store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids,
+      fields: {
+        status: 'resolved',
+      },
+    });
+    useAlert(t('BULK_ACTION.UPDATE.UPDATE_SUCCESFUL'));
+    resetAndFetchData();
+  } catch (error) {
+    useAlert(t('BULK_ACTION.UPDATE.UPDATE_FAILED'));
+  }
+}
+
 async function assignPriority(priority, conversationId = null) {
   store.dispatch('setCurrentChatPriority', {
     priority,
@@ -870,11 +902,13 @@ watch(conversationFilters, (newVal, oldVal) => {
       :is-on-expanded-layout="isOnExpandedLayout"
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
+      :has-read-conversations-to-resolve="hasReadConversationsToResolve"
       @add-folders="onClickOpenAddFoldersModal"
       @delete-folders="onClickOpenDeleteFoldersModal"
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetAndFetchData"
       @basic-filter-change="onBasicFilterChange"
+      @resolve-read-conversations="resolveReadConversations"
     />
 
     <TeleportWithDirection

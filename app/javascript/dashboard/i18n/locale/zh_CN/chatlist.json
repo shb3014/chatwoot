@@ -20,6 +20,12 @@
       "unassigned": "未分配的",
       "all": "所有的"
     },
+    "HEADER": {
+      "MORE_ACTIONS": "更多操作",
+      "ACTIONS": {
+        "RESOLVE_READ": "解决已读"
+      }
+    },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {
         "TEXT": "打开"
