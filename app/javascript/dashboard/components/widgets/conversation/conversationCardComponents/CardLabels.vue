@@ -93,28 +93,23 @@ const onRemoveLabel = async labelTitle => {
       :class="{ 'h-auto overflow-visible flex-row flex-wrap': showAllLabels }"
     >
       <slot name="before" />
-      <div
+      <woot-label
         v-for="(label, index) in activeLabels"
         :key="label ? label.id : index"
-        class="inline-flex"
+        :title="label.title"
+        :description="label.description"
+        :color="label.color"
+        variant="smooth"
+        class="!mb-0 max-w-[calc(100%-0.5rem)]"
+        small
+        :show-close="hoveredLabelTitle === label.title"
         :class="{
           'invisible absolute': !showAllLabels && index > labelPosition,
         }"
         @mouseenter="hoveredLabelTitle = label.title"
         @mouseleave="hoveredLabelTitle = null"
-        @click.stop
-      >
-        <woot-label
-          :title="label.title"
-          :description="label.description"
-          :color="label.color"
-          variant="smooth"
-          class="!mb-0 max-w-[calc(100%-0.5rem)]"
-          small
-          :show-close="hoveredLabelTitle === label.title"
-          @remove="onRemoveLabel"
-        />
-      </div>
+        @remove="onRemoveLabel"
+      />
       <button
         v-if="showExpandLabelButton"
         :title="
