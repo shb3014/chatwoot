@@ -404,6 +404,7 @@ const deleteConversation = () => {
       </div>
       <CardLabels
         v-if="showLabelsSection"
+        :conversation-id="chat.id"
         :conversation-labels="chat.labels"
         class="mt-0.5 mx-2 mb-0"
       >
