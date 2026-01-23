@@ -12,19 +12,19 @@ class Captain::ResponseValidatorService
     @strictness = strictness
     @conversation_context = :unknown # :greeting, :ongoing, :unknown
   end
-  
+
   # Set conversation context based on message history
   def set_conversation_context(messages)
     if messages.nil? || messages.empty?
       @conversation_context = :greeting
       return
     end
-    
+
     # Count substantive messages (not just tool calls or system messages)
     substantive_messages = messages.count { |m| m['role'] == 'user' || (m['role'] == 'assistant' && m['content'].present?) }
-    
+
     @conversation_context = substantive_messages > 1 ? :ongoing : :greeting
-    Rails.logger.info "ResponseValidator: Conversation context set to #{@conversation_context} (#{substantive_messages} substantive messages)"
+    captain_logger.info "ResponseValidator: Conversation context set to #{@conversation_context} (#{substantive_messages} substantive messages)"
   end
 
   def strict?
@@ -46,7 +46,7 @@ class Captain::ResponseValidatorService
       content: result,
       timestamp: Time.current
     }
-    Rails.logger.info "ResponseValidator: Captured result from #{tool_name}"
+    captain_logger.info "ResponseValidator: Captured result from #{tool_name}"
   end
 
   # Get all captured documentation content
@@ -61,47 +61,47 @@ class Captain::ResponseValidatorService
   # Returns: { valid: boolean, reason: string, confidence: float, should_reject: boolean }
   def validate_response(response_text)
     documentation = get_documentation_content
-    
+
     # If model responded without searching documentation, check if that's acceptable
     if @tool_results.empty?
       # In an ONGOING conversation, nearly ALL responses need documentation search
       if @conversation_context == :ongoing
         # Check if it's a fallback message (which is acceptable)
         is_fallback = response_text.include?("I couldn't find") ||
-                     response_text.include?("I don't have that information") ||
-                     response_text.include?("speak with a support agent") ||
-                     response_text.include?("Unable to provide accurate information")
-        
-        if is_fallback
-          # Fallback messages are okay even in ongoing conversation
-          return { valid: true, reason: 'Appropriate fallback response', confidence: 1.0, should_reject: false }
-        else
-          # Any other response during ongoing conversation without search is HIGHLY suspicious
-          should_reject = should_reject_based_on_strictness(0.1)
-          return {
-            valid: false,
-            reason: 'Model responded in ongoing conversation without searching documentation (likely hallucination)',
-            confidence: 0.1,
-            indicators: ['no_tool_calls', 'ongoing_conversation_without_search'],
-            should_reject: should_reject
-          }
-        end
+                      response_text.include?("I don't have that information") ||
+                      response_text.include?('speak with a support agent') ||
+                      response_text.include?('Unable to provide accurate information')
+
+        return { valid: true, reason: 'Appropriate fallback response', confidence: 1.0, should_reject: false } if is_fallback
+
+        # Fallback messages are okay even in ongoing conversation
+
+        # Any other response during ongoing conversation without search is HIGHLY suspicious
+        should_reject = should_reject_based_on_strictness(0.1)
+        return {
+          valid: false,
+          reason: 'Model responded in ongoing conversation without searching documentation (likely hallucination)',
+          confidence: 0.1,
+          indicators: %w[no_tool_calls ongoing_conversation_without_search],
+          should_reject: should_reject
+        }
+
       end
-      
+
       # For NEW/GREETING conversations, check if it's an acceptable greeting
       is_greeting = response_text.downcase.match?(/^(hello|hi|hey|greetings)/i) ||
-                   response_text.match?(/\b(how can I|what can I|help you)\b/i)
-      
+                    response_text.match?(/\b(how can I|what can I|help you)\b/i)
+
       is_fallback = response_text.include?("I couldn't find") ||
-                   response_text.include?("I don't have that information") ||
-                   response_text.include?("speak with a support agent")
-      
+                    response_text.include?("I don't have that information") ||
+                    response_text.include?('speak with a support agent')
+
       is_thanks_goodbye = response_text.downcase.match?(/\b(thank|thanks|goodbye|bye|see you)\b/)
-      
+
       # Product information or troubleshooting without search is suspicious
       contains_product_info = response_text.match?(/\b(connect|wifi|battery|setup|configure|install|troubleshoot|error|issue|problem)\b/i)
       contains_specific_steps = response_text.match?(/\b(first|next|then|step|ensure|make sure|check)\b/i) && response_text.length > 80
-      
+
       if is_greeting || is_fallback || is_thanks_goodbye
         # These are okay without documentation
         return { valid: true, reason: 'Appropriate response without needing documentation', confidence: 1.0, should_reject: false }
@@ -112,7 +112,7 @@ class Captain::ResponseValidatorService
           valid: false,
           reason: 'Model provided product information or troubleshooting steps without searching documentation',
           confidence: 0.2,
-          indicators: ['no_tool_calls', 'product_info_without_search'],
+          indicators: %w[no_tool_calls product_info_without_search],
           should_reject: should_reject
         }
       else
@@ -141,7 +141,7 @@ class Captain::ResponseValidatorService
     if hallucination_indicators.any?
       confidence = calculate_confidence(hallucination_indicators.size)
       should_reject = should_reject_based_on_strictness(confidence)
-      
+
       return {
         valid: false,
         reason: "Possible hallucination detected: #{hallucination_indicators.join(', ')}",
@@ -185,8 +185,6 @@ class Captain::ResponseValidatorService
     penalty = num_indicators * 0.1
     [base_confidence - penalty, 0.1].max
   end
-
-  private
 
   def validate_no_docs_response(response_text)
     # When no docs found, response should acknowledge this
@@ -232,16 +230,12 @@ class Captain::ResponseValidatorService
       # Only flag if there are multiple specific numbers and some aren't in docs
       # This avoids false positives from generic numbers like "1" or "2"
       specific_suspicious = suspicious_numbers.select { |n| n.length > 1 || n.to_i > 10 }
-      if specific_suspicious.any?
-        indicators << "mentions specific values not in documentation: #{specific_suspicious.first(3).join(', ')}"
-      end
+      indicators << "mentions specific values not in documentation: #{specific_suspicious.first(3).join(', ')}" if specific_suspicious.any?
     end
 
     # Pattern 2: Response is too long compared to available documentation
     # If response has lots of detail but docs are sparse, likely hallucinating
-    if documentation.length < 200 && response_text.length > 300
-      indicators << "response is suspiciously detailed given sparse documentation"
-    end
+    indicators << 'response is suspiciously detailed given sparse documentation' if documentation.length < 200 && response_text.length > 300
 
     # Pattern 3: Common knowledge phrases that suggest using training data
     training_data_phrases = [
@@ -255,9 +249,7 @@ class Captain::ResponseValidatorService
     ]
 
     found_phrases = training_data_phrases.select { |phrase| response_text.downcase.include?(phrase) }
-    if found_phrases.any?
-      indicators << "uses general knowledge phrases: #{found_phrases.first(2).join(', ')}"
-    end
+    indicators << "uses general knowledge phrases: #{found_phrases.first(2).join(', ')}" if found_phrases.any?
 
     indicators
   end
@@ -275,5 +267,8 @@ class Captain::ResponseValidatorService
     # Clean and deduplicate
     numbers.map(&:downcase).uniq
   end
-end
 
+  def captain_logger
+    Captain::Logger.logger
+  end
+end

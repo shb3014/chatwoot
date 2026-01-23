@@ -24,9 +24,17 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
   end
 
   def playground
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Captain::Logger.logger.info(
+      "[Captain][Playground] start request_id=#{request.request_id} account_id=#{Current.account.id} assistant_id=#{@assistant.id} message_length=#{params[:message_content].to_s.length} history_count=#{message_history.length}"
+    )
     response = Captain::Llm::AssistantChatService.new(assistant: @assistant).generate_response(
       additional_message: params[:message_content],
       message_history: message_history
+    )
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+    Captain::Logger.logger.info(
+      "[Captain][Playground] completed request_id=#{request.request_id} assistant_id=#{@assistant.id} elapsed_ms=#{elapsed_ms}"
     )
 
     render json: response

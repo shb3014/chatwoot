@@ -46,7 +46,7 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::BaseOpenAiService
     response = @client.chat(parameters: standard_chat_parameters)
     parse_response(response)
   rescue OpenAI::Error => e
-    Rails.logger.error I18n.t('captain.documents.openai_api_error', error: e.message)
+    captain_logger.warn I18n.t('captain.documents.openai_api_error', error: e.message)
     []
   end
 
@@ -88,7 +88,7 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::BaseOpenAiService
     result = parse_chunk_response(response)
     { faqs: result['faqs'] || [], has_content: result['has_content'] != false }
   rescue OpenAI::Error => e
-    Rails.logger.error I18n.t('captain.documents.page_processing_error', start: start_page, end: end_page, error: e.message)
+    captain_logger.warn I18n.t('captain.documents.page_processing_error', start: start_page, end: end_page, error: e.message)
     { faqs: [], has_content: false }
   end
 
@@ -137,6 +137,10 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::BaseOpenAiService
         }
       ]
     }
+  end
+
+  def captain_logger
+    Captain::Logger.logger
   end
 
   def parse_response(response)

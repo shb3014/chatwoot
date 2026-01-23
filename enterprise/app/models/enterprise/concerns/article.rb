@@ -39,6 +39,7 @@ module Enterprise::Concerns::Article
   def add_article_embedding
     Rails.logger.info { "add_article_embedding being called for Article #{id}" }
     return unless account.feature_enabled?('help_center_embedding_search')
+
     Rails.logger.info { "add_article_embedding called for Article #{id}" }
 
     Portal::ArticleIndexingJob.perform_later(self)
@@ -63,7 +64,7 @@ module Enterprise::Concerns::Article
   end
 
   def generate_article_search_terms
-    api_key = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
+    api_key = captain_open_ai_api_key
     raise 'CAPTAIN_OPEN_AI_API_KEY not configured' if api_key.blank?
 
     messages = [
@@ -88,16 +89,32 @@ module Enterprise::Concerns::Article
   private
 
   def openai_api_url
-    endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value
-    if endpoint.present?
-      endpoint = endpoint.chomp('/')
-    else
-      endpoint = 'https://api.openai.com/v1/chat/completions'
-    end
-    endpoint
+    endpoint = captain_open_ai_endpoint
+    endpoint = endpoint.chomp('/')
+
+    return endpoint if endpoint.end_with?('/v1/chat/completions')
+    return "#{endpoint}/chat/completions" if endpoint.end_with?('/v1')
+
+    "#{endpoint}/v1/chat/completions"
   end
 
   def openai_model
     InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || ENV.fetch('OPENAI_GPT_MODEL', 'gpt-4o-mini')
+  end
+
+  def captain_open_ai_endpoint
+    api_key_value = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
+    endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value
+
+    return api_key_value if api_key_value.present? && api_key_value.match?(%r{\Ahttps?://}) && endpoint.blank?
+
+    endpoint.presence || 'https://api.openai.com'
+  end
+
+  def captain_open_ai_api_key
+    api_key_value = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
+    return api_key_value unless api_key_value.present? && api_key_value.match?(%r{\Ahttps?://})
+
+    ENV.fetch('OPENAI_API_KEY', nil)
   end
 end

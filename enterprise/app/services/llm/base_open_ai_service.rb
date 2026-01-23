@@ -2,15 +2,17 @@ class Llm::BaseOpenAiService
   DEFAULT_MODEL = 'gpt-4o-mini'.freeze
 
   def initialize
+    @main_api_key = normalize_open_ai_api_key
     setup_endpoint
     setup_model
 
-    @main_api_key = InstallationConfig.find_by!(name: 'CAPTAIN_OPEN_AI_API_KEY').value
+    raise 'CAPTAIN_OPEN_AI_API_KEY not configured' if @main_api_key.blank?
 
     @client = OpenAI::Client.new(
       access_token: @main_api_key,
       uri_base: @uri_base,
-      log_errors: Rails.env.development?
+      log_errors: Rails.env.development?,
+      faraday_middleware: faraday_proxy_middleware
     )
 
     # Determine if we need to patch embeddings (custom endpoint or custom API key)
@@ -25,9 +27,33 @@ class Llm::BaseOpenAiService
 
   private
 
+  def normalize_open_ai_api_key
+    raw_api_key = fetch_installation_config_value('CAPTAIN_OPEN_AI_API_KEY')
+    return raw_api_key if raw_api_key.blank? || !raw_api_key.match?(%r{\Ahttps?://})
+
+    @endpoint_override_from_api_key = raw_api_key
+    ENV['OPENAI_API_KEY'].presence
+  end
+
+  def fetch_installation_config_value(name)
+    InstallationConfig.find_by(name: name)&.value || begin
+      ConfigLoader.new.process
+      InstallationConfig.find_by(name: name)&.value
+    end
+  end
+
   def setup_endpoint
     full_endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value
+    if @endpoint_override_from_api_key.present? &&
+       (full_endpoint.blank? || full_endpoint == 'https://api.openai.com' || full_endpoint == 'https://api.openai.com/')
+      full_endpoint = @endpoint_override_from_api_key
+    end
     full_endpoint = (full_endpoint.presence || 'https://api.openai.com/').chomp('/')
+    endpoint_path = begin
+      URI.parse(full_endpoint).path
+    rescue StandardError
+      ''
+    end
 
     # Check for custom embedding endpoint configuration
     custom_embedding_endpoint = InstallationConfig.find_by(name: 'CAPTAIN_EMBEDDING_ENDPOINT')&.value
@@ -41,9 +67,12 @@ class Llm::BaseOpenAiService
       @uri_base = full_endpoint.gsub(%r{/v1/chat/completions$}, '')
       @custom_endpoint_full_path = nil
       @custom_embeddings_endpoint = custom_embedding_endpoint.presence
-    elsif full_endpoint == 'https://api.openai.com' || full_endpoint == 'https://api.openai.com/'
-      # Standard OpenAI endpoint
-      @uri_base = 'https://api.openai.com/'
+    elsif full_endpoint.match?(%r{/v1/?$})
+      @uri_base = "#{full_endpoint.chomp('/')}/"
+      @custom_endpoint_full_path = nil
+      @custom_embeddings_endpoint = custom_embedding_endpoint.presence
+    elsif endpoint_path.blank? || endpoint_path == '/'
+      @uri_base = "#{full_endpoint.chomp('/')}/"
       @custom_endpoint_full_path = nil
       @custom_embeddings_endpoint = custom_embedding_endpoint.presence
     else
@@ -52,15 +81,15 @@ class Llm::BaseOpenAiService
       @custom_endpoint_full_path = full_endpoint
 
       # Use custom embedding endpoint if configured, otherwise derive from chat endpoint
-      if custom_embedding_endpoint.present?
-        @custom_embeddings_endpoint = custom_embedding_endpoint.chomp('/')
-      elsif full_endpoint.include?('chat/completions')
-        # Generate embeddings endpoint by replacing chat/completions with embeddings
-        @custom_embeddings_endpoint = full_endpoint.gsub('chat/completions', 'embeddings')
-      else
-        # Fallback to same endpoint if pattern not found
-        @custom_embeddings_endpoint = full_endpoint
-      end
+      @custom_embeddings_endpoint = if custom_embedding_endpoint.present?
+                                      custom_embedding_endpoint.chomp('/')
+                                    elsif full_endpoint.include?('chat/completions')
+                                      # Generate embeddings endpoint by replacing chat/completions with embeddings
+                                      full_endpoint.gsub('chat/completions', 'embeddings')
+                                    else
+                                      # Fallback to same endpoint if pattern not found
+                                      full_endpoint
+                                    end
     end
   end
 
@@ -71,6 +100,8 @@ class Llm::BaseOpenAiService
     main_api_key = @main_api_key
     embedding_api_key = @embedding_api_key.presence || main_api_key
     uri_base = @uri_base
+    logger = captain_logger
+    proxy_options = http_proxy_options
 
     # Monkey-patch the client instance to override the chat endpoint (only if custom chat endpoint is set)
     if custom_chat_path.present?
@@ -81,72 +112,95 @@ class Llm::BaseOpenAiService
           'Authorization' => "Bearer #{main_api_key}"
         }
 
-        Rails.logger.info("=" * 80)
-        Rails.logger.info("Calling custom chat endpoint: #{custom_chat_path}")
-        Rails.logger.info("Headers: #{headers.to_json}")
-        Rails.logger.info("Request body: #{parameters.to_json}")
+        logger.info('=' * 80)
+        logger.info("Calling custom chat endpoint: #{custom_chat_path}")
+        logger.info("Headers: #{headers.to_json}")
+        logger.info("Request body: #{parameters.to_json}")
 
         response = HTTParty.post(
           custom_chat_path,
           headers: headers,
-          body: parameters.to_json
+          body: parameters.to_json,
+          **proxy_options
         )
 
-        Rails.logger.info("Response status: #{response.code}")
-        Rails.logger.info("Response body: #{response.body}")
-        Rails.logger.info("=" * 80)
+        logger.info("Response status: #{response.code}")
+        logger.info("Response body: #{response.body}")
+        logger.info('=' * 80)
 
-        if response.success?
-          JSON.parse(response.body)
-        else
-          raise OpenAI::Error, "HTTP #{response.code}: #{response.body}"
-        end
+        raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
+
+        JSON.parse(response.body)
       end
     end
 
     # Patch embeddings if custom endpoint or custom API key is configured
-    if @patch_embeddings
-      @client.define_singleton_method(:embeddings) do |parameters:|
-        # Use embedding-specific API key if configured, otherwise use main API key
-        headers = {
-          'Content-Type' => 'application/json',
-          'Authorization' => "Bearer #{embedding_api_key}"
-        }
+    return unless @patch_embeddings
 
-        # Determine the embeddings endpoint
-        embeddings_endpoint = if custom_embeddings_path.present?
-                                custom_embeddings_path
-                              else
-                                # Use standard OpenAI embeddings endpoint
-                                "#{uri_base}/v1/embeddings"
-                              end
+    @client.define_singleton_method(:embeddings) do |parameters:|
+      # Use embedding-specific API key if configured, otherwise use main API key
+      headers = {
+        'Content-Type' => 'application/json',
+        'Authorization' => "Bearer #{embedding_api_key}"
+      }
 
-        Rails.logger.info("=" * 80)
-        Rails.logger.info("Calling embeddings endpoint: #{embeddings_endpoint}")
-        Rails.logger.info("Headers: #{headers.to_json}")
-        Rails.logger.info("Request body: #{parameters.to_json}")
+      # Determine the embeddings endpoint
+      embeddings_endpoint = (custom_embeddings_path.presence || "#{uri_base}/v1/embeddings")
 
-        response = HTTParty.post(
-          embeddings_endpoint,
-          headers: headers,
-          body: parameters.to_json
-        )
+      logger.info('=' * 80)
+      logger.info("Calling embeddings endpoint: #{embeddings_endpoint}")
+      logger.info("Headers: #{headers.to_json}")
+      logger.info("Request body: #{parameters.to_json}")
 
-        Rails.logger.info("Response status: #{response.code}")
-        Rails.logger.info("Response body: #{response.body}")
-        Rails.logger.info("=" * 80)
+      response = HTTParty.post(
+        embeddings_endpoint,
+        headers: headers,
+        body: parameters.to_json,
+        **proxy_options
+      )
 
-        if response.success?
-          JSON.parse(response.body)
-        else
-          raise OpenAI::Error, "HTTP #{response.code}: #{response.body}"
-        end
-      end
+      logger.info("Response status: #{response.code}")
+      logger.info("Response body: #{response.body}")
+      logger.info('=' * 80)
+
+      raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
+
+      JSON.parse(response.body)
     end
   end
 
   def setup_model
     config_value = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
     @model = (config_value.presence || DEFAULT_MODEL)
+  end
+
+  def captain_logger
+    Captain::Logger.logger
+  rescue NameError
+    Rails.logger
+  end
+
+  def http_proxy_options
+    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+    return {} if proxy_url.blank?
+
+    uri = URI.parse(proxy_url)
+    {
+      http_proxyaddr: uri.host,
+      http_proxyport: uri.port,
+      http_proxyuser: uri.user,
+      http_proxypass: uri.password
+    }.compact
+  rescue URI::InvalidURIError
+    {}
+  end
+
+  def faraday_proxy_middleware
+    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+    return nil if proxy_url.blank?
+
+    proc { |connection| connection.proxy = proxy_url }
   end
 end

@@ -4,7 +4,8 @@ class Captain::LlmService
   def initialize(config)
     @client = OpenAI::Client.new(
       access_token: config[:api_key],
-      log_errors: Rails.env.development?
+      log_errors: Rails.env.development?,
+      faraday_middleware: faraday_proxy_middleware
     )
     @logger = Rails.logger
   end
@@ -18,7 +19,7 @@ class Captain::LlmService
       model: model,
       messages: messages
     }
-    
+
     is_deepseek_v32 = deepseek_v32_model?(model)
     is_qwen = qwen_model?(model)
     has_tools = functions.any?
@@ -28,22 +29,22 @@ class Captain::LlmService
     # directly instead of using tool_calls mechanism.
     # So we only enforce response_format for models that support it properly.
     openai_params[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32 && !is_qwen
-    
+
     if has_tools
       openai_params[:tools] = functions
       # Some OpenAI-compatible providers require tool_choice explicitly for tool calling.
       openai_params[:tool_choice] = 'auto'
     end
-    
+
     # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
     if is_deepseek_v32
       openai_params[:thinking] = ark_thinking_param(thinking_enabled)
-      @logger.warn "DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON" if has_tools
+      @logger.warn 'DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON' if has_tools
     elsif thinking_enabled
       openai_params[:thinking] = true
-      @logger.warn "Thinking mode enabled - response format constraint removed, relying on prompt for JSON" if has_tools
+      @logger.warn 'Thinking mode enabled - response format constraint removed, relying on prompt for JSON' if has_tools
     elsif is_qwen && has_tools
-      @logger.info "Qwen model detected with tools: response_format disabled to enable proper tool calling"
+      @logger.info 'Qwen model detected with tools: response_format disabled to enable proper tool calling'
     end
 
     response = @client.chat(parameters: openai_params)
@@ -119,5 +120,13 @@ class Captain::LlmService
     @logger.error("Content: #{content}") if content
 
     { output: 'Error occurred, retrying', stop: false }
+  end
+
+  def faraday_proxy_middleware
+    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+    return nil if proxy_url.blank?
+
+    proc { |connection| connection.proxy = proxy_url }
   end
 end

@@ -9,7 +9,7 @@ class Captain::Llm::FaqGeneratorService < Llm::BaseOpenAiService
     response = @client.chat(parameters: chat_parameters)
     parse_response(response)
   rescue OpenAI::Error => e
-    Rails.logger.error "OpenAI API Error: #{e.message}"
+    captain_logger.warn "OpenAI API Error: #{e.message}"
     []
   end
 
@@ -41,7 +41,11 @@ class Captain::Llm::FaqGeneratorService < Llm::BaseOpenAiService
 
     JSON.parse(content.strip).fetch('faqs', [])
   rescue JSON::ParserError => e
-    Rails.logger.error "Error in parsing GPT processed response: #{e.message}"
+    captain_logger.warn "Error in parsing GPT processed response: #{e.message}"
     []
+  end
+
+  def captain_logger
+    Captain::Logger.logger
   end
 end

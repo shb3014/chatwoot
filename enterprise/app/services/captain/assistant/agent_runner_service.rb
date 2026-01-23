@@ -18,20 +18,24 @@ class Captain::Assistant::AgentRunnerService
   end
 
   def generate_response(message_history: [])
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     agents = build_and_wire_agents
     context = build_context(message_history)
     message_to_process = extract_last_user_message(message_history)
     runner = Agents::Runner.with_agents(*agents)
     runner = add_callbacks_to_runner(runner) if @callbacks.any?
+    captain_logger.info "[Captain V2] AgentRunnerService start assistant_id=#{@assistant.id} agents=#{agents.length} history=#{message_history.length}"
     result = runner.run(message_to_process, context: context, max_turns: 100)
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+    captain_logger.info "[Captain V2] AgentRunnerService run completed in #{elapsed_ms}ms"
 
     process_agent_result(result)
   rescue StandardError => e
     # when running the agent runner service in a rake task, the conversation might not have an account associated
     # for regular production usage, it will run just fine
     ChatwootExceptionTracker.new(e, account: @conversation&.account).capture_exception
-    Rails.logger.error "[Captain V2] AgentRunnerService error: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
+    captain_logger.error "[Captain V2] AgentRunnerService error: #{e.message}"
+    captain_logger.error e.backtrace.join("\n")
 
     error_response(e.message)
   end
@@ -73,7 +77,7 @@ class Captain::Assistant::AgentRunnerService
 
   # Response formatting methods
   def process_agent_result(result)
-    Rails.logger.info "[Captain V2] Agent result: #{result.inspect}"
+    captain_logger.info "[Captain V2] Agent result: #{result.inspect}"
     response = format_response(result.output)
 
     # Extract agent name from context
@@ -136,7 +140,7 @@ class Captain::Assistant::AgentRunnerService
     runner.on_agent_thinking do |*args|
       @callbacks[:on_agent_thinking].call(*args)
     rescue StandardError => e
-      Rails.logger.warn "[Captain] Callback error for agent_thinking: #{e.message}"
+      captain_logger.warn "[Captain] Callback error for agent_thinking: #{e.message}"
     end
   end
 
@@ -144,7 +148,7 @@ class Captain::Assistant::AgentRunnerService
     runner.on_tool_start do |*args|
       @callbacks[:on_tool_start].call(*args)
     rescue StandardError => e
-      Rails.logger.warn "[Captain] Callback error for tool_start: #{e.message}"
+      captain_logger.warn "[Captain] Callback error for tool_start: #{e.message}"
     end
   end
 
@@ -152,7 +156,7 @@ class Captain::Assistant::AgentRunnerService
     runner.on_tool_complete do |*args|
       @callbacks[:on_tool_complete].call(*args)
     rescue StandardError => e
-      Rails.logger.warn "[Captain] Callback error for tool_complete: #{e.message}"
+      captain_logger.warn "[Captain] Callback error for tool_complete: #{e.message}"
     end
   end
 
@@ -160,7 +164,11 @@ class Captain::Assistant::AgentRunnerService
     runner.on_agent_handoff do |*args|
       @callbacks[:on_agent_handoff].call(*args)
     rescue StandardError => e
-      Rails.logger.warn "[Captain] Callback error for agent_handoff: #{e.message}"
+      captain_logger.warn "[Captain] Callback error for agent_handoff: #{e.message}"
     end
+  end
+
+  def captain_logger
+    Captain::Logger.logger
   end
 end

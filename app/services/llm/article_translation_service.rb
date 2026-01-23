@@ -17,7 +17,8 @@ module Llm
         access_token: @main_api_key,
         uri_base: @uri_base,
         request_timeout: 60,
-        log_errors: Rails.env.development?
+        log_errors: Rails.env.development?,
+        faraday_middleware: faraday_proxy_middleware
       )
 
       # Monkey-patch the client instance if custom endpoint is present
@@ -29,11 +30,11 @@ module Llm
       return nil unless @article
       return nil if @target_locale.blank?
 
-      translated_title = translate_text(@article.title, "title")
-      translated_content = translate_text(@article.content, "content")
+      translated_title = translate_text(@article.title, 'title')
+      translated_content = translate_text(@article.content, 'content')
 
       # Description is optional
-      translated_description = @article.description.present? ? translate_text(@article.description, "description") : nil
+      translated_description = @article.description.present? ? translate_text(@article.description, 'description') : nil
 
       {
         title: translated_title,
@@ -70,6 +71,7 @@ module Llm
     def patch_client_for_custom_endpoint
       custom_chat_path = @custom_endpoint_full_path
       main_api_key = @main_api_key
+      proxy_options = http_proxy_options
 
       @client.define_singleton_method(:chat) do |parameters:|
         headers = {
@@ -77,50 +79,72 @@ module Llm
           'Authorization' => "Bearer #{main_api_key}"
         }
 
-        Rails.logger.info("=" * 80)
+        Rails.logger.info('=' * 80)
         Rails.logger.info("Calling custom chat endpoint: #{custom_chat_path}")
 
         response = HTTParty.post(
           custom_chat_path,
           headers: headers,
           body: parameters.to_json,
-          timeout: 60
+          timeout: 60,
+          **proxy_options
         )
 
         Rails.logger.info("Response status: #{response.code}")
 
-        if response.success?
-          JSON.parse(response.body)
-        else
-          raise OpenAI::Error, "HTTP #{response.code}: #{response.body}"
-        end
+        raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
+
+        JSON.parse(response.body)
       end
     end
 
     def translate_text(text, type)
       return text if text.blank?
 
-      prompt = "You are a helpful assistant that translates help center articles. " \
+      prompt = 'You are a helpful assistant that translates help center articles. ' \
                "Translate the following #{type} to #{@target_locale}. " \
-               "Preserve all HTML tags and formatting exactly as they are. " \
-               "Do not add any explanations or surrounding text. " \
-               "Return ONLY the translated text."
+               'Preserve all HTML tags and formatting exactly as they are. ' \
+               'Do not add any explanations or surrounding text. ' \
+               'Return ONLY the translated text.'
 
       response = @client.chat(
         parameters: {
           model: @model,
           messages: [
-            { role: "system", content: prompt },
-            { role: "user", content: text }
+            { role: 'system', content: prompt },
+            { role: 'user', content: text }
           ]
         }
       )
 
-      response.dig("choices", 0, "message", "content")&.strip
+      response.dig('choices', 0, 'message', 'content')&.strip
     rescue StandardError => e
       Rails.logger.error "[ArticleTranslationService] Translation failed: #{e.message}"
       nil
     end
+
+    def http_proxy_options
+      proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                  ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+      return {} if proxy_url.blank?
+
+      uri = URI.parse(proxy_url)
+      {
+        http_proxyaddr: uri.host,
+        http_proxyport: uri.port,
+        http_proxyuser: uri.user,
+        http_proxypass: uri.password
+      }.compact
+    rescue URI::InvalidURIError
+      {}
+    end
+
+    def faraday_proxy_middleware
+      proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                  ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+      return nil if proxy_url.blank?
+
+      proc { |connection| connection.proxy = proxy_url }
+    end
   end
 end
-

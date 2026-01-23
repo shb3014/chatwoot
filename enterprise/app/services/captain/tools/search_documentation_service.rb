@@ -22,11 +22,14 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
   def execute(arguments)
     query = arguments['search_query']
-    Rails.logger.info { "#{self.class.name}: #{query}" }
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    captain_logger.info "#{self.class.name}: #{query}"
 
     # Search both responses (FAQs) and articles
     responses = assistant.responses.approved.search(query)
     articles = search_articles(query)
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+    captain_logger.info "#{self.class.name}: results=#{responses.size + articles.size} in #{elapsed_ms}ms"
 
     return 'No documentation found for the given query' if responses.empty? && articles.empty?
 
@@ -47,18 +50,27 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
   private
 
   def search_articles(query)
-    return [] unless assistant.account.feature_enabled?('help_center_embedding_search')
+    user_locale = detect_locale
+
+    # Fast keyword search first (avoids embedding call when it works)
+    text_results = search_with_text(query, locale: user_locale, limit: 3)
+    return text_results if text_results.present?
+
+    global_text_results = search_with_text(query, locale: nil, limit: 3)
+    return global_text_results if global_text_results.present?
+
+    unless assistant.account.feature_enabled?('help_center_embedding_search')
+      captain_logger.info "Embedding search disabled, no text matches for '#{query}'"
+      return []
+    end
 
     # Get embedding for the query
     embedding = Captain::Llm::EmbeddingService.new.get_embedding(query)
-    user_locale = detect_locale
 
     # 1. Search in user's locale (if present) with threshold 0.7
     # We prioritize locale matches.
     results = []
-    if user_locale.present?
-      results += search_with_embedding(embedding, locale: user_locale, threshold: 0.7, limit: 3)
-    end
+    results += search_with_embedding(embedding, locale: user_locale, threshold: 0.7, limit: 3) if user_locale.present?
 
     # 2. Search Global (no locale filter) with threshold 0.7
     # We append these to the locale results.
@@ -71,7 +83,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     # 3. Fallback: If we don't have enough results (less than 2),
     # perform a broader global search without threshold to ensure we return something.
     if results.size < 2
-      Rails.logger.info "Insufficient articles found (#{results.size}), falling back to broader search"
+      captain_logger.info "Insufficient embedding matches (#{results.size}) for '#{query}', falling back to broader search"
       fallback_results = search_with_embedding(embedding, locale: nil, threshold: nil, limit: 2)
       results = (results + fallback_results).uniq(&:id)
     end
@@ -79,7 +91,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     # Return top 3 results
     results.first(3)
   rescue StandardError => e
-    Rails.logger.error { "Error searching articles: #{e.message}" }
+    captain_logger.warn "Error searching articles: #{e.message}"
     []
   end
 
@@ -99,7 +111,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
   def search_with_embedding(embedding, locale: nil, threshold: nil, limit: 3)
     scope = ArticleEmbedding
-    scope = scope.joins(:article).where("articles.locale LIKE ?", "#{locale}%") if locale.present?
+    scope = scope.joins(:article).where('articles.locale LIKE ?', "#{locale}%") if locale.present?
 
     # Use nearest_neighbors to get candidates ordered by distance
     scope = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
@@ -110,7 +122,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
                     # 2. Filter in Ruby
                     # Ensure embedding is formatted as a vector string '[x,y,z]'
                     embedding_string = "[#{embedding.join(',')}]"
-                    candidates = scope.select("article_id", "embedding <=> '#{embedding_string}' as distance")
+                    candidates = scope.select('article_id', "embedding <=> '#{embedding_string}' as distance")
                                       .limit(limit)
 
                     candidates.select { |c| c.distance < threshold }.map(&:article_id)
@@ -121,6 +133,12 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     # Retrieve articles and preserve order based on nearest neighbors
     articles = Article.where(id: article_ids).index_by(&:id)
     article_ids.map { |id| articles[id] }.compact
+  end
+
+  def search_with_text(query, locale: nil, limit: 3)
+    scope = Article.published.where(account_id: assistant.account_id)
+    scope = scope.where('articles.locale LIKE ?', "#{locale}%") if locale.present?
+    scope.text_search(query).limit(limit)
   end
 
   def format_response(response)
@@ -151,6 +169,10 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     end
 
     formatted_article
+  end
+
+  def captain_logger
+    Captain::Logger.logger
   end
 
   def format_article_references

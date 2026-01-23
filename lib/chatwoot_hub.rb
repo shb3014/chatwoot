@@ -21,7 +21,13 @@ class ChatwootHub
   def self.pricing_plan
     return 'community' unless ChatwootApp.enterprise?
 
-    InstallationConfig.find_by(name: 'INSTALLATION_PRICING_PLAN')&.value || 'community'
+    dev_override = ENV.fetch('CHATWOOT_DEV_PRICING_PLAN', nil)
+    return dev_override if Rails.env.development? && dev_override.present?
+
+    plan = InstallationConfig.find_by(name: 'INSTALLATION_PRICING_PLAN')&.value
+    return plan if plan.present? && plan != 'community'
+
+    Rails.env.development? ? 'enterprise' : 'community'
   end
 
   def self.pricing_plan_quantity

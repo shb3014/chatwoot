@@ -10,9 +10,13 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     Current.executed_by = @assistant
 
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    captain_logger.info("[Captain][ResponseBuilderJob] start conversation_id=#{@conversation.id} assistant_id=#{@assistant.id} inbox_id=#{@inbox.id}")
     ActiveRecord::Base.transaction do
       generate_and_process_response
     end
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+    captain_logger.info("[Captain][ResponseBuilderJob] completed in #{elapsed_ms}ms conversation_id=#{@conversation.id}")
   rescue StandardError => e
     raise e if e.is_a?(ActiveStorage::FileNotFoundError) || e.is_a?(Faraday::BadRequestError)
 
@@ -26,20 +30,30 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   delegate :account, :inbox, to: :@conversation
 
   def generate_and_process_response
+    history_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    message_history = collect_previous_messages
+    history_elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - history_start) * 1000).round
+    captain_logger.info("[Captain][ResponseBuilderJob] message_history size=#{message_history.length} in #{history_elapsed_ms}ms conversation_id=#{@conversation.id}")
+
+    response_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     @response = if captain_v2_enabled?
+                  captain_logger.info('[Captain][ResponseBuilderJob] using v2 agent runner')
                   Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation).generate_response(
-                    message_history: collect_previous_messages
+                    message_history: message_history
                   )
                 else
+                  captain_logger.info('[Captain][ResponseBuilderJob] using v1 assistant chat')
                   Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
-                    message_history: collect_previous_messages
+                    message_history: message_history
                   )
                 end
+    response_elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - response_start) * 1000).round
+    captain_logger.info("[Captain][ResponseBuilderJob] response_generated in #{response_elapsed_ms}ms conversation_id=#{@conversation.id}")
 
     return process_action('handoff') if handoff_requested?
 
     create_messages
-    Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
+    captain_logger.info("[Captain][ResponseBuilderJob] Incrementing response usage for account_id=#{account.id}")
     account.increment_response_usage
   end
 
@@ -56,9 +70,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       content = prepare_multimodal_message_content(message)
       role = determine_role(message)
 
-      if role == 'assistant' && content.is_a?(String)
-        content = format_assistant_content(content)
-      end
+      content = format_assistant_content(content) if role == 'assistant' && content.is_a?(String)
 
       message_hash = {
         content: content,
@@ -143,6 +155,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def log_error(error)
     ChatwootExceptionTracker.new(error, account: account).capture_exception
+  end
+
+  def captain_logger
+    Captain::Logger.logger
   end
 
   def captain_v2_enabled?
