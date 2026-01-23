@@ -15,9 +15,16 @@
     },
     "FILTER_ALL": "All",
     "ASSIGNEE_TYPE_TABS": {
+      "unresolved": "Unresolved",
       "me": "Mine",
       "unassigned": "Unassigned",
       "all": "All"
+    },
+    "HEADER": {
+      "MORE_ACTIONS": "More actions",
+      "ACTIONS": {
+        "RESOLVE_READ": "Resolve read"
+      }
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

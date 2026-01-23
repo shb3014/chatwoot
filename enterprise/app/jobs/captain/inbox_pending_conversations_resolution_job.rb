@@ -2,6 +2,8 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
   queue_as :low
 
   def perform(inbox)
+    return unless captain_pending_auto_resolve_enabled?
+
     Current.executed_by = inbox.captain_assistant
 
     resolvable_conversations = inbox.conversations.pending.where('last_activity_at < ? ', Time.now.utc - 1.hour).limit(Limits::BULK_ACTIONS_LIMIT)
@@ -14,6 +16,10 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
   end
 
   private
+
+  def captain_pending_auto_resolve_enabled?
+    GlobalConfigService.load('CAPTAIN_PENDING_AUTO_RESOLVE_ENABLED', 'true') == 'true'
+  end
 
   def create_outgoing_message(conversation, inbox)
 

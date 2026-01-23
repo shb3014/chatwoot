@@ -1,8 +1,13 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, useSlots } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useStore } from 'vuex';
 
 const props = defineProps({
+  conversationId: {
+    type: Number,
+    required: true,
+  },
   conversationLabels: {
     type: Array,
     required: true,
@@ -11,6 +16,7 @@ const props = defineProps({
 
 const slots = useSlots();
 const accountLabels = useMapGetter('labels/getLabels');
+const store = useStore();
 
 const activeLabels = computed(() => {
   return accountLabels.value.filter(({ title }) =>
@@ -22,6 +28,8 @@ const showAllLabels = ref(false);
 const showExpandLabelButton = ref(false);
 const labelPosition = ref(-1);
 const labelContainer = ref(null);
+const hoveredLabelTitle = ref(null);
+const isUpdatingLabel = ref(false);
 
 const computeVisibleLabelPosition = () => {
   const beforeSlot = slots.before ? 100 : 0;
@@ -56,6 +64,25 @@ const onShowLabels = e => {
   showAllLabels.value = !showAllLabels.value;
   nextTick(() => computeVisibleLabelPosition());
 };
+
+const onRemoveLabel = async labelTitle => {
+  if (!labelTitle || isUpdatingLabel.value) return;
+  isUpdatingLabel.value = true;
+  try {
+    const nextLabels = (props.conversationLabels || []).filter(
+      title => title !== labelTitle
+    );
+    await store.dispatch('conversationLabels/update', {
+      conversationId: props.conversationId,
+      labels: nextLabels,
+    });
+    // Refresh the conversation object in list for immediate UI sync
+    await store.dispatch('getConversation', props.conversationId);
+  } finally {
+    isUpdatingLabel.value = false;
+    hoveredLabelTitle.value = null;
+  }
+};
 </script>
 
 <template>
@@ -75,9 +102,13 @@ const onShowLabels = e => {
         variant="smooth"
         class="!mb-0 max-w-[calc(100%-0.5rem)]"
         small
+        :show-close="hoveredLabelTitle === label.title"
         :class="{
           'invisible absolute': !showAllLabels && index > labelPosition,
         }"
+        @mouseenter="hoveredLabelTitle = label.title"
+        @mouseleave="hoveredLabelTitle = null"
+        @remove="onRemoveLabel"
       />
       <button
         v-if="showExpandLabelButton"

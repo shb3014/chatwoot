@@ -116,6 +116,7 @@ const chatLists = useMapGetter('getFilteredConversations');
 const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
 const unAssignedChatsList = useMapGetter('getUnAssignedChats');
+const unresolvedChatsList = useMapGetter('getUnresolvedChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
@@ -212,7 +213,8 @@ const assigneeTabItems = computed(() => {
 const showAssigneeInConversationCard = computed(() => {
   return (
     hasAppliedFiltersOrActiveFolders.value ||
-    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL ||
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNRESOLVED
   );
 });
 
@@ -225,7 +227,7 @@ const currentPageFilterKey = computed(() => {
 const inbox = useFunctionGetter('inboxes/getInbox', activeInbox);
 const currentPage = useFunctionGetter(
   'conversationPage/getCurrentPageFilter',
-  activeAssigneeTab
+  currentPageFilterKey
 );
 const currentFiltersPage = useFunctionGetter(
   'conversationPage/getCurrentPageFilter',
@@ -242,10 +244,10 @@ const conversationCustomAttributes = useFunctionGetter(
 );
 
 const activeAssigneeTabCount = computed(() => {
-  const count = assigneeTabItems.value.find(
+  const tab = assigneeTabItems.value.find(
     item => item.key === activeAssigneeTab.value
-  ).count;
-  return count;
+  );
+  return tab ? tab.count : 0;
 });
 
 const conversationListPagination = computed(() => {
@@ -265,11 +267,12 @@ const conversationListPagination = computed(() => {
     return 1;
   }
 
-  return currentPage.value + 1;
+  const safeCurrentPage = Number(currentPage.value);
+  return (Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0) + 1;
 });
 
 const conversationFilters = computed(() => {
-  return {
+  const filters = {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType: activeAssigneeTab.value,
     status: activeStatus.value,
@@ -279,6 +282,12 @@ const conversationFilters = computed(() => {
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
   };
+
+  if (activeAssigneeTab.value === 'unresolved') {
+    filters.status = 'all';
+  }
+
+  return filters;
 });
 
 const activeTeam = computed(() => {
@@ -325,6 +334,8 @@ const conversationList = computed(() => {
       localConversationList = [...mineChatsList.value(filters)];
     } else if (activeAssigneeTab.value === 'unassigned') {
       localConversationList = [...unAssignedChatsList.value(filters)];
+    } else if (activeAssigneeTab.value === 'unresolved') {
+      localConversationList = [...unresolvedChatsList.value(filters)];
     } else {
       localConversationList = [...allChatList.value(filters)];
     }
@@ -340,6 +351,19 @@ const conversationList = computed(() => {
   }
 
   return localConversationList;
+});
+
+const readUnresolvedConversationIds = computed(() => {
+  return conversationList.value
+    .filter(
+      conversation =>
+        conversation.unread_count === 0 && conversation.status !== 'resolved'
+    )
+    .map(conversation => conversation.id);
+});
+
+const hasReadConversationsToResolve = computed(() => {
+  return readUnresolvedConversationIds.value.length > 0;
 });
 
 const showEndOfListMessage = computed(() => {
@@ -393,7 +417,8 @@ function emitConversationLoaded() {
 
 function fetchFilteredConversations(payload) {
   payload = useSnakeCase(payload);
-  let page = currentFiltersPage.value + 1;
+  const safeCurrentPage = Number(currentFiltersPage.value);
+  const page = (Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0) + 1;
   store
     .dispatch('fetchFilteredConversations', {
       queryData: filterQueryGenerator(payload),
@@ -406,7 +431,8 @@ function fetchFilteredConversations(payload) {
 
 function fetchSavedFilteredConversations(payload) {
   payload = useSnakeCase(payload);
-  let page = currentFiltersPage.value + 1;
+  const safeCurrentPage = Number(currentFiltersPage.value);
+  const page = (Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0) + 1;
   store
     .dispatch('fetchFilteredConversations', {
       queryData: payload,
@@ -673,6 +699,25 @@ function redirectToConversationList() {
   );
 }
 
+async function resolveReadConversations() {
+  const ids = readUnresolvedConversationIds.value;
+  if (!ids.length) return;
+
+  try {
+    await store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids,
+      fields: {
+        status: 'resolved',
+      },
+    });
+    useAlert(t('BULK_ACTION.UPDATE.UPDATE_SUCCESFUL'));
+    resetAndFetchData();
+  } catch (error) {
+    useAlert(t('BULK_ACTION.UPDATE.UPDATE_FAILED'));
+  }
+}
+
 async function assignPriority(priority, conversationId = null) {
   store.dispatch('setCurrentChatPriority', {
     priority,
@@ -857,11 +902,13 @@ watch(conversationFilters, (newVal, oldVal) => {
       :is-on-expanded-layout="isOnExpandedLayout"
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
+      :has-read-conversations-to-resolve="hasReadConversationsToResolve"
       @add-folders="onClickOpenAddFoldersModal"
       @delete-folders="onClickOpenDeleteFoldersModal"
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetAndFetchData"
       @basic-filter-change="onBasicFilterChange"
+      @resolve-read-conversations="resolveReadConversations"
     />
 
     <TeleportWithDirection

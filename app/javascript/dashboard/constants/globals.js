@@ -1,6 +1,7 @@
 export default {
   GRAVATAR_URL: 'https://www.gravatar.com/avatar/',
   ASSIGNEE_TYPE: {
+    UNRESOLVED: 'unresolved',
     ME: 'me',
     UNASSIGNED: 'unassigned',
     ALL: 'all',

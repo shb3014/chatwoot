@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
@@ -46,6 +47,7 @@ const emit = defineEmits([
 
 const router = useRouter();
 const store = useStore();
+const { t } = useI18n();
 
 const hovered = ref(false);
 const showContextMenu = ref(false);
@@ -73,6 +75,27 @@ const currentContact = computed(() => {
 
 const isActiveChat = computed(() => {
   return currentChat.value.id === props.chat.id;
+});
+
+const status = computed(() => props.chat.status);
+
+const statusText = computed(() => {
+  return t(`CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.${status.value}.TEXT`);
+});
+
+const statusClass = computed(() => {
+  switch (status.value) {
+    case 'open':
+      return 'bg-n-teal-2 text-n-teal-9';
+    case 'resolved':
+      return 'bg-n-slate-3 text-n-slate-11';
+    case 'pending':
+      return 'bg-n-amber-2 text-n-amber-11';
+    case 'snoozed':
+      return 'bg-n-yellow-2 text-n-yellow-11';
+    default:
+      return 'bg-n-slate-3 text-n-slate-11';
+  }
 });
 
 const unreadCount = computed(() => props.chat.unread_count);
@@ -308,7 +331,16 @@ const deleteConversation = () => {
             <fluent-icon icon="person" size="12" class="text-n-slate-11" />
             {{ assignee.name }}
           </span>
-          <PriorityMark :priority="chat.priority" class="flex-shrink-0" />
+          <div class="flex items-center gap-2">
+            <span
+              v-if="status"
+              class="text-xxs font-semibold px-1.5 py-0.5 rounded ml-1 flex-shrink-0"
+              :class="statusClass"
+            >
+              {{ statusText }}
+            </span>
+            <PriorityMark :priority="chat.priority" class="flex-shrink-0" />
+          </div>
         </div>
       </div>
       <h4
@@ -372,6 +404,7 @@ const deleteConversation = () => {
       </div>
       <CardLabels
         v-if="showLabelsSection"
+        :conversation-id="chat.id"
         :conversation-labels="chat.labels"
         class="mt-0.5 mx-2 mb-0"
       >

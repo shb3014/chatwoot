@@ -15,9 +15,16 @@
     },
     "FILTER_ALL": "所有的",
     "ASSIGNEE_TYPE_TABS": {
+      "unresolved": "未解决",
       "me": "我的",
       "unassigned": "未分配的",
       "all": "所有的"
+    },
+    "HEADER": {
+      "MORE_ACTIONS": "更多操作",
+      "ACTIONS": {
+        "RESOLVE_READ": "解决已读"
+      }
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

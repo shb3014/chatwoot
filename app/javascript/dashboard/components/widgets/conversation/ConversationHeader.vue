@@ -8,10 +8,13 @@ import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
+import { useAlert } from 'dashboard/composables';
+import { getRandomColor } from 'dashboard/helper/labelColor';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -36,6 +39,70 @@ const currentChat = computed(() => store.getters.getSelectedChat);
 const accountId = computed(() => store.getters.getCurrentAccountId);
 
 const chatMetadata = computed(() => props.chat.meta);
+
+const RECORD_LABEL_TITLE = '记录';
+
+const conversationLabelsUiFlags = computed(
+  () => store.getters['conversationLabels/getUIFlags']
+);
+
+const savedLabelTitles = computed(() =>
+  store.getters['conversationLabels/getConversationLabels'](currentChat.value?.id)
+);
+
+const accountLabels = computed(() => store.getters['labels/getLabels']);
+
+const hasRecordLabel = computed(() =>
+  savedLabelTitles.value?.includes(RECORD_LABEL_TITLE)
+);
+
+const addRecordLabel = async () => {
+  const conversationId = currentChat.value?.id;
+  if (!conversationId || hasRecordLabel.value) return;
+
+  try {
+    // Ensure labels are loaded so we can create the label if missing
+    if (!accountLabels.value?.length) {
+      await store.dispatch('labels/get');
+    }
+
+    const labelExists = accountLabels.value?.some(
+      ({ title }) => title === RECORD_LABEL_TITLE
+    );
+
+    if (!labelExists) {
+      await store.dispatch('labels/create', {
+        title: RECORD_LABEL_TITLE,
+        description: '',
+        color: getRandomColor(),
+        show_on_sidebar: false,
+      });
+    }
+
+    const updatedLabels = Array.from(
+      new Set([...(savedLabelTitles.value || []), RECORD_LABEL_TITLE])
+    );
+
+    await store.dispatch('conversationLabels/update', {
+      conversationId,
+      labels: updatedLabels,
+    });
+
+    if (conversationLabelsUiFlags.value?.isError) {
+      useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.LABEL_ASSIGNMENT.FAILED'));
+      return;
+    }
+
+    useAlert(
+      t('CONVERSATION.CARD_CONTEXT_MENU.API.LABEL_ASSIGNMENT.SUCCESFUL', {
+        labelName: RECORD_LABEL_TITLE,
+        conversationId,
+      })
+    );
+  } catch (error) {
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.LABEL_ASSIGNMENT.FAILED'));
+  }
+};
 
 const backButtonUrl = computed(() => {
   const {
@@ -150,6 +217,17 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         show-extended-info
         :parent-width="width"
         class="hidden md:flex"
+      />
+      <Button
+        v-tooltip="t('CONVERSATION.HEADER.ADD_RECORD_LABEL')"
+        size="sm"
+        variant="ghost"
+        color="slate"
+        icon="i-lucide-tag"
+        class="rounded-md hover:bg-n-alpha-2"
+        :disabled="hasRecordLabel || conversationLabelsUiFlags?.isUpdating"
+        :is-loading="conversationLabelsUiFlags?.isUpdating"
+        @click="addRecordLabel"
       />
       <MoreActions :conversation-id="currentChat.id" />
     </div>
