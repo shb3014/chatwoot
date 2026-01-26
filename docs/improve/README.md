@@ -8,19 +8,25 @@ This directory contains strategic planning and improvement documentation for Cap
 
 ## 📚 Documentation Index
 
-### [CAPTAIN_IMPROVEMENT_ROADMAP.md](./CAPTAIN_IMPROVEMENT_ROADMAP.md)
-**Comprehensive Strategic Roadmap (12-month plan)**
+### Strategic Overview
 
-The complete improvement plan covering:
-- ✅ Recent performance improvements (91% faster)
-- 🎯 Current state analysis with updated capabilities
-- 📋 Four-phase implementation plan (Memory, Tools, Learning, Analytics)
-- 💰 Cost modeling and ROI analysis
-- ⚠️ Common pitfalls and how to avoid them
-- ✅ Roadmap validation checklist
-- 🏗️ Architectural decisions and trade-offs
+**[CAPTAIN_IMPROVEMENT_ROADMAP.md](./CAPTAIN_IMPROVEMENT_ROADMAP.md)** - 12-month strategic roadmap
+- Recent performance improvements (91% faster)
+- Current state analysis
+- Four-phase plan (Memory, Tools, Learning, Analytics)
+- Cost modeling and ROI analysis
 
-**Start here if:** You want the complete strategic picture and long-term plan.
+**[EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md)** - One-page executive brief
+- Quick overview for stakeholders
+- Key metrics and ROI
+- Next steps summary
+
+### Implementation
+
+**[phase_1/](./phase_1/)** - Phase 1.1 & 1.5 Implementation
+- 📖 **[MASTER_IMPLEMENTATION_GUIDE.md](./phase_1/MASTER_IMPLEMENTATION_GUIDE.md)** - Complete implementation plan
+- 📋 Start here for Phase 1 implementation
+- Contains all code examples, architecture, and session-by-session breakdown
 
 ---
 

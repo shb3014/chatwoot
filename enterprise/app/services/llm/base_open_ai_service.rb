@@ -63,7 +63,22 @@ class Llm::BaseOpenAiService
 
     # If the endpoint already contains /v1/chat/completions, strip it for the uri_base
     # Otherwise, assume it's a custom endpoint with a different path structure
-    if full_endpoint.end_with?('/v1/chat/completions')
+    #
+    # If a proxy is configured and the endpoint is non-OpenAI, force custom HTTP
+    # handling so HTTParty can apply proxy settings reliably.
+    if full_endpoint.end_with?('/v1/chat/completions') &&
+       proxy_url_for_requests.present? &&
+       !full_endpoint.start_with?('https://api.openai.com')
+      @uri_base = full_endpoint
+      @custom_endpoint_full_path = full_endpoint
+
+      # Use custom embedding endpoint if configured, otherwise derive from chat endpoint
+      @custom_embeddings_endpoint = if custom_embedding_endpoint.present?
+                                      custom_embedding_endpoint.chomp('/')
+                                    else
+                                      full_endpoint.gsub('chat/completions', 'embeddings')
+                                    end
+    elsif full_endpoint.end_with?('/v1/chat/completions')
       @uri_base = full_endpoint.gsub(%r{/v1/chat/completions$}, '')
       @custom_endpoint_full_path = nil
       @custom_embeddings_endpoint = custom_embedding_endpoint.presence
@@ -181,8 +196,7 @@ class Llm::BaseOpenAiService
   end
 
   def http_proxy_options
-    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
-                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+    proxy_url = proxy_url_for_requests
     return {} if proxy_url.blank?
 
     uri = URI.parse(proxy_url)
@@ -197,10 +211,45 @@ class Llm::BaseOpenAiService
   end
 
   def faraday_proxy_middleware
-    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
-                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+    proxy_url = proxy_url_for_requests
     return nil if proxy_url.blank?
 
     proc { |connection| connection.proxy = proxy_url }
+  end
+
+  def proxy_url_for_requests
+    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence ||
+                proxy_url_from_env_file
+    if proxy_url.present? && !defined?(@proxy_log_emitted)
+      captain_logger.info("[Captain][Proxy] Using proxy_url=#{proxy_url}")
+      @proxy_log_emitted = true
+    end
+
+    proxy_url
+  end
+
+  def proxy_url_from_env_file
+    @proxy_url_from_env_file ||= begin
+      env_path = Rails.root.join('.env')
+      if env_path.exist?
+
+        entries = {}
+        env_path.read.each_line do |line|
+          stripped = line.strip
+          next if stripped.empty? || stripped.start_with?('#')
+
+          key, value = stripped.split('=', 2)
+          next if key.blank? || value.blank?
+
+          entries[key] = value
+        end
+
+        entries['HTTPS_PROXY'].presence || entries['https_proxy'].presence ||
+          entries['HTTP_PROXY'].presence || entries['http_proxy'].presence
+      end
+    rescue StandardError
+      nil
+    end
   end
 end

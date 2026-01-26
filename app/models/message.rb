@@ -133,6 +133,7 @@ class Message < ApplicationRecord
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
 
   after_create_commit :execute_after_create_commit_callbacks
+  after_create :detect_human_takeover, if: :agent_message?
 
   after_update_commit :dispatch_update_event
   after_commit :reindex_for_search, if: :should_index?, on: [:create, :update]
@@ -257,6 +258,25 @@ class Message < ApplicationRecord
     return false if ChatwootApp.chatwoot_cloud? && !account.feature_enabled?('advanced_search_indexing')
 
     true
+  end
+
+  def agent_message?
+    sender_type == 'User' && sender&.instance_of?(User) && !sender&.is_a?(Contact)
+  end
+
+  def detect_human_takeover
+    return unless conversation.captain_was_active?
+
+    state_service = Captain::ConversationStateService.new(conversation)
+    state_service.track_human_takeover(sender.id, id)
+
+    Captain::Logger.info(
+      '[HumanTakeover] Agent intervened',
+      conversation_id: conversation.id,
+      agent_id: sender.id,
+      turn_count: state_service.state[:turn_count],
+      message_id: id
+    )
   end
 
   private

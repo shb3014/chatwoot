@@ -123,10 +123,45 @@ class Captain::LlmService
   end
 
   def faraday_proxy_middleware
-    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
-                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence
+    proxy_url = proxy_url_for_requests
     return nil if proxy_url.blank?
 
     proc { |connection| connection.proxy = proxy_url }
+  end
+
+  def proxy_url_for_requests
+    proxy_url = ENV['HTTPS_PROXY'].presence || ENV['https_proxy'].presence ||
+                ENV['HTTP_PROXY'].presence || ENV['http_proxy'].presence ||
+                proxy_url_from_env_file
+    if proxy_url.present? && !defined?(@proxy_log_emitted)
+      @logger.info("[Captain][Proxy] Using proxy_url=#{proxy_url}")
+      @proxy_log_emitted = true
+    end
+
+    proxy_url
+  end
+
+  def proxy_url_from_env_file
+    @proxy_url_from_env_file ||= begin
+      env_path = Rails.root.join('.env')
+      if env_path.exist?
+
+        entries = {}
+        env_path.read.each_line do |line|
+          stripped = line.strip
+          next if stripped.empty? || stripped.start_with?('#')
+
+          key, value = stripped.split('=', 2)
+          next if key.blank? || value.blank?
+
+          entries[key] = value
+        end
+
+        entries['HTTPS_PROXY'].presence || entries['https_proxy'].presence ||
+          entries['HTTP_PROXY'].presence || entries['http_proxy'].presence
+      end
+    rescue StandardError
+      nil
+    end
   end
 end

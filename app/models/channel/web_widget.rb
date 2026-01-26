@@ -2,23 +2,24 @@
 #
 # Table name: channel_web_widgets
 #
-#  id                    :integer          not null, primary key
-#  allowed_domains       :text             default("")
-#  continuity_via_email  :boolean          default(TRUE), not null
-#  feature_flags         :integer          default(7), not null
-#  hmac_mandatory        :boolean          default(FALSE)
-#  hmac_token            :string
-#  pre_chat_form_enabled :boolean          default(FALSE)
-#  pre_chat_form_options :jsonb
-#  reply_time            :integer          default("in_a_few_minutes")
-#  website_token         :string
-#  website_url           :string
-#  welcome_tagline       :string
-#  welcome_title         :string
-#  widget_color          :string           default("#1f93ff")
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
-#  account_id            :integer
+#  id                       :integer          not null, primary key
+#  allowed_domains          :text             default("")
+#  bubble_animations_config :jsonb
+#  continuity_via_email     :boolean          default(TRUE), not null
+#  feature_flags            :integer          default(7), not null
+#  hmac_mandatory           :boolean          default(FALSE)
+#  hmac_token               :string
+#  pre_chat_form_enabled    :boolean          default(FALSE)
+#  pre_chat_form_options    :jsonb
+#  reply_time               :integer          default("in_a_few_minutes")
+#  website_token            :string
+#  website_url              :string
+#  welcome_tagline          :string
+#  welcome_title            :string
+#  widget_color             :string           default("#1f93ff")
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  account_id               :integer
 #
 # Indexes
 #

@@ -1,0 +1,11 @@
+#!/bin/bash
+# Wrapper to start Rails with proxy configuration
+
+export HTTPS_PROXY=http://172.24.160.1:10809
+export HTTP_PROXY=http://172.24.160.1:10809
+
+echo "[rails-with-proxy] Starting Rails with proxy:"
+echo "  HTTPS_PROXY=$HTTPS_PROXY"
+echo "  HTTP_PROXY=$HTTP_PROXY"
+
+exec "$(dirname "$0")/rails" "$@"

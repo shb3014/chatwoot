@@ -335,6 +335,7 @@
       "CONVERSATION_ACTIONS": "Conversation Actions",
       "CONVERSATION_LABELS": "Conversation Labels",
       "CONVERSATION_INFO": "Conversation Information",
+      "CAPTAIN_STATE": "AI Assistant Status",
       "CONTACT_NOTES": "Contact Notes",
       "CONTACT_ATTRIBUTES": "Contact Attributes",
       "PREVIOUS_CONVERSATION": "Previous Conversations",
@@ -420,6 +421,22 @@
     "ONE": "{user} is typing",
     "TWO": "{user} and {secondUser} are typing",
     "MULTIPLE": "{user} and {count} others are typing"
+  },
+  "CAPTAIN_STATE_PANEL": {
+    "TITLE": "AI Assistant Status",
+    "CONVERSATION_TURNS": "Conversation Turns",
+    "ISSUE": "Issue Summary",
+    "SOLUTIONS_TRIED": "Solutions Tried",
+    "SOLUTIONS_TRIED_COUNT": "Solutions Tried ({count})",
+    "AGENT_FEEDBACK": "Agent Feedback",
+    "CUSTOMER_SENTIMENT": "Customer Sentiment",
+    "ESCALATION_SUGGESTED": "Escalation Suggested",
+    "HUMAN_TOOK_OVER": "Human agent took over",
+    "HUMAN_TOOK_OVER_AT_TURN": "Took over at turn {turn}",
+    "SOLUTION_FEEDBACK": "({feedback})"
+  },
+  "CAPTAIN_MESSAGE_FEEDBACK": {
+    "RATE_RESPONSE": "Rate this response"
   },
   "COPILOT": {
     "TRY_THESE_PROMPTS": "Try these prompts"

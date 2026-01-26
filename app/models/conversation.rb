@@ -2,32 +2,36 @@
 #
 # Table name: conversations
 #
-#  id                     :integer          not null, primary key
-#  additional_attributes  :jsonb
-#  agent_last_seen_at     :datetime
-#  assignee_last_seen_at  :datetime
-#  cached_label_list      :text
-#  contact_last_seen_at   :datetime
-#  custom_attributes      :jsonb
-#  first_reply_created_at :datetime
-#  identifier             :string
-#  last_activity_at       :datetime         not null
-#  priority               :integer
-#  snoozed_until          :datetime
-#  status                 :integer          default("open"), not null
-#  uuid                   :uuid             not null
-#  waiting_since          :datetime
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :integer          not null
-#  assignee_id            :integer
-#  campaign_id            :bigint
-#  contact_id             :bigint
-#  contact_inbox_id       :bigint
-#  display_id             :integer          not null
-#  inbox_id               :integer          not null
-#  sla_policy_id          :bigint
-#  team_id                :bigint
+#  id                       :integer          not null, primary key
+#  additional_attributes    :jsonb
+#  agent_last_seen_at       :datetime
+#  assignee_last_seen_at    :datetime
+#  cached_label_list        :text
+#  captain_handed_off_at    :datetime
+#  captain_last_action_at   :datetime
+#  captain_state            :jsonb
+#  contact_last_seen_at     :datetime
+#  custom_attributes        :jsonb
+#  first_reply_created_at   :datetime
+#  identifier               :string
+#  last_activity_at         :datetime         not null
+#  priority                 :integer
+#  snoozed_until            :datetime
+#  status                   :integer          default("open"), not null
+#  uuid                     :uuid             not null
+#  waiting_since            :datetime
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  account_id               :integer          not null
+#  assignee_id              :integer
+#  campaign_id              :bigint
+#  captain_handed_off_by_id :integer
+#  contact_id               :bigint
+#  contact_inbox_id         :bigint
+#  display_id               :integer          not null
+#  inbox_id                 :integer          not null
+#  sla_policy_id            :bigint
+#  team_id                  :bigint
 #
 # Indexes
 #
@@ -193,6 +197,11 @@ class Conversation < ApplicationRecord
 
   def dispatch_conversation_updated_event(previous_changes = nil)
     dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
+  end
+
+  # Check if Captain was active in this conversation
+  def captain_was_active?
+    messages.where(sender_type: 'AgentBot').exists? && captain_state.present?
   end
 
   private
