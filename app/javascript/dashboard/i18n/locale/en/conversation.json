@@ -425,6 +425,7 @@
       "LEARNED_LABEL": "Learned",
       "LEARN_BUTTON": "Learn",
       "LEARN_SUCCESS": "Conversation learned",
+      "REJECTED": "Conversation rejected",
       "LEARN_ERROR": "Failed to learn conversation",
       "RELEARN_SUCCESS": "Conversation relearned",
       "FORGET_SUCCESS": "Conversation forgotten",

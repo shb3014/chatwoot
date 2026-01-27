@@ -1,5 +1,7 @@
 json.id resource.id
 json.status resource.status
+json.rejection_reason resource.rejection_reason
+json.rejected_at resource.rejected_at&.to_i
 json.issue_summary resource.issue_summary
 json.resolution_summary resource.resolution_summary
 json.quality_rating resource.quality_rating

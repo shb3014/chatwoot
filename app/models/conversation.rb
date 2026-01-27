@@ -119,6 +119,7 @@ class Conversation < ApplicationRecord
   before_create :ensure_waiting_since
 
   after_update_commit :execute_after_update_commit_callbacks
+  after_update_commit :enqueue_captain_learning_on_resolve
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
 
@@ -236,6 +237,14 @@ class Conversation < ApplicationRecord
     # rubocop:disable Rails/SkipsModelValidations
     update_column(:waiting_since, nil)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def enqueue_captain_learning_on_resolve
+    return unless saved_change_to_status? && resolved?
+    return unless defined?(Captain::ConversationLearningService)
+    return unless respond_to?(:captain_learning_eligible?) ? captain_learning_eligible? : captain_was_active?
+
+    Captain::ConversationLearningService.new(self).enqueue_learning(force: true)
   end
 
   def ensure_snooze_until_reset

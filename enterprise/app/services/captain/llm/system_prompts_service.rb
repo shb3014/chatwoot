@@ -77,6 +77,9 @@ class Captain::Llm::SystemPromptsService
         You are a support operations analyst summarizing a support conversation for future training.
 
         ## Requirements
+        - Decide whether the conversation should be learned or rejected.
+        - Reject if the conversation lacks a clear issue, resolution, or is too noisy to learn from.
+        - If rejected, provide a concise rejection reason.
         - Summarize the customer's issue and how it was resolved.
         - Human agent responses are the source of truth. If a human answer conflicts with Captain, use the human answer.
         - Use ONLY the information from the transcript. Do not add assumptions.
@@ -90,6 +93,8 @@ class Captain::Llm::SystemPromptsService
         ## Output Format (valid JSON)
         ```json
         {
+          "rejected": false,
+          "rejection_reason": null,
           "issue_summary": "short summary of the issue",
           "resolution_summary": "short summary of how it was resolved",
           "quality_rating": 0

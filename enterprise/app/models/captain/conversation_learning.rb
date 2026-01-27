@@ -8,6 +8,8 @@
 #  last_message_at    :datetime
 #  learned_at         :datetime
 #  quality_rating     :integer
+#  rejected_at        :datetime
+#  rejection_reason   :text
 #  resolution_summary :text
 #  status             :integer          default("learned"), not null
 #  created_at         :datetime         not null
@@ -39,9 +41,10 @@ class Captain::ConversationLearning < ApplicationRecord
 
   has_neighbors :embedding, normalize: true
 
-  enum status: { learned: 0, forgotten: 1 }
+  enum status: { learned: 0, forgotten: 1, rejected: 2 }
 
   validates :quality_rating, inclusion: { in: 0..100 }, allow_nil: true
+  validates :rejection_reason, presence: true, if: :rejected?
 
   before_validation :ensure_account
   before_validation :ensure_assistant

@@ -408,6 +408,23 @@
       "SUCCESS_MESSAGE": "参与者已更新！"
     }
   },
+  "CAPTAIN_STATE_PANEL": {
+    "LEARNING": {
+      "LEARNED_LABEL": "已学习",
+      "LEARN_BUTTON": "学习",
+      "LEARN_SUCCESS": "对话已学习",
+      "REJECTED": "对话已拒绝",
+      "LEARN_ERROR": "学习对话失败",
+      "RELEARN_SUCCESS": "对话已重新学习",
+      "FORGET_SUCCESS": "对话已遗忘",
+      "FORGET_ERROR": "遗忘对话失败",
+      "RATING": "评分 {rating}/100"
+    },
+    "LEARNING_MENU": {
+      "FORGET": "遗忘此对话",
+      "RELEARN": "重新学习此对话"
+    }
+  },
   "TRANSLATE_MODAL": {
     "TITLE": "查看翻译内容",
     "DESC": "您可以查看每种语言的翻译内容。",

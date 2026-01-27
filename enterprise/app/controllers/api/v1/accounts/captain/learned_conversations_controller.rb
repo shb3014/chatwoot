@@ -31,6 +31,8 @@ class Api::V1::Accounts::Captain::LearnedConversationsController < Api::V1::Acco
       issue_summary: nil,
       resolution_summary: nil,
       quality_rating: nil,
+      rejection_reason: nil,
+      rejected_at: nil,
       learned_at: nil,
       embedding: nil
     )

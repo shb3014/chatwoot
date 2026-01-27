@@ -42,6 +42,8 @@ class Captain::Llm::ConversationLearningSummaryService < Llm::BaseOpenAiService
     return nil if content.nil?
 
     parsed = JSON.parse(content.strip)
+    parsed['rejected'] = parse_rejected(parsed['rejected'])
+    parsed['rejection_reason'] = normalize_rejection_reason(parsed['rejection_reason'])
     parsed['quality_rating'] = normalize_rating(parsed['quality_rating'])
     parsed
   rescue JSON::ParserError => e
@@ -89,5 +91,17 @@ class Captain::Llm::ConversationLearningSummaryService < Llm::BaseOpenAiService
     return nil if rating.negative?
 
     [[rating, 100].min, 0].max
+  end
+
+  def parse_rejected(value)
+    return true if value == true || value.to_s.casecmp('true').zero?
+
+    false
+  end
+
+  def normalize_rejection_reason(value)
+    return nil if value.blank?
+
+    value.to_s.strip
   end
 end

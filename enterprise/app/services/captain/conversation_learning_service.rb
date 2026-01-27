@@ -6,8 +6,14 @@ module Captain
     end
 
     def enqueue_learning(force: false)
-      return unless eligible_for_learning?
-      return if skip_learning?(force: force)
+      unless eligible_for_learning?
+        Captain::Logger.info('[ConversationLearning] Skipped (ineligible)', conversation_id: @conversation.id)
+        return
+      end
+      if skip_learning?(force: force)
+        Captain::Logger.info('[ConversationLearning] Skipped (up-to-date)', conversation_id: @conversation.id)
+        return
+      end
 
       Captain::Conversation::LearningJob.perform_later(@conversation.id, force: force)
     end
@@ -20,14 +26,31 @@ module Captain
       return if summary.blank?
 
       learning = learning_record || build_learning_record
-      learning.assign_attributes(
-        issue_summary: summary['issue_summary'],
-        resolution_summary: summary['resolution_summary'],
-        quality_rating: summary['quality_rating'],
-        status: :learned,
-        learned_at: Time.current,
-        last_message_at: latest_message_at
-      )
+      if summary['rejected']
+        rejection_reason = summary['rejection_reason'].presence || 'Rejected by LLM: insufficient signal to learn.'
+        learning.assign_attributes(
+          status: :rejected,
+          rejection_reason: rejection_reason,
+          rejected_at: Time.current,
+          issue_summary: nil,
+          resolution_summary: nil,
+          quality_rating: nil,
+          learned_at: nil,
+          embedding: nil,
+          last_message_at: latest_message_at
+        )
+      else
+        learning.assign_attributes(
+          issue_summary: summary['issue_summary'],
+          resolution_summary: summary['resolution_summary'],
+          quality_rating: summary['quality_rating'],
+          status: :learned,
+          learned_at: Time.current,
+          rejected_at: nil,
+          rejection_reason: nil,
+          last_message_at: latest_message_at
+        )
+      end
       learning.save!
       @conversation.touch(:updated_at)
       learning
@@ -52,7 +75,7 @@ module Captain
       return false unless learning_record
       return true if learning_record.forgotten?
 
-      learning_record.learned? && up_to_date?
+      (learning_record.learned? || learning_record.rejected?) && up_to_date?
     end
 
     def up_to_date?

@@ -2,7 +2,9 @@ module Captain
   module Llm
     class LearnedConversationsContextService
       DEFAULT_LIMIT = 3
+      DEFAULT_CANDIDATES = 10
       DEFAULT_THRESHOLD = 0.75
+      MIN_RATING = 60
 
       def initialize(assistant:, conversation:, query:)
         @assistant = assistant
@@ -32,20 +34,27 @@ module Captain
         scope = Captain::ConversationLearning
                 .where(account_id: @assistant.account_id, assistant_id: @assistant.id, status: :learned)
                 .where.not(embedding: nil)
+                .where('quality_rating IS NULL OR quality_rating >= ?', MIN_RATING)
 
         scope = scope.nearest_neighbors(:embedding, embedding, distance: 'cosine')
-        ids = fetch_ids(scope, embedding)
-        return [] if ids.empty?
+        candidates = fetch_candidates(scope, embedding)
+        return [] if candidates.empty?
 
-        records = Captain::ConversationLearning.where(id: ids).includes(:conversation).index_by(&:id)
-        ids.map { |id| records[id] }.compact
+        records = Captain::ConversationLearning.where(id: candidates.map { |c| c[:id] })
+                                               .includes(:conversation)
+                                               .index_by(&:id)
+        candidates.filter_map { |candidate| records[candidate[:id]] }
       end
 
-      def fetch_ids(scope, embedding)
+      def fetch_candidates(scope, embedding)
         embedding_string = "[#{embedding.join(',')}]"
-        candidates = scope.select('id', "embedding <=> '#{embedding_string}' as distance")
-                          .limit(DEFAULT_LIMIT)
-        candidates.select { |c| c.distance < DEFAULT_THRESHOLD }.map(&:id)
+        candidates = scope.select('id', 'quality_rating', "embedding <=> '#{embedding_string}' as distance")
+                          .limit(DEFAULT_CANDIDATES)
+        candidates = candidates.select { |c| c.distance < DEFAULT_THRESHOLD }
+                               .map { |c| { id: c.id, distance: c.distance, rating: c.quality_rating || 0 } }
+        candidates.sort_by do |candidate|
+          [-candidate[:rating], candidate[:distance]]
+        end.first(DEFAULT_LIMIT)
       end
 
       def format_results(records)
@@ -60,7 +69,7 @@ module Captain
         end
 
         <<~TEXT
-          LEARNED CONVERSATIONS (use only if relevant):
+          LEARNED CONVERSATIONS (higher rating = higher reliability):
           #{lines.join("\n")}
         TEXT
       end

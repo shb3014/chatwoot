@@ -95,11 +95,15 @@ const learnConversation = async (force = false) => {
     if (learning) {
       applyLearningUpdate(learning);
     }
-    useAlert(
-      force
-        ? t('CAPTAIN_STATE_PANEL.LEARNING.RELEARN_SUCCESS')
-        : t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_SUCCESS')
-    );
+    if (learning?.status === 'rejected') {
+      useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.REJECTED'));
+    } else {
+      useAlert(
+        force
+          ? t('CAPTAIN_STATE_PANEL.LEARNING.RELEARN_SUCCESS')
+          : t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_SUCCESS')
+      );
+    }
   } catch (error) {
     useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_ERROR'));
   } finally {
