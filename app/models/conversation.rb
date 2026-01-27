@@ -201,7 +201,23 @@ class Conversation < ApplicationRecord
 
   # Check if Captain was active in this conversation
   def captain_was_active?
-    messages.where(sender_type: 'AgentBot').exists? && captain_state.present?
+    return false unless messages.where(sender_type: 'AgentBot').exists?
+
+    state = captain_state
+    state = captain_state_before_type_cast if state.blank?
+
+    state_hash =
+      if state.is_a?(String)
+        JSON.parse(state)
+      elsif state.respond_to?(:to_h)
+        state.to_h
+      else
+        {}
+      end
+
+    state_hash.is_a?(Hash) && state_hash.any?
+  rescue JSON::ParserError
+    false
   end
 
   private

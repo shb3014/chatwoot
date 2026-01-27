@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe Message, 'Human Takeover Detection', type: :model do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account) }
+  let(:agent_bot) { create(:agent_bot) }
   let(:inbox) { create(:inbox, account: account) }
   let(:conversation) { create(:conversation, inbox: inbox, account: account) }
 
@@ -26,7 +27,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
       message = create(:message,
                        conversation: conversation,
                        account: account,
-                       sender_type: 'AgentBot')
+                       sender: agent_bot)
 
       expect(message.agent_message?).to be false
     end
@@ -61,7 +62,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
         create(:message,
                conversation: conversation,
                account: account,
-               sender_type: 'AgentBot')
+               sender: agent_bot)
         conversation.reload
       end
 
@@ -126,8 +127,8 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
         # Customer message
         create(:message, :incoming, conversation: conversation, created_at: 5.minutes.ago)
         # Captain responses
-        create(:message, conversation: conversation, sender_type: 'AgentBot', created_at: 4.minutes.ago)
-        create(:message, conversation: conversation, sender_type: 'AgentBot', created_at: 3.minutes.ago)
+        create(:message, conversation: conversation, sender: agent_bot, created_at: 4.minutes.ago)
+        create(:message, conversation: conversation, sender: agent_bot, created_at: 3.minutes.ago)
         # Customer response
         create(:message, :incoming, conversation: conversation, created_at: 2.minutes.ago)
 
@@ -205,7 +206,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
         create(:message,
                conversation: conversation,
                account: account,
-               sender_type: 'AgentBot')
+               sender: agent_bot)
       end
 
       it 'does not trigger takeover (requires both AgentBot messages AND state)' do
@@ -226,7 +227,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
     context 'when non-agent messages are created' do
       before do
         conversation.update_column(:captain_state, { turn_count: 2 })
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot)
       end
 
       it 'does not trigger for incoming customer messages' do
@@ -244,7 +245,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
         allow(Captain::ConversationStateService).to receive(:new).and_return(state_service_spy)
         allow(state_service_spy).to receive(:track_human_takeover)
 
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot)
 
         expect(state_service_spy).not_to have_received(:track_human_takeover)
       end
@@ -256,7 +257,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
       it 'returns true' do
         conversation.update_column(:captain_state, { turn_count: 1 })
         conversation.reload
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot)
         conversation.reload
 
         expect(conversation.captain_was_active?).to be true
@@ -265,7 +266,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
 
     context 'when conversation has AgentBot messages but no captain_state' do
       it 'returns false' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot)
 
         expect(conversation.captain_was_active?).to be false
       end
@@ -301,7 +302,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
       # Captain responds
       captain_msg1 = create(:message,
                             conversation: conversation,
-                            sender_type: 'AgentBot',
+                            sender: agent_bot,
                             content: 'I can help you reset your password')
       state_service.track_solution_attempt('reset_password', captain_msg1.id)
 
@@ -314,7 +315,7 @@ RSpec.describe Message, 'Human Takeover Detection', type: :model do
       # Captain tries again
       create(:message,
              conversation: conversation,
-             sender_type: 'AgentBot',
+             sender: agent_bot,
              content: 'Let me try another approach')
 
       # Verify Captain was active (reload to see new messages and state)

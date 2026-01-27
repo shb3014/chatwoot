@@ -277,6 +277,8 @@ class Message < ApplicationRecord
       turn_count: state_service.state[:turn_count],
       message_id: id
     )
+
+    Captain::ConversationLearningService.new(conversation).enqueue_learning
   end
 
   private

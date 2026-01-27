@@ -4,13 +4,23 @@ RSpec.describe Captain::ConversationAnalyzerService do
   let(:account) { create(:account) }
   let(:inbox) { create(:inbox, account: account) }
   let(:contact) { create(:contact, account: account) }
+  let(:agent_bot) { create(:agent_bot) }
   let(:conversation) { create(:conversation, inbox: inbox, account: account, contact: contact) }
   let(:service) { described_class.new(conversation) }
+
+  before do
+    allow_any_instance_of(Message).to receive(:execute_message_template_hooks)
+    allow_any_instance_of(Message).to receive(:reopen_conversation)
+    allow_any_instance_of(Llm::TranslationService)
+      .to receive(:translate_message) { |_, message| message }
+  end
 
   describe '#analyze' do
     context 'with basic conversation' do
       let!(:customer_message) { create(:message, :incoming, conversation: conversation, content: 'I need help') }
-      let!(:captain_message) { create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'How can I help?') }
+      let!(:captain_message) do
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'How can I help?')
+      end
 
       it 'returns comprehensive analysis hash' do
         result = service.analyze
@@ -47,7 +57,8 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
     context 'resolution detection' do
       it 'detects explicitly resolved conversations' do
-        conversation.update(status: 'resolved')
+        conversation.update!(status: :resolved)
+        conversation.reload
         create(:message, :incoming, conversation: conversation)
 
         result = service.analyze
@@ -73,7 +84,7 @@ RSpec.describe Captain::ConversationAnalyzerService do
       end
 
       it 'detects abandoned conversations' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', created_at: 25.hours.ago)
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, created_at: 25.hours.ago)
 
         result = service.analyze
         expect(result[:resolution][:status]).to eq(:abandoned)
@@ -81,7 +92,7 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
       it 'returns unknown for unclear cases' do
         create(:message, :incoming, conversation: conversation, content: 'Hello')
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Hi', created_at: 1.hour.ago)
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'Hi', created_at: 1.hour.ago)
 
         result = service.analyze
         expect(result[:resolution][:status]).to eq(:unknown)
@@ -92,7 +103,7 @@ RSpec.describe Captain::ConversationAnalyzerService do
       it 'detects not_used when agent responds immediately' do
         create(:message, :incoming, conversation: conversation, content: 'Help needed')
         agent = create(:user, account: account)
-        create(:message, conversation: conversation, sender_id: agent.id, sender_type: 'User')
+        create(:message, conversation: conversation, sender: agent, message_type: :outgoing)
 
         result = service.analyze
         expect(result[:captain_helped][:helped]).to eq(:not_used)
@@ -101,9 +112,9 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
       it 'detects not_effective when captain has many turns before agent' do
         create(:message, :incoming, conversation: conversation)
-        5.times { create(:message, conversation: conversation, sender_type: 'AgentBot') }
+        5.times { create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing) }
         agent = create(:user, account: account)
-        create(:message, conversation: conversation, sender_id: agent.id, sender_type: 'User')
+        create(:message, conversation: conversation, sender: agent, message_type: :outgoing)
 
         result = service.analyze
         expect(result[:captain_helped][:helped]).to eq(:not_effective)
@@ -112,9 +123,9 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
       it 'detects partial help when captain responds a few times before agent' do
         create(:message, :incoming, conversation: conversation)
-        2.times { create(:message, conversation: conversation, sender_type: 'AgentBot') }
+        2.times { create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing) }
         agent = create(:user, account: account)
-        create(:message, conversation: conversation, sender_id: agent.id, sender_type: 'User')
+        create(:message, conversation: conversation, sender: agent, message_type: :outgoing)
 
         result = service.analyze
         expect(result[:captain_helped][:helped]).to eq(:partial)
@@ -122,9 +133,10 @@ RSpec.describe Captain::ConversationAnalyzerService do
       end
 
       it 'detects fully_resolved when no agent intervention and resolved' do
-        conversation.update(status: 'resolved')
+        conversation.update!(status: :resolved)
+        conversation.reload
         create(:message, :incoming, conversation: conversation)
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing)
 
         result = service.analyze
         expect(result[:captain_helped][:helped]).to eq(:fully_resolved)
@@ -132,7 +144,7 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
       it 'returns unknown when captain used but unclear outcome' do
         create(:message, :incoming, conversation: conversation)
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing)
 
         result = service.analyze
         expect(result[:captain_helped][:helped]).to eq(:unknown)
@@ -142,9 +154,9 @@ RSpec.describe Captain::ConversationAnalyzerService do
     context 'human intervention detection' do
       it 'detects when human agent intervenes' do
         create(:message, :incoming, conversation: conversation, created_at: 1.hour.ago)
-        create(:message, conversation: conversation, sender_type: 'AgentBot', created_at: 55.minutes.ago)
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, created_at: 55.minutes.ago)
         agent = create(:user, account: account)
-        create(:message, conversation: conversation, sender_id: agent.id, sender_type: 'User', created_at: 50.minutes.ago)
+        create(:message, conversation: conversation, sender: agent, message_type: :outgoing, created_at: 50.minutes.ago)
 
         result = service.analyze
         intervention = result[:human_intervention]
@@ -156,7 +168,7 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
       it 'returns nil when no human intervention' do
         create(:message, :incoming, conversation: conversation)
-        create(:message, conversation: conversation, sender_type: 'AgentBot')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing)
 
         result = service.analyze
         expect(result[:human_intervention]).to be_nil
@@ -227,43 +239,44 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
     context 'solution type detection' do
       it 'detects reset solutions' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Try resetting your device')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'Try resetting your device')
         result = service.analyze
         expect(result[:solution_type]).to eq(:reset_solution)
       end
 
       it 'detects update solutions' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Please update to the latest version')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'Please update to the latest version')
         result = service.analyze
         expect(result[:solution_type]).to eq(:update_solution)
       end
 
       it 'detects diagnostic solutions' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Can you check your network settings?')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'Can you check your network settings?')
         result = service.analyze
         expect(result[:solution_type]).to eq(:diagnostic_solution)
       end
 
       it 'detects configuration solutions' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Go to settings and change the configuration')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing,
+                         content: 'Go to settings and change the configuration')
         result = service.analyze
         expect(result[:solution_type]).to eq(:configuration_solution)
       end
 
       it 'detects documentation provided' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Here is the documentation')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'Here is the documentation')
         result = service.analyze
         expect(result[:solution_type]).to eq(:documentation_provided)
       end
 
       it 'returns informational for general responses' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: 'Let me help you')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: 'Let me help you')
         result = service.analyze
         expect(result[:solution_type]).to eq(:informational)
       end
 
       it 'detects Chinese reset keywords' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', content: '请重启设备')
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, content: '请重启设备')
         result = service.analyze
         expect(result[:solution_type]).to eq(:reset_solution)
       end
@@ -351,13 +364,13 @@ RSpec.describe Captain::ConversationAnalyzerService do
 
     describe '#conversation_abandoned?' do
       it 'detects abandoned conversations' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', created_at: 25.hours.ago)
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, created_at: 25.hours.ago)
 
         expect(service.send(:conversation_abandoned?)).to be true
       end
 
       it 'does not flag recent conversations' do
-        create(:message, conversation: conversation, sender_type: 'AgentBot', created_at: 1.hour.ago)
+        create(:message, conversation: conversation, sender: agent_bot, message_type: :outgoing, created_at: 1.hour.ago)
 
         expect(service.send(:conversation_abandoned?)).to be false
       end

@@ -32,6 +32,7 @@ RSpec.describe Captain::ConversationHandlerService do
         allow(Captain::ConversationStateService).to receive(:new).and_return(state_service)
         allow(state_service).to receive(:track_sentiment)
         allow(state_service).to receive(:increment_turn_count)
+        allow(state_service).to receive(:update_issue_summary)
 
         handler = described_class.new(conversation, message)
         handler.before_response
@@ -44,6 +45,7 @@ RSpec.describe Captain::ConversationHandlerService do
         allow(Captain::ConversationStateService).to receive(:new).and_return(state_service)
         allow(state_service).to receive(:track_sentiment)
         allow(state_service).to receive(:increment_turn_count)
+        allow(state_service).to receive(:update_issue_summary)
 
         handler = described_class.new(conversation, message)
         handler.before_response

@@ -2,5 +2,8 @@
     "cSpell.words": [
         "chatwoot",
         "dompurify"
-    ]
+    ],
+    "workbench.editorAssociations": {
+      "*.md": "vscode.markdown.preview.editor"
+    }
 }

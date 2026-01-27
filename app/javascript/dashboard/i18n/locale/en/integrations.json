@@ -953,6 +953,20 @@
         }
       }
     },
+    "CONVERSATIONS": {
+      "HEADER": "Conversations",
+      "SEARCH_PLACEHOLDER": "Search learned conversations...",
+      "ISSUE_LABEL": "Issue",
+      "RESOLUTION_LABEL": "Resolution",
+      "VIEW_CONVERSATION": "View conversation",
+      "LEARNED_AT": "Learned {time}",
+      "RATING": "Rating {rating}/100",
+      "REMOVE": "Remove",
+      "EMPTY_STATE": {
+        "TITLE": "No learned conversations yet",
+        "SUBTITLE": "Learned conversations capture issue and resolution summaries so Captain can reuse them later."
+      }
+    },
     "INBOXES": {
       "HEADER": "Connected Inboxes",
       "ADD_NEW": "Connect a new inbox",

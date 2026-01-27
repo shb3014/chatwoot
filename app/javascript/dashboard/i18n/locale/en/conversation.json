@@ -433,7 +433,21 @@
     "ESCALATION_SUGGESTED": "Escalation Suggested",
     "HUMAN_TOOK_OVER": "Human agent took over",
     "HUMAN_TOOK_OVER_AT_TURN": "Took over at turn {turn}",
-    "SOLUTION_FEEDBACK": "({feedback})"
+    "SOLUTION_FEEDBACK": "({feedback})",
+    "LEARNING": {
+      "LEARNED_LABEL": "Learned",
+      "LEARN_BUTTON": "Learn",
+      "LEARN_SUCCESS": "Conversation learned",
+      "LEARN_ERROR": "Failed to learn conversation",
+      "RELEARN_SUCCESS": "Conversation relearned",
+      "FORGET_SUCCESS": "Conversation forgotten",
+      "FORGET_ERROR": "Failed to forget conversation",
+      "RATING": "Rating {rating}/100"
+    },
+    "LEARNING_MENU": {
+      "FORGET": "Forget this conversation",
+      "RELEARN": "Relearn this conversation"
+    }
   },
   "CAPTAIN_MESSAGE_FEEDBACK": {
     "RATE_RESPONSE": "Rate this response"

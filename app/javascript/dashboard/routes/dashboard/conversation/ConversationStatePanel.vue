@@ -1,6 +1,13 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useStore } from 'vuex';
+import { useAlert } from 'dashboard/composables';
+import { useI18n } from 'vue-i18n';
+import { OnClickOutside } from '@vueuse/components';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
+import CaptainLearnedConversationsAPI from 'dashboard/api/captain/learnedConversations';
 
 const props = defineProps({
   conversationId: {
@@ -10,6 +17,10 @@ const props = defineProps({
 });
 
 const currentChat = useMapGetter('getSelectedChat');
+const store = useStore();
+const { t } = useI18n();
+const isLearningMenuOpen = ref(false);
+const isLearningAction = ref(false);
 const isCurrentConversation = computed(() => {
   if (!currentChat.value?.id) return false;
   return String(currentChat.value.id) === String(props.conversationId);
@@ -22,13 +33,106 @@ const captainState = computed(() => {
 });
 
 // Check if Captain was involved in this conversation
+const learningState = computed(
+  () => currentChat.value?.captain_learning || null
+);
+const learningStatus = computed(() => learningState.value?.status || null);
+const learningId = computed(() => learningState.value?.id || null);
+const learningEligible = computed(
+  () => currentChat.value?.captain_learning_eligible || false
+);
+const isLearned = computed(() => learningStatus.value === 'learned');
+
 const hasCaptainInteraction = computed(() => {
   if (!isCurrentConversation.value) return false;
-  return (
+  if (learningEligible.value || learningState.value) return true;
+  if (
     Object.keys(captainState.value).length > 0 ||
     currentChat.value?.captain_last_action_at != null
-  );
+  ) {
+    return true;
+  }
+
+  const messages = currentChat.value?.messages || [];
+  return messages.some(message => {
+    const senderType =
+      message?.sender?.type || message?.sender_type || message?.senderType;
+    const normalized = String(senderType || '').toLowerCase();
+    return (
+      normalized === 'agentbot' ||
+      normalized === 'agent_bot' ||
+      normalized === 'captain::assistant' ||
+      normalized === 'captain_assistant'
+    );
+  });
 });
+
+const learningMenuItems = computed(() => [
+  {
+    label: t('CAPTAIN_STATE_PANEL.LEARNING_MENU.RELEARN'),
+    action: 'relearn',
+    value: 'relearn',
+  },
+  {
+    label: t('CAPTAIN_STATE_PANEL.LEARNING_MENU.FORGET'),
+    action: 'delete',
+    value: 'forget',
+  },
+]);
+
+const refreshConversation = async () => {
+  if (!currentChat.value?.id) return;
+  await store.dispatch('conversations/getConversation', currentChat.value.id);
+};
+
+const learnConversation = async (force = false) => {
+  if (!currentChat.value?.id) return;
+
+  isLearningAction.value = true;
+  try {
+    await CaptainLearnedConversationsAPI.learn({
+      conversationId: currentChat.value.id,
+      force,
+    });
+    useAlert(
+      force
+        ? t('CAPTAIN_STATE_PANEL.LEARNING.RELEARN_SUCCESS')
+        : t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_SUCCESS')
+    );
+    await refreshConversation();
+  } catch (error) {
+    useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_ERROR'));
+  } finally {
+    isLearningAction.value = false;
+  }
+};
+
+const forgetConversation = async () => {
+  if (!learningId.value) return;
+
+  isLearningAction.value = true;
+  try {
+    await CaptainLearnedConversationsAPI.forget(learningId.value);
+    useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.FORGET_SUCCESS'));
+    await refreshConversation();
+  } catch (error) {
+    useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.FORGET_ERROR'));
+  } finally {
+    isLearningAction.value = false;
+    isLearningMenuOpen.value = false;
+  }
+};
+
+const handleLearningAction = async ({ action }) => {
+  if (action === 'relearn') {
+    await learnConversation(true);
+    return;
+  }
+
+  if (action === 'delete') {
+    await forgetConversation();
+  }
+};
 
 // Computed properties for display
 const turnCount = computed(() => captainState.value.turn_count || 0);
@@ -154,11 +258,48 @@ const escalationReasonsText = computed(() => {
 <template>
   <div v-show="hasCaptainInteraction" class="conversation-state-panel">
     <!-- Header -->
-    <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
-      <fluent-icon icon="bot" size="18" class="text-blue-600" />
-      <h4 class="text-sm font-semibold text-gray-800">
-        {{ $t('CAPTAIN_STATE_PANEL.TITLE') }}
-      </h4>
+    <div
+      class="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-200"
+    >
+      <div class="flex items-center gap-2">
+        <fluent-icon icon="bot" size="18" class="text-blue-600" />
+        <h4 class="text-sm font-semibold text-gray-800">
+          {{ $t('CAPTAIN_STATE_PANEL.TITLE') }}
+        </h4>
+      </div>
+      <div v-if="learningEligible" class="flex items-center gap-2">
+        <span
+          v-if="isLearned"
+          class="text-xs px-2 py-1 rounded bg-green-100 text-green-800 font-medium"
+        >
+          {{ $t('CAPTAIN_STATE_PANEL.LEARNING.LEARNED_LABEL') }}
+        </span>
+        <Button
+          v-else
+          size="xs"
+          color="slate"
+          :label="$t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_BUTTON')"
+          :is-loading="isLearningAction"
+          :disabled="isLearningAction"
+          @click="learnConversation(true)"
+        />
+        <OnClickOutside @trigger="isLearningMenuOpen = false">
+          <div v-if="isLearned" class="relative">
+            <Button
+              size="xs"
+              color="slate"
+              icon="i-lucide-chevron-down"
+              @click="isLearningMenuOpen = !isLearningMenuOpen"
+            />
+            <DropdownMenu
+              v-if="isLearningMenuOpen"
+              class="mt-2 right-0"
+              :menu-items="learningMenuItems"
+              @action="handleLearningAction"
+            />
+          </div>
+        </OnClickOutside>
+      </div>
     </div>
 
     <!-- Turn Count -->

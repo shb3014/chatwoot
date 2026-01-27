@@ -9,6 +9,7 @@ import AssistantGuardrailsIndex from './assistants/guardrails/Index.vue';
 import AssistantGuidelinesIndex from './assistants/guidelines/Index.vue';
 import AssistantScenariosIndex from './assistants/scenarios/Index.vue';
 import DocumentsIndex from './documents/Index.vue';
+import ConversationsIndex from './conversations/Index.vue';
 import ResponsesIndex from './responses/Index.vue';
 import CustomToolsIndex from './tools/Index.vue';
 
@@ -103,6 +104,19 @@ export const routes = [
     path: frontendURL('accounts/:accountId/captain/documents'),
     component: DocumentsIndex,
     name: 'captain_documents_index',
+    meta: {
+      permissions: ['administrator', 'agent'],
+      featureFlag: FEATURE_FLAGS.CAPTAIN,
+      installationTypes: [
+        INSTALLATION_TYPES.CLOUD,
+        INSTALLATION_TYPES.ENTERPRISE,
+      ],
+    },
+  },
+  {
+    path: frontendURL('accounts/:accountId/captain/conversations'),
+    component: ConversationsIndex,
+    name: 'captain_conversations_index',
     meta: {
       permissions: ['administrator', 'agent'],
       featureFlag: FEATURE_FLAGS.CAPTAIN,

@@ -32,7 +32,10 @@ class Api::V1::Accounts::Captain::MessageFeedbacksController < Api::V1::Accounts
   private
 
   def set_message
-    @message = Message.find(params[:message_id])
+    accessible_inbox_ids = Current.user.assigned_inboxes.select(:id)
+    @message = Current.account.messages
+                      .where(inbox_id: accessible_inbox_ids)
+                      .find(params[:message_id])
     authorize @message.conversation.inbox, :show?
   end
 

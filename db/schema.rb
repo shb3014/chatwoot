@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_23_060226) do
+ActiveRecord::Schema[7.1].define(version: 2026_01_27_103000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -321,6 +321,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_060226) do
     t.jsonb "response_guidelines", default: []
     t.jsonb "guardrails", default: []
     t.index ["account_id"], name: "index_captain_assistants_on_account_id"
+  end
+
+  create_table "captain_conversation_learnings", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "assistant_id", null: false
+    t.integer "status", default: 0, null: false
+    t.text "issue_summary"
+    t.text "resolution_summary"
+    t.vector "embedding", limit: 1536
+    t.datetime "learned_at"
+    t.datetime "last_message_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "quality_rating"
+    t.index ["account_id"], name: "index_captain_conversation_learnings_on_account_id"
+    t.index ["assistant_id"], name: "index_captain_conversation_learnings_on_assistant_id"
+    t.index ["conversation_id"], name: "index_captain_conversation_learnings_on_conversation_id", unique: true
+    t.index ["embedding"], name: "index_captain_conversation_learnings_on_embedding", using: :ivfflat
+    t.index ["status"], name: "index_captain_conversation_learnings_on_status"
   end
 
   create_table "captain_custom_tools", force: :cascade do |t|
@@ -1272,6 +1292,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_060226) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "captain_conversation_learnings", "accounts"
+  add_foreign_key "captain_conversation_learnings", "captain_assistants", column: "assistant_id"
+  add_foreign_key "captain_conversation_learnings", "conversations"
   add_foreign_key "captain_message_feedbacks", "conversations"
   add_foreign_key "captain_message_feedbacks", "messages"
   add_foreign_key "captain_message_feedbacks", "users", column: "rated_by_id"

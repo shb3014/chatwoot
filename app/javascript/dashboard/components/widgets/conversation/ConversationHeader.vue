@@ -9,6 +9,7 @@ import MoreActions from './MoreActions.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
@@ -16,6 +17,9 @@ import { useInbox } from 'dashboard/composables/useInbox';
 import { useAlert } from 'dashboard/composables';
 import { getRandomColor } from 'dashboard/helper/labelColor';
 import { useI18n } from 'vue-i18n';
+import types from 'dashboard/store/mutation-types';
+import { OnClickOutside } from '@vueuse/components';
+import CaptainLearnedConversationsAPI from 'dashboard/api/captain/learnedConversations';
 
 const props = defineProps({
   chat: {
@@ -47,7 +51,9 @@ const conversationLabelsUiFlags = computed(
 );
 
 const savedLabelTitles = computed(() =>
-  store.getters['conversationLabels/getConversationLabels'](currentChat.value?.id)
+  store.getters['conversationLabels/getConversationLabels'](
+    currentChat.value?.id
+  )
 );
 
 const accountLabels = computed(() => store.getters['labels/getLabels']);
@@ -55,6 +61,97 @@ const accountLabels = computed(() => store.getters['labels/getLabels']);
 const hasRecordLabel = computed(() =>
   savedLabelTitles.value?.includes(RECORD_LABEL_TITLE)
 );
+
+const isLearningMenuOpen = ref(false);
+const isLearningAction = ref(false);
+const learningState = computed(
+  () => currentChat.value?.captain_learning || null
+);
+const learningStatus = computed(() => learningState.value?.status || null);
+const learningId = computed(() => learningState.value?.id || null);
+const learningRating = computed(
+  () => learningState.value?.quality_rating || null
+);
+const learningEligible = computed(
+  () => currentChat.value?.captain_learning_eligible || false
+);
+const isLearned = computed(() => learningStatus.value === 'learned');
+
+const learningMenuItems = computed(() => [
+  {
+    label: t('CAPTAIN_STATE_PANEL.LEARNING_MENU.RELEARN'),
+    action: 'relearn',
+    value: 'relearn',
+  },
+  {
+    label: t('CAPTAIN_STATE_PANEL.LEARNING_MENU.FORGET'),
+    action: 'delete',
+    value: 'forget',
+  },
+]);
+
+const applyLearningUpdate = learning => {
+  if (!currentChat.value?.id) return;
+  const updatedConversation = {
+    ...currentChat.value,
+    captain_learning: learning,
+    captain_learning_eligible: true,
+    updated_at: Date.now() / 1000,
+  };
+  store.commit(types.UPDATE_CONVERSATION, updatedConversation);
+};
+
+const learnConversation = async (force = false) => {
+  if (!currentChat.value?.id) return;
+
+  isLearningAction.value = true;
+  try {
+    const response = await CaptainLearnedConversationsAPI.learn({
+      conversationId: currentChat.value.id,
+      force,
+    });
+    const learning = response?.data?.payload;
+    if (learning) {
+      applyLearningUpdate(learning);
+    }
+    useAlert(
+      force
+        ? t('CAPTAIN_STATE_PANEL.LEARNING.RELEARN_SUCCESS')
+        : t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_SUCCESS')
+    );
+  } catch (error) {
+    useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_ERROR'));
+  } finally {
+    isLearningAction.value = false;
+  }
+};
+
+const forgetConversation = async () => {
+  if (!learningId.value) return;
+
+  isLearningAction.value = true;
+  try {
+    await CaptainLearnedConversationsAPI.forget(learningId.value);
+    applyLearningUpdate(null);
+    useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.FORGET_SUCCESS'));
+  } catch (error) {
+    useAlert(t('CAPTAIN_STATE_PANEL.LEARNING.FORGET_ERROR'));
+  } finally {
+    isLearningAction.value = false;
+    isLearningMenuOpen.value = false;
+  }
+};
+
+const handleLearningAction = async ({ action }) => {
+  if (action === 'relearn') {
+    await learnConversation(true);
+    return;
+  }
+
+  if (action === 'delete') {
+    await forgetConversation();
+  }
+};
 
 const addRecordLabel = async () => {
   const conversationId = currentChat.value?.id;
@@ -218,6 +315,49 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         :parent-width="width"
         class="hidden md:flex"
       />
+      <div v-if="learningEligible" class="flex items-center gap-2">
+        <span
+          v-if="isLearned"
+          class="text-xs px-2 py-1 rounded bg-green-100 text-green-800 font-medium"
+        >
+          {{ $t('CAPTAIN_STATE_PANEL.LEARNING.LEARNED_LABEL') }}
+        </span>
+        <span
+          v-if="isLearned && learningRating"
+          class="text-xs px-2 py-1 rounded bg-n-alpha-2 text-n-slate-11 font-medium"
+        >
+          {{
+            $t('CAPTAIN_STATE_PANEL.LEARNING.RATING', {
+              rating: learningRating,
+            })
+          }}
+        </span>
+        <Button
+          v-else
+          size="xs"
+          color="slate"
+          :label="$t('CAPTAIN_STATE_PANEL.LEARNING.LEARN_BUTTON')"
+          :is-loading="isLearningAction"
+          :disabled="isLearningAction"
+          @click="learnConversation(true)"
+        />
+        <OnClickOutside @trigger="isLearningMenuOpen = false">
+          <div v-if="isLearned" class="relative">
+            <Button
+              size="xs"
+              color="slate"
+              icon="i-lucide-chevron-down"
+              @click="isLearningMenuOpen = !isLearningMenuOpen"
+            />
+            <DropdownMenu
+              v-if="isLearningMenuOpen"
+              class="mt-2 right-0"
+              :menu-items="learningMenuItems"
+              @action="handleLearningAction"
+            />
+          </div>
+        </OnClickOutside>
+      </div>
       <Button
         v-tooltip="t('CONVERSATION.HEADER.ADD_RECORD_LABEL')"
         size="sm"

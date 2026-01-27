@@ -188,7 +188,7 @@ module Captain
 
     def marked_for_review?
       # Check if conversation has the "记录" label
-      @conversation.labels.exists?(title: '记录')
+      @conversation.labels.exists?(name: '记录')
     end
 
     def detect_sentiment(message_content)

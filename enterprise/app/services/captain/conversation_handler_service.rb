@@ -17,7 +17,7 @@ module Captain
       @state_service.increment_turn_count
 
       # Update issue summary if this is the first few turns
-      update_issue_summary if @state_service.state[:turn_count] <= 2 && @message.incoming?
+      update_issue_summary if (@state_service.state[:turn_count] || 0) <= 2 && @message.incoming?
 
       Captain::Logger.info(
         '[ConversationHandler] Before response',

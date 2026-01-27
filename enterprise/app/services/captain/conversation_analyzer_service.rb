@@ -143,9 +143,7 @@ module Captain
     end
 
     def agent_messages
-      @agent_messages ||= @messages.where(sender_type: 'User')
-                                   .where.not(sender_id: nil)
-                                   .where("sender_id IN (SELECT id FROM users WHERE type = 'User')")
+      @agent_messages ||= @messages.where(sender_type: 'User').where.not(sender_id: nil)
     end
 
     def customer_messages

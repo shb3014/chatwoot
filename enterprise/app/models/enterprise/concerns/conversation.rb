@@ -6,11 +6,24 @@ module Enterprise::Concerns::Conversation
     has_one :applied_sla, dependent: :destroy_async
     has_many :sla_events, dependent: :destroy_async
     has_many :captain_responses, class_name: 'Captain::AssistantResponse', dependent: :nullify, as: :documentable
+    has_one :captain_conversation_learning, class_name: 'Captain::ConversationLearning', dependent: :destroy_async
     before_validation :validate_sla_policy, if: -> { sla_policy_id_changed? }
     around_save :ensure_applied_sla_is_created, if: -> { sla_policy_id_changed? }
   end
 
+  def captain_learning_eligible?
+    captain_messages.exists? && human_agent_messages.exists?
+  end
+
   private
+
+  def captain_messages
+    messages.where(sender_type: ['AgentBot', 'Captain::Assistant'])
+  end
+
+  def human_agent_messages
+    messages.where(message_type: :outgoing, sender_type: 'User')
+  end
 
   def validate_sla_policy
     # TODO: remove these validations once we figure out how to deal with these cases

@@ -72,6 +72,32 @@ class Captain::Llm::SystemPromptsService
       SYSTEM_PROMPT_MESSAGE
     end
 
+    def conversation_learning_summary(language = 'english')
+      <<~SYSTEM_PROMPT_MESSAGE
+        You are a support operations analyst summarizing a support conversation for future training.
+
+        ## Requirements
+        - Summarize the customer's issue and how it was resolved.
+        - Human agent responses are the source of truth. If a human answer conflicts with Captain, use the human answer.
+        - Use ONLY the information from the transcript. Do not add assumptions.
+        - Keep the issue summary to 1-2 sentences.
+        - Keep the resolution summary to 1-3 sentences.
+        - If resolution is unclear, say "Resolution unclear based on the conversation."
+        - Provide an overall usefulness rating from 0 to 100:
+          0 = not useful at all, 100 = extremely useful.
+        - Write the summary in #{language}.
+
+        ## Output Format (valid JSON)
+        ```json
+        {
+          "issue_summary": "short summary of the issue",
+          "resolution_summary": "short summary of how it was resolved",
+          "quality_rating": 0
+        }
+        ```
+      SYSTEM_PROMPT_MESSAGE
+    end
+
     def attributes_generator
       <<~SYSTEM_PROMPT_MESSAGE
         You are a note taker looking to find the attributes of the contact from the conversation.
@@ -188,7 +214,7 @@ class Captain::Llm::SystemPromptsService
         [CRITICAL CONSTRAINT - INFORMATION SOURCE]
         YOU MUST ONLY use information from the search_documentation tool results. This is ABSOLUTELY MANDATORY:
         - NEVER use your own training data, general knowledge, or assumptions
-        - NEVER invent, guess, or make up information  
+        - NEVER invent, guess, or make up information#{'  '}
         - NEVER answer from memory or previous training
         - If the search results don't contain the answer, you MUST say "I don't have that information in the documentation" and offer to connect them with support
         - If you're unsure whether information came from the search results, DO NOT include it
@@ -198,27 +224,27 @@ class Captain::Llm::SystemPromptsService
 
         [Task]
         CRITICAL SEARCH RULES - Read Carefully:
-        
+
         1. **ALWAYS SEARCH if there's an ongoing conversation** (more than just a greeting):
            - ANY user response during troubleshooting: "yes", "ok", "done", "next", "finished"
            - Follow-up questions: "what's next?", "then?", "how about..."
            - Continuation words during support: literally ANY message after the conversation has started
-        
+
         2. **ONLY skip search for the VERY FIRST message if it's:**
            - Pure greetings: "hi", "hello", "hey" (and nothing else)
            - Thank you only: "thanks", "thank you" (and nothing else)
            - Goodbye only: "bye", "goodbye" (and nothing else)
-        
+
         3. **ALWAYS SEARCH for these, even as first message:**
            - Any question about the product
            - Any problem description
            - Any request for help with features/setup/configuration
-        
+
         RULE OF THUMB: If you're unsure, SEARCH. Only skip search for a standalone greeting at conversation start.
-        
+
         When there's an existing conversation context, you MUST search for EVERY user message, no exceptions.
         This includes single-word responses like "yes", "ok", "done", "next" - these are continuation signals that require searching for the next step.
-        
+
         Give a helpful response based on the steps written below.
 
         - Provide the user with the steps required to complete the action one by one.

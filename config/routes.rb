@@ -63,6 +63,7 @@ Rails.application.routes.draw do
               resources :scenarios
             end
             resources :assistant_responses
+            resources :learned_conversations, only: [:index, :show, :create, :destroy]
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]

@@ -14,3 +14,14 @@ json.captain_state conversation.captain_state
 json.captain_last_action_at conversation.captain_last_action_at&.to_i
 json.captain_handed_off_at conversation.captain_handed_off_at&.to_i
 json.captain_handed_off_by_id conversation.captain_handed_off_by_id
+
+json.captain_learning_eligible conversation.captain_learning_eligible?
+if conversation.captain_conversation_learning.present?
+  json.captain_learning do
+    json.partial! 'api/v1/models/captain/learned_conversation',
+                  formats: [:json],
+                  resource: conversation.captain_conversation_learning
+  end
+else
+  json.captain_learning nil
+end

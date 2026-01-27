@@ -26,7 +26,13 @@ const currentFeedback = computed(() => {
 });
 
 const isCaptainMessage = computed(() => {
-  return props.senderType === 'AgentBot';
+  const normalized = (props.senderType || '').toLowerCase();
+  return (
+    normalized === 'agentbot' ||
+    normalized === 'agent_bot' ||
+    normalized === 'captain::assistant' ||
+    normalized === 'captain_assistant'
+  );
 });
 
 const feedbackOptions = [
@@ -116,7 +122,10 @@ const closeMenu = () => {
 </script>
 
 <template>
-  <div v-show="isCaptainMessage" class="captain-message-feedback">
+  <div
+    v-show="isCaptainMessage"
+    class="captain-message-feedback relative z-10 pointer-events-auto"
+  >
     <div class="flex items-center gap-2 mt-2">
       <!-- Show current feedback if exists -->
       <span
@@ -132,7 +141,9 @@ const closeMenu = () => {
         v-else
         class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
         :disabled="submitting"
-        @click="toggleMenu"
+        @click.stop="toggleMenu"
+        @mousedown.stop
+        @mouseup.stop
       >
         <fluent-icon icon="emoji" size="14" />
         <span>{{ $t('CAPTAIN_MESSAGE_FEEDBACK.RATE_RESPONSE') }}</span>
@@ -143,6 +154,9 @@ const closeMenu = () => {
         v-if="showFeedbackMenu"
         v-on-clickaway="closeMenu"
         class="absolute z-50 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 p-2 space-y-1 min-w-[200px]"
+        @click.stop
+        @mousedown.stop
+        @mouseup.stop
       >
         <button
           v-for="option in feedbackOptions"
@@ -150,7 +164,9 @@ const closeMenu = () => {
           :disabled="submitting"
           class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           :class="option.color"
-          @click="submitFeedback(option.value, option.rating)"
+          @click.stop="submitFeedback(option.value, option.rating)"
+          @mousedown.stop
+          @mouseup.stop
         >
           <fluent-icon :icon="option.icon" size="16" />
           <span>{{ option.label }}</span>
