@@ -53,6 +53,7 @@ module Captain
       end
       learning.save!
       @conversation.touch(:updated_at)
+      @conversation.dispatch_conversation_updated_event
       learning
     end
 

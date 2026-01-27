@@ -57,4 +57,17 @@ json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i
 json.sla_policy_id conversation.sla_policy_id
+
+if conversation.respond_to?(:captain_learning_eligible?)
+  json.captain_learning_eligible conversation.captain_learning_eligible?
+  if conversation.respond_to?(:captain_conversation_learning) && conversation.captain_conversation_learning.present?
+    json.captain_learning do
+      json.partial! 'api/v1/models/captain/learned_conversation',
+                    formats: [:json],
+                    resource: conversation.captain_conversation_learning
+    end
+  else
+    json.captain_learning nil
+  end
+end
 json.partial! 'enterprise/api/v1/conversations/partials/conversation', conversation: conversation if ChatwootApp.enterprise?

@@ -133,3 +133,9 @@ As part of simplifying the flow:
 
 ## Current Behavior Summary
 Captain automatically learns from eligible conversations, stores them with embeddings, exposes them in the UI, and uses the learned summaries to improve future responses through retrieval at inference time.
+
+## Recent Updates and Fixes (2026-01-27)
+- Auto-learn on resolve now forces a learning run to avoid "up-to-date" skips when a conversation is resolved without new messages.
+- Conversation learning broadcasts `conversation.updated` after completion so the frontend can update state without refresh.
+- ActionCable payloads now include `captain_learning` and `captain_learning_eligible` via the enterprise event presenter, ensuring the learn/learned UI reflects background updates.
+- Rejected learning now surfaces a dedicated notification message ("Conversation rejected").
