@@ -11,16 +11,9 @@
 
 #### Database Layer
 - ✅ **Migration 1:** Added `captain_state` (JSONB), `captain_last_action_at`, `captain_handed_off_at`, `captain_handed_off_by_id` to conversations table
-- ✅ **Migration 2:** Created `captain_message_feedbacks` table with all required fields
 - ✅ **Migrations Run:** Successfully executed on local dev environment
 
 #### Models
-- ✅ **CaptainMessageFeedback** - Complete model with:
-  - Associations (message, conversation, rated_by)
-  - Validations (rating, feedback_type, resolution_method)
-  - Scopes (positive, negative, helpful, resolved, recent, etc.)
-  - Logging callbacks
-
 #### Services
 - ✅ **ConversationStateService** - Tracks conversation state:
   - Turn count tracking
@@ -30,12 +23,6 @@
   - Human takeover recording
   - Issue summary management
   
-- ✅ **MessageFeedbackService** - Manages agent feedback:
-  - Records feedback with rating and type
-  - Updates conversation state
-  - Resolution tracking
-  - Integration with state service
-
 - ✅ **ConversationHandlerService** - Orchestrates state tracking:
   - before_response() - Track sentiment, increment turns
   - after_response() - Track solutions
@@ -56,45 +43,15 @@
   - Automatically calls `ConversationStateService#track_human_takeover`
   - No manual button needed
 
-#### API Layer
-- ✅ **MessageFeedbacksController** - REST endpoints:
-  - POST `/api/v1/accounts/:account_id/captain/message_feedbacks`
-  - PUT `/api/v1/accounts/:account_id/captain/message_feedbacks/:message_id`
-- ✅ **Routes Configured** - Added to config/routes.rb
-
 ---
 
 ### Frontend (100% Complete)
 
 #### Vue Components
-- ✅ **CaptainMessageFeedback.vue** - Feedback button component:
-  - Shows on Captain (AgentBot) messages
-  - 6 feedback options (helpful, unhelpful, incorrect, incomplete, too_technical, too_vague)
-  - Shows current feedback if already rated
-  - Dropdown menu for rating selection
-  
 - ✅ **ConversationStatePanel.vue** - State panel component:
   - Shows turn count, sentiment, solutions tried
   - Displays escalation suggestions
   - Shows human takeover status
-
-#### Vuex Store
-- ✅ **captainFeedback Module** - Complete state management:
-  - State: feedbacks by message ID, UI flags
-  - Actions: create, update
-  - Mutations: SET_CAPTAIN_FEEDBACK, SET_CAPTAIN_FEEDBACK_UI_FLAG
-  - Getters: getFeedbackForMessage
-  - ✅ Registered in main store
-
-#### API Client
-- ✅ **captain.js** - API client for feedback endpoints
-  - createMessageFeedback()
-  - updateMessageFeedback()
-
-#### Mutation Types
-- ✅ **Added to mutation-types.js:**
-  - SET_CAPTAIN_FEEDBACK
-  - SET_CAPTAIN_FEEDBACK_UI_FLAG
 
 ---
 
@@ -108,7 +65,7 @@
 - ✅ Shows conversation state info:
   - Turn count
   - Issue summary
-  - Solutions attempted (with feedback)
+  - Solutions attempted
   - Customer sentiment
   - Escalation suggestions
   - Human takeover status
@@ -121,14 +78,10 @@
 
 **Completed:**
 - ✅ **RSpec Tests Written:**
-  - CaptainMessageFeedback model (20 test cases)
   - ConversationStateService (43 test cases)
-  - MessageFeedbackService (28 test cases)
   - ConversationHandlerService (28 test cases)
   - ConversationAnalyzerService (44 test cases for Phase 1.5)
-  - MessageFeedbacksController (35 test cases)
   - Human takeover detection (20 test cases)
-- ✅ **Factory Created:** captain_message_feedbacks with traits
 - ✅ **Critical Bugs Fixed:**
   - Captain::Logger missing methods (info, warn, error)
   - Method visibility issues (captain_was_active?, agent_message?, detect_human_takeover)
@@ -145,11 +98,8 @@
   - Fixed nil comparison in ConversationHandlerService turn_count check
   - Added missing test stubs for update_issue_summary
 - ✅ **Test Results:**
-  - CaptainMessageFeedback: 20/20 passing ✅
   - ConversationStateService: 43/43 passing ✅
-  - MessageFeedbackService: 28/28 passing ✅
   - ConversationHandlerService: 28/28 passing ✅
-  - MessageFeedbacksController: 35/35 passing ✅
   - Human Takeover Detection: 20/20 passing ✅
   - ConversationAnalyzerService: 44/44 passing ✅
 - ✅ **Fixes Applied:**
@@ -158,14 +108,10 @@
   - Analyzer specs stabilized (agent detection, message types, translation hooks)
 
 **Test Files Created:**
-1. `spec/enterprise/models/captain_message_feedback_spec.rb`
-2. `spec/enterprise/services/captain/conversation_state_service_spec.rb`
-3. `spec/enterprise/services/captain/message_feedback_service_spec.rb`
-4. `spec/enterprise/services/captain/conversation_handler_service_spec.rb`
-5. `spec/enterprise/services/captain/conversation_analyzer_service_spec.rb`
-6. `spec/enterprise/controllers/api/v1/accounts/captain/message_feedbacks_controller_spec.rb`
-7. `spec/models/message_human_takeover_spec.rb`
-8. `spec/factories/captain_message_feedbacks.rb`
+1. `spec/enterprise/services/captain/conversation_state_service_spec.rb`
+2. `spec/enterprise/services/captain/conversation_handler_service_spec.rb`
+3. `spec/enterprise/services/captain/conversation_analyzer_service_spec.rb`
+4. `spec/models/message_human_takeover_spec.rb`
 
 ### Sessions 12-14: Mining & Documentation
 **Status:** Services created, execution pending
@@ -226,14 +172,7 @@ def handle_captain_message(conversation, incoming_message)
 end
 ```
 
-#### 2. Agent Feedback
-
-Agents can rate Captain messages via the UI:
-- Click "Rate this response" button
-- Select feedback type
-- Feedback stored and integrated into next Captain response
-
-#### 3. Human Takeover
+#### 2. Human Takeover
 
 Automatic! When an agent sends a message in a Captain conversation:
 - System detects it via Message model callback
@@ -252,23 +191,6 @@ captain_handed_off_at TIMESTAMP
 captain_handed_off_by_id INTEGER
 ```
 
-### captain_message_feedbacks Table (New)
-```sql
-id BIGINT PRIMARY KEY
-message_id BIGINT NOT NULL REFERENCES messages(id)
-conversation_id BIGINT NOT NULL REFERENCES conversations(id)
-rated_by_id BIGINT NOT NULL REFERENCES users(id)
-rating INTEGER NOT NULL  -- 1, 0, -1
-feedback_type VARCHAR  -- helpful, unhelpful, incorrect, incomplete, too_technical, too_vague
-notes TEXT
-issue_resolved BOOLEAN
-resolution_method VARCHAR  -- captain_solution, agent_different_solution, escalated
-created_at TIMESTAMP
-updated_at TIMESTAMP
-
-UNIQUE INDEX (message_id, rated_by_id)
-```
-
 ### Conversation State JSON Structure
 ```json
 {
@@ -279,8 +201,7 @@ UNIQUE INDEX (message_id, rated_by_id)
       "solution": "reset_router",
       "result": "suggested",
       "timestamp": 1234567890,
-      "message_id": 123,
-      "agent_feedback": "helpful"
+      "message_id": 123
     }
   ],
   "sentiment_history": [
@@ -343,7 +264,6 @@ bundle exec rails db:migrate:status | grep captain
 
 # Check tables exist
 rails console
-> CaptainMessageFeedback.count
 > Conversation.first.captain_state
 ```
 
@@ -384,13 +304,11 @@ rails console
 
 ### Backend Files Created
 - `db/migrate/20260123060216_add_captain_state_to_conversations.rb`
-- `db/migrate/20260123060226_create_captain_message_feedbacks.rb`
 - `enterprise/app/models/captain_message_feedback.rb`
 - `enterprise/app/services/captain/conversation_state_service.rb`
 - `enterprise/app/services/captain/message_feedback_service.rb`
 - `enterprise/app/services/captain/conversation_handler_service.rb`
 - `enterprise/app/services/captain/conversation_analyzer_service.rb`
-- `enterprise/app/controllers/api/v1/accounts/captain/message_feedbacks_controller.rb`
 
 ### Backend Files Modified
 - `app/models/message.rb` - Added human takeover detection callback
@@ -398,7 +316,6 @@ rails console
 - `config/routes.rb` - Added feedback routes
 
 ### Frontend Files Created
-- `app/javascript/dashboard/components/widgets/conversation/CaptainMessageFeedback.vue`
 - `app/javascript/dashboard/store/modules/captainFeedback.js`
 - `app/javascript/dashboard/api/captain.js`
 

@@ -98,17 +98,7 @@ captain_state: {
 }
 ```
 
-#### 2. Message Feedback (Same as before)
-```ruby
-captain_message_feedbacks table:
-- message_id
-- rated_by (agent)
-- rating (1, 0, -1)
-- feedback_type
-- notes
-```
-
-#### 3. Auto-Detect Human Intervention (NEW!)
+#### 2. Auto-Detect Human Intervention (NEW!)
 ```ruby
 # enterprise/app/models/message.rb
 class Message < ApplicationRecord

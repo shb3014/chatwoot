@@ -24,11 +24,9 @@
 
 ### What We're Building
 
-**Phase 1.1 (Weeks 1-4): Conversation Memory & Feedback System**
+**Phase 1.1 (Weeks 1-4): Conversation Memory**
 - Track conversation state (turn count, solutions tried, sentiment)
-- Agent feedback system (👍/👎 on Captain's responses)
 - Auto-detect human takeover (no button needed!)
-- System learns from agent feedback
 
 **Phase 1.5 (Weeks 5-6): Historical Mining**
 - Mine existing conversations for patterns
@@ -36,18 +34,16 @@
 - Don't wait 6 months - learn from what you already have!
 - Build foundation for Phase 3 learning
 
-### Key Requirements (from stakeholder feedback)
+### Key Requirements (from stakeholder input)
 
 1. ✅ **No auto-resolve** - Only human agents can mark conversations resolved
-2. ✅ **Human feedback critical** - AI suggestions need validation from agents
-3. ✅ **No "Take Over" button** - Auto-detect when agent replies
-4. ✅ **Mine existing data** - Learn from historical conversations NOW
+2. ✅ **No "Take Over" button** - Auto-detect when agent replies
+3. ✅ **Mine existing data** - Learn from historical conversations NOW
 
 ### Expected Outcomes
 
 **After Phase 1.1:**
 - Captain remembers conversation context
-- Agents can rate AI responses
 - Human takeovers tracked automatically
 - No repeated failed suggestions
 
@@ -70,23 +66,7 @@ add_column :conversations, :captain_last_action_at, :datetime
 add_column :conversations, :captain_handed_off_at, :datetime
 add_column :conversations, :captain_handed_off_by_id, :integer
 
-# New table: Captain Message Feedbacks
-create_table :captain_message_feedbacks do |t|
-  t.references :message, null: false, foreign_key: true
-  t.references :conversation, null: false, foreign_key: true
-  t.references :rated_by, null: false, foreign_key: { to_table: :users }
-  
-  t.integer :rating, null: false # 1 = 👍, -1 = 👎, 0 = neutral
-  t.string :feedback_type # helpful, unhelpful, incorrect, incomplete, too_technical, too_vague
-  t.text :notes
-  
-  t.boolean :issue_resolved
-  t.string :resolution_method # captain_solution, agent_different_solution, escalated
-  
-  t.timestamps
-end
 ```
-
 ### Conversation State Structure
 
 ```json
@@ -98,8 +78,7 @@ end
       "solution": "reset_router",
       "result": "suggested",
       "timestamp": 1234567890,
-      "message_id": 123,
-      "agent_feedback": "helpful"
+      "message_id": 123
     }
   ],
   "sentiment_history": [
@@ -134,17 +113,6 @@ Message sent to customer
     ↓
 Agent views conversation:
   - Sees state panel (turn count, solutions, sentiment)
-  - Sees Captain's message with feedback button
-    ↓
-Agent clicks 👍 or 👎
-    ↓
-MessageFeedbackService:
-  - Stores feedback in database
-  - Updates conversation state
-    ↓
-Next Captain response:
-  - System prompt includes: "Previous solution 'reset_router' was marked helpful"
-  - Captain learns from feedback
     ↓
 [OR] Agent replies directly:
   - Message model auto-detects takeover
@@ -186,19 +154,9 @@ module Captain
         result: 'suggested',
         timestamp: Time.current.to_i,
         message_id: message_id,
-        agent_feedback: nil
       }
       @state[:attempted_solutions] = @state[:attempted_solutions].last(10)
       save_state
-    end
-    
-    # Update when agent provides feedback
-    def update_solution_feedback(message_id, feedback)
-      solution = @state[:attempted_solutions]&.find { |s| s[:message_id] == message_id }
-      if solution
-        solution[:agent_feedback] = feedback
-        save_state
-      end
     end
     
     # Record when human agent takes over
@@ -328,82 +286,6 @@ module Captain
 end
 ```
 
-### 2. MessageFeedbackService
-
-**Location:** `enterprise/app/services/captain/message_feedback_service.rb`
-
-**Responsibilities:**
-- Record agent feedback on Captain messages
-- Update conversation state with feedback
-- Track resolution outcomes
-
-**Implementation:**
-
-```ruby
-module Captain
-  class MessageFeedbackService
-    def initialize(message, agent)
-      @message = message
-      @agent = agent
-      @conversation = message.conversation
-    end
-    
-    def record_feedback(rating:, feedback_type: nil, notes: nil)
-      feedback = CaptainMessageFeedback.find_or_initialize_by(
-        message: @message,
-        rated_by: @agent
-      )
-      
-      feedback.assign_attributes(
-        conversation: @conversation,
-        rating: rating,
-        feedback_type: feedback_type,
-        notes: notes
-      )
-      
-      if feedback.save
-        # Update conversation state
-        state_service = ConversationStateService.new(@conversation)
-        state_service.update_solution_feedback(
-          @message.id,
-          feedback_type || (rating > 0 ? 'helpful' : 'unhelpful')
-        )
-        
-        Captain::Logger.info(
-          "[MessageFeedback] Feedback recorded",
-          message_id: @message.id,
-          conversation_id: @conversation.id,
-          agent_id: @agent.id,
-          rating: rating,
-          feedback_type: feedback_type
-        )
-        
-        { success: true, feedback: feedback }
-      else
-        { success: false, errors: feedback.errors }
-      end
-    end
-    
-    def record_resolution(resolved:, resolution_method:)
-      feedback = CaptainMessageFeedback.find_by(message: @message, rated_by: @agent)
-      return unless feedback
-      
-      feedback.update(
-        issue_resolved: resolved,
-        resolution_method: resolution_method
-      )
-      
-      Captain::Logger.info(
-        "[MessageFeedback] Resolution recorded",
-        message_id: @message.id,
-        resolved: resolved,
-        method: resolution_method
-      )
-    end
-  end
-end
-```
-
 ### 3. ConversationAnalyzerService (Phase 1.5)
 
 **Location:** `enterprise/app/services/captain/conversation_analyzer_service.rb`
@@ -504,9 +386,7 @@ class Captain::Llm::AssistantChatService
   def build_system_prompt
     base_prompt = Captain::Llm::SystemPromptsService.new(@assistant, @conversation).generate_prompt
     state_context = build_state_context
-    feedback_context = build_feedback_context
-    
-    "#{base_prompt}\n\n#{state_context}\n\n#{feedback_context}"
+    "#{base_prompt}\n\n#{state_context}"
   end
   
   def build_state_context
@@ -521,15 +401,14 @@ class Captain::Llm::AssistantChatService
     
     if summary[:attempted_solutions].any?
       solutions_text = summary[:attempted_solutions].map do |s|
-        feedback = s[:agent_feedback] ? " (agent feedback: #{s[:agent_feedback]})" : ""
-        "- #{s[:solution]}#{feedback}"
+        "- #{s[:solution]}"
       end.join("\n")
       
       context_parts << <<~TEXT
         ALREADY ATTEMPTED SOLUTIONS:
         #{solutions_text}
         
-        IMPORTANT: Do NOT suggest these solutions again unless agent feedback was positive.
+        IMPORTANT: Do NOT suggest these solutions again.
       TEXT
     end
     
@@ -546,24 +425,6 @@ class Captain::Llm::AssistantChatService
     context_parts.join("\n\n")
   end
   
-  def build_feedback_context
-    summary = @state_tracker.get_conversation_summary
-    feedbacks = summary[:attempted_solutions].select { |s| s[:agent_feedback].present? }
-    
-    return "" if feedbacks.empty?
-    
-    feedback_text = feedbacks.map do |s|
-      "- #{s[:solution]}: Agent marked as #{s[:agent_feedback]}"
-    end.join("\n")
-    
-    <<~TEXT
-      AGENT FEEDBACK ON PREVIOUS SUGGESTIONS:
-      #{feedback_text}
-      
-      Learn from this feedback. Avoid approaches marked unhelpful.
-    TEXT
-  end
-  
   def generate_response_with_escalation_suggestion
     response = generate_captain_response
     
@@ -576,161 +437,7 @@ class Captain::Llm::AssistantChatService
 end
 ```
 
-### 3. API Endpoints
-
-**Location:** `enterprise/app/controllers/api/v1/accounts/captain/message_feedbacks_controller.rb`
-
-```ruby
-class Api::V1::Accounts::Captain::MessageFeedbacksController < Api::V1::Accounts::BaseController
-  before_action :set_message
-  
-  def create
-    service = Captain::MessageFeedbackService.new(@message, Current.user)
-    result = service.record_feedback(
-      rating: params[:rating].to_i,
-      feedback_type: params[:feedback_type],
-      notes: params[:notes]
-    )
-    
-    if result[:success]
-      render json: { feedback: result[:feedback] }, status: :created
-    else
-      render json: { errors: result[:errors] }, status: :unprocessable_entity
-    end
-  end
-  
-  def update
-    feedback = CaptainMessageFeedback.find_by!(
-      message_id: params[:message_id],
-      rated_by: Current.user
-    )
-    
-    if feedback.update(feedback_params)
-      render json: { feedback: feedback }
-    else
-      render json: { errors: feedback.errors }, status: :unprocessable_entity
-    end
-  end
-  
-  private
-  
-  def set_message
-    @message = Message.find(params[:message_id])
-    authorize @message.conversation.inbox, :show?
-  end
-  
-  def feedback_params
-    params.permit(:rating, :feedback_type, :notes, :issue_resolved, :resolution_method)
-  end
-end
-
-# config/routes.rb - add routes
-namespace :api do
-  namespace :v1 do
-    namespace :accounts do
-      namespace :captain do
-        resources :message_feedbacks, only: [:create, :update]
-      end
-    end
-  end
-end
-```
-
----
-
 ## 📱 Frontend Components
-
-### 1. MessageFeedback Component
-
-**Location:** `app/javascript/dashboard/components/widgets/conversation/MessageFeedback.vue`
-
-```vue
-<script setup>
-import { ref, computed } from 'vue';
-import { useStore } from 'vuex';
-import { useAlert } from 'dashboard/composables';
-
-const props = defineProps({
-  message: {
-    type: Object,
-    required: true,
-  },
-});
-
-const store = useStore();
-const showFeedbackMenu = ref(false);
-const submitting = ref(false);
-
-const currentFeedback = computed(() => props.message.captain_feedback);
-
-const feedbackOptions = [
-  { value: 'helpful', label: '✅ Helpful', icon: 'i-lucide-thumbs-up', rating: 1 },
-  { value: 'unhelpful', label: '❌ Not Helpful', icon: 'i-lucide-thumbs-down', rating: -1 },
-  { value: 'incorrect', label: '⚠️ Incorrect Info', icon: 'i-lucide-alert-circle', rating: -1 },
-  { value: 'incomplete', label: '📝 Incomplete', icon: 'i-lucide-minus-circle', rating: 0 },
-  { value: 'too_technical', label: '🔧 Too Technical', icon: 'i-lucide-settings', rating: 0 },
-  { value: 'too_vague', label: '💬 Too Vague', icon: 'i-lucide-message-circle', rating: 0 },
-];
-
-const submitFeedback = async (feedbackType, rating) => {
-  submitting.value = true;
-  
-  try {
-    await store.dispatch('captainFeedback/create', {
-      messageId: props.message.id,
-      rating: rating,
-      feedbackType: feedbackType,
-    });
-    
-    useAlert('Feedback recorded');
-    showFeedbackMenu.value = false;
-  } catch (error) {
-    useAlert('Failed to record feedback');
-  } finally {
-    submitting.value = false;
-  }
-};
-</script>
-
-<template>
-  <div class="message-feedback">
-    <div v-if="message.sender_type === 'AgentBot'" class="flex items-center gap-2 mt-2">
-      <span 
-        v-if="currentFeedback"
-        class="text-xs px-2 py-1 rounded"
-        :class="currentFeedback.rating > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-      >
-        {{ currentFeedback.feedback_type }}
-      </span>
-      
-      <button
-        v-else
-        @click="showFeedbackMenu = !showFeedbackMenu"
-        class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
-      >
-        <fluent-icon icon="emoji" size="14" />
-        Rate this response
-      </button>
-      
-      <div 
-        v-if="showFeedbackMenu"
-        class="absolute z-10 mt-1 bg-white rounded-lg shadow-lg border p-2 space-y-1"
-      >
-        <button
-          v-for="option in feedbackOptions"
-          :key="option.value"
-          @click="submitFeedback(option.value, option.rating)"
-          :disabled="submitting"
-          class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-        >
-          <fluent-icon :icon="option.icon" size="16" />
-          {{ option.label }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-```
 
 ### 2. ConversationStatePanel Component
 
@@ -811,16 +518,7 @@ const getSentimentDisplay = (history) => {
           :key="index"
           class="text-sm flex items-center"
         >
-          <span 
-            :class="attempt.agent_feedback === 'helpful' ? 'text-green-600' : 'text-gray-600'"
-            class="mr-2"
-          >
-            {{ attempt.agent_feedback === 'helpful' ? '✓' : '•' }}
-          </span>
           <span class="truncate">{{ attempt.solution }}</span>
-          <span v-if="attempt.agent_feedback" class="ml-2 text-xs text-gray-500">
-            ({{ attempt.agent_feedback }})
-          </span>
         </li>
       </ul>
     </div>
@@ -866,66 +564,6 @@ const getSentimentDisplay = (history) => {
   </div>
 </template>
 ```
-
-### 3. Vuex Store Module
-
-**Location:** `app/javascript/dashboard/store/modules/captainFeedback.js`
-
-```javascript
-export const state = {
-  feedbacks: {},
-  uiFlags: {
-    isCreating: false,
-  },
-};
-
-export const mutations = {
-  SET_FEEDBACK(state, { messageId, feedback }) {
-    state.feedbacks[messageId] = feedback;
-  },
-  SET_UI_FLAG(state, { flag, value }) {
-    state.uiFlags[flag] = value;
-  },
-};
-
-export const actions = {
-  async create({ commit }, { messageId, rating, feedbackType, notes }) {
-    commit('SET_UI_FLAG', { flag: 'isCreating', value: true });
-    
-    try {
-      const response = await axios.post('/api/v1/accounts/captain/message_feedbacks', {
-        message_id: messageId,
-        rating,
-        feedback_type: feedbackType,
-        notes,
-      });
-      
-      commit('SET_FEEDBACK', { messageId, feedback: response.data.feedback });
-      return response.data;
-    } finally {
-      commit('SET_UI_FLAG', { flag: 'isCreating', value: false });
-    }
-  },
-  
-  async update({ commit }, { feedbackId, issueResolved, resolutionMethod }) {
-    const response = await axios.put(
-      `/api/v1/accounts/captain/message_feedbacks/${feedbackId}`,
-      { issue_resolved: issueResolved, resolution_method: resolutionMethod }
-    );
-    
-    return response.data;
-  },
-};
-
-export const getters = {
-  getFeedbackForMessage: state => messageId => {
-    return state.feedbacks[messageId];
-  },
-  isCreating: state => state.uiFlags.isCreating,
-};
-```
-
----
 
 ## 🔍 Phase 1.5: Historical Mining
 
@@ -1222,7 +860,6 @@ end
 **TODO:**
 - [ ] Create migration for `captain_state` jsonb column on conversations
 - [ ] Create migration for `captain_last_action_at`, `captain_handed_off_at`, `captain_handed_off_by_id` columns
-- [ ] Create `captain_message_feedbacks` table
 - [ ] Run migrations
 - [ ] Verify schema changes
 
@@ -1252,24 +889,6 @@ Implement the service following "Core Services > 1. ConversationStateService" se
 Also attach: @enterprise/lib/captain/logger.rb @app/models/conversation.rb
 ```
 
-### Session 3: MessageFeedbackService & Model (40 min)
-
-**TODO:**
-- [ ] Create `enterprise/app/models/captain_message_feedback.rb`
-- [ ] Implement validations, enums, associations, scopes
-- [ ] Implement `enterprise/app/services/captain/message_feedback_service.rb`
-- [ ] Write tests for model and service
-- [ ] Verify tests pass
-
-**Start new chat with:**
-```
-@docs/improve/phase_1/MASTER_IMPLEMENTATION_GUIDE.md
-
-Task: Session 3 - MessageFeedbackService & Model
-Implement following "Core Services > 2. MessageFeedbackService" section.
-Also attach: @app/models/message.rb @enterprise/app/services/captain/conversation_state_service.rb
-```
-
 ### Session 4: Auto-Detect Human Takeover (30 min)
 
 **TODO:**
@@ -1288,31 +907,12 @@ Implement following "Integration Points > 1. Auto-Detect Human Takeover" section
 Also attach: @app/models/message.rb @app/models/conversation.rb
 ```
 
-### Session 5: API Endpoints (45 min)
-
-**TODO:**
-- [ ] Create `enterprise/app/controllers/api/v1/accounts/captain/message_feedbacks_controller.rb`
-- [ ] Implement `create` and `update` actions
-- [ ] Add routes to `config/routes.rb`
-- [ ] Write request specs
-- [ ] Test API endpoints manually
-
-**Start new chat with:**
-```
-@docs/improve/phase_1/MASTER_IMPLEMENTATION_GUIDE.md
-
-Task: Session 5 - API Endpoints
-Implement following "Integration Points > 3. API Endpoints" section.
-Also attach: @config/routes.rb @app/controllers/api/v1/accounts/base_controller.rb
-```
-
 ### Session 6: AssistantChatService Integration (60 min)
 
 **TODO:**
 - [ ] Update `enterprise/app/services/captain/llm/assistant_chat_service.rb`
 - [ ] Initialize ConversationStateService
 - [ ] Add `build_state_context` method
-- [ ] Add `build_feedback_context` method
 - [ ] Track turns, sentiment, solutions, escalation
 - [ ] Write integration tests
 - [ ] Test end-to-end flow
@@ -1326,30 +926,12 @@ Implement following "Integration Points > 2. AssistantChatService Integration" s
 Also attach: @enterprise/app/services/captain/llm/assistant_chat_service.rb @enterprise/app/helpers/captain/chat_helper.rb
 ```
 
-### Session 7: MessageFeedback UI Component (50 min)
-
-**TODO:**
-- [ ] Create `app/javascript/dashboard/components/widgets/conversation/MessageFeedback.vue`
-- [ ] Implement feedback button UI
-- [ ] Handle feedback submission
-- [ ] Show current feedback status
-- [ ] Test in browser with real Captain messages
-
-**Start new chat with:**
-```
-@docs/improve/phase_1/MASTER_IMPLEMENTATION_GUIDE.md
-
-Task: Session 7 - MessageFeedback UI Component
-Implement following "Frontend Components > 1. MessageFeedback Component" section.
-Also attach: @app/javascript/dashboard/components/widgets/conversation/ (existing message components)
-```
-
 ### Session 8: ConversationStatePanel UI (45 min)
 
 **TODO:**
 - [ ] Create/update `ConversationStatePanel.vue` component
 - [ ] Update conversation serializer to include captain_state
-- [ ] Show turn count, solutions, sentiment, feedback summary
+- [ ] Show turn count, solutions, sentiment
 - [ ] Integrate into conversation sidebar
 - [ ] Test with real conversation data
 
@@ -1360,23 +942,6 @@ Also attach: @app/javascript/dashboard/components/widgets/conversation/ (existin
 Task: Session 8 - ConversationStatePanel UI
 Implement following "Frontend Components > 2. ConversationStatePanel Component" section.
 Also attach: @app/views/api/v1/models/_conversation.json.jbuilder
-```
-
-### Session 9: Vuex Store Module (30 min)
-
-**TODO:**
-- [ ] Create `app/javascript/dashboard/store/modules/captainFeedback.js`
-- [ ] Implement state, mutations, actions, getters
-- [ ] Register module in store
-- [ ] Test state management flow
-
-**Start new chat with:**
-```
-@docs/improve/phase_1/MASTER_IMPLEMENTATION_GUIDE.md
-
-Task: Session 9 - Vuex Store Module
-Implement following "Frontend Components > 3. Vuex Store Module" section.
-Also attach: @app/javascript/dashboard/store/ (existing store structure)
 ```
 
 ### Session 10: Testing & Bug Fixes (60 min)

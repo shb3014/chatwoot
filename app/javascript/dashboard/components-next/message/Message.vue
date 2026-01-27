@@ -40,7 +40,6 @@ import VoiceCallBubble from './bubbles/VoiceCall.vue';
 
 import MessageError from './MessageError.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
-import CaptainMessageFeedback from 'dashboard/components/widgets/conversation/CaptainMessageFeedback.vue';
 
 /**
  * @typedef {Object} Attachment
@@ -528,11 +527,6 @@ provideMessageContext({
           }"
         >
           <Component :is="componentToRender" />
-          <CaptainMessageFeedback
-            class="mt-1"
-            :message-id="props.id"
-            :sender-type="props.sender?.type || props.senderType"
-          />
         </div>
       </div>
       <MessageError

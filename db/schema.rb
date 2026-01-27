@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_27_103000) do
+ActiveRecord::Schema[7.1].define(version: 2026_01_27_104500) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -386,23 +386,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_27_103000) do
     t.index ["captain_assistant_id", "inbox_id"], name: "index_captain_inboxes_on_captain_assistant_id_and_inbox_id", unique: true
     t.index ["captain_assistant_id"], name: "index_captain_inboxes_on_captain_assistant_id"
     t.index ["inbox_id"], name: "index_captain_inboxes_on_inbox_id"
-  end
-
-  create_table "captain_message_feedbacks", force: :cascade do |t|
-    t.bigint "message_id", null: false
-    t.bigint "conversation_id", null: false
-    t.bigint "rated_by_id", null: false
-    t.integer "rating", null: false
-    t.string "feedback_type"
-    t.text "notes"
-    t.boolean "issue_resolved"
-    t.string "resolution_method"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["conversation_id"], name: "index_captain_message_feedbacks_on_conversation_id"
-    t.index ["message_id", "rated_by_id"], name: "index_captain_feedbacks_on_message_and_rater", unique: true
-    t.index ["message_id"], name: "index_captain_message_feedbacks_on_message_id"
-    t.index ["rated_by_id"], name: "index_captain_message_feedbacks_on_rated_by_id"
   end
 
   create_table "captain_scenarios", force: :cascade do |t|
@@ -1295,9 +1278,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_27_103000) do
   add_foreign_key "captain_conversation_learnings", "accounts"
   add_foreign_key "captain_conversation_learnings", "captain_assistants", column: "assistant_id"
   add_foreign_key "captain_conversation_learnings", "conversations"
-  add_foreign_key "captain_message_feedbacks", "conversations"
-  add_foreign_key "captain_message_feedbacks", "messages"
-  add_foreign_key "captain_message_feedbacks", "users", column: "rated_by_id"
   add_foreign_key "inboxes", "portals"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").

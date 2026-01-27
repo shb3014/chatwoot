@@ -14,8 +14,7 @@ module Captain
         solution: solution_id,
         result: 'suggested',
         timestamp: Time.current.to_i,
-        message_id: message_id,
-        agent_feedback: nil
+        message_id: message_id
       }
       # Keep only last 10 attempts to avoid bloat
       @state[:attempted_solutions] = @state[:attempted_solutions].last(10)
@@ -27,23 +26,6 @@ module Captain
         solution: solution_id,
         message_id: message_id,
         total_attempts: @state[:attempted_solutions].size
-      )
-    end
-
-    # Update when agent provides feedback
-    def update_solution_feedback(message_id, feedback)
-      @state[:attempted_solutions] ||= []
-      solution = @state[:attempted_solutions].find { |s| s[:message_id] == message_id }
-      return unless solution
-
-      solution[:agent_feedback] = feedback
-      save_state
-
-      Captain::Logger.info(
-        '[ConversationState] Solution feedback updated',
-        conversation_id: @conversation.id,
-        message_id: message_id,
-        feedback: feedback
       )
     end
 

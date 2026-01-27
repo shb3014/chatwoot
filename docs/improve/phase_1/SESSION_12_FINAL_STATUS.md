@@ -21,13 +21,10 @@
 ### 3. Test Coverage Achieved: **91% (163/179 passing)** ✅
 
 **Perfect Scores:**
-- CaptainMessageFeedback Model: 20/20 ✅
 - ConversationStateService: 43/43 ✅  
-- MessageFeedbackService: 28/28 ✅
 - ConversationHandlerService: 28/28 ✅
 
 **Partial Passing:**
-- MessageFeedbacksController: 33/35 (94%)
 - Human Takeover Detection: 11/20 (55%)
 
 **Not Yet Run:**
@@ -96,10 +93,6 @@ puts "AgentBot exists?: #{conversation.messages.where(sender_type: 'AgentBot').e
 ### Task 2: Fix Controller Authorization (2 failures)
 **Issue:** Returns 401 instead of 404
 
-**Affected Tests:**
-1. `spec/enterprise/controllers/api/v1/accounts/captain/message_feedbacks_controller_spec.rb:137`
-2. `spec/enterprise/controllers/api/v1/accounts/captain/message_feedbacks_controller_spec.rb:320`
-
 **Investigation:**
 ```ruby
 # Current controller (likely):
@@ -118,10 +111,7 @@ end
 
 **Debug Steps:**
 ```bash
-# Run failing tests
-bundle exec rspec spec/enterprise/controllers/api/v1/accounts/captain/message_feedbacks_controller_spec.rb:137 --format documentation
 ```
-
 ---
 
 ### Task 3: Run ConversationAnalyzerService Tests (44 tests)
@@ -167,10 +157,7 @@ bundle exec rspec spec/models/message_human_takeover_spec.rb --format progress
 
 ### Step 2: Fix Controller Auth (15 min)
 ```bash
-# 1. Run failing test with output
-bundle exec rspec spec/enterprise/controllers/api/v1/accounts/captain/message_feedbacks_controller_spec.rb:137 --format documentation
-
-# 2. Based on output, either:
+```
 # Option A: Change test expectation from :not_found to :unauthorized
 # Option B: Fix controller to return 404 when appropriate
 ```
@@ -178,8 +165,7 @@ bundle exec rspec spec/enterprise/controllers/api/v1/accounts/captain/message_fe
 ### Step 3: Run Full Suite (10 min)
 ```bash
 # Run all Captain tests
-bundle exec rspec spec/enterprise/models/captain_message_feedback_spec.rb \
-                  spec/enterprise/services/captain/ \
+bundle exec rspec spec/enterprise/services/captain/ \
                   spec/models/message_human_takeover_spec.rb \
                   spec/enterprise/controllers/api/v1/accounts/captain/ \
                   --format progress
@@ -312,7 +298,6 @@ bundle exec rspec spec/enterprise/models/captain_message_feedback_spec.rb \
 bundle exec rspec <test_file>:<line_number> --format documentation
 
 # Run all captain tests
-bundle exec rspec spec/enterprise/models/captain_message_feedback_spec.rb \
                   spec/enterprise/services/captain/ \
                   spec/models/message_human_takeover_spec.rb \
                   spec/enterprise/controllers/api/v1/accounts/captain/ \

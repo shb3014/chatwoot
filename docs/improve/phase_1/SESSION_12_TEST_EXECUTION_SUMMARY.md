@@ -71,29 +71,18 @@ allow(state_service).to receive(:update_issue_summary)
 
 | Test Suite | Status | Cases | Notes |
 |-----------|---------|-------|-------|
-| **CaptainMessageFeedback Model** | ✅ PASS | 20/20 | Perfect |
 | **ConversationStateService** | ✅ PASS | 43/43 | Perfect |
-| **MessageFeedbackService** | ✅ PASS | 28/28 | Perfect |
 | **ConversationHandlerService** | ✅ PASS | 28/28 | Perfect |
 | **ConversationAnalyzerService** | ⚠️ SKIP | 0/44 | Not yet run |
-| **MessageFeedbacksController** | ⚠️ FAIL | 33/35 | 2 auth failures |
 | **Human Takeover Detection** | ⚠️ FAIL | 11/20 | 8 failures |
 
 ---
 
 ### Passing Tests Detail
 
-#### ✅ CaptainMessageFeedback Model (20/20)
-- Associations (3 tests)
-- Validations (4 tests)
-- Scopes (8 tests: positive, negative, neutral, helpful, unhelpful, resolved, unresolved, recent)
-- Callbacks (1 test: logging)
-- Factory (2 tests)
-
 #### ✅ ConversationStateService (43/43)
 - Initialization (3 tests)
 - Solution tracking (3 tests)
-- Feedback updates (3 tests)
 - Human takeover recording (3 tests)
 - Sentiment tracking (7 tests: including Chinese keywords)
 - Turn count management (3 tests)
@@ -103,14 +92,6 @@ allow(state_service).to receive(:update_issue_summary)
 - State reset (3 tests)
 - Private methods (4 tests: sentiment trends, repeated suggestions)
 - State persistence (2 tests: reload, deep structures)
-
-#### ✅ MessageFeedbackService (28/28)
-- Initialization (1 test)
-- Feedback recording (7 tests: create, update, validation, logging)
-- Resolution tracking (5 tests)
-- Feedback retrieval (3 tests)
-- ConversationStateService integration (2 tests)
-- Edge cases (3 tests)
 
 #### ✅ ConversationHandlerService (28/28)
 - Initialization (1 test)
@@ -151,27 +132,7 @@ allow(state_service).to receive(:update_issue_summary)
 
 ---
 
-### 2. MessageFeedbacksController (2 failures)
-
-**Issue:** Authorization returns 401 instead of expected 404
-
-**Failing Tests:**
-1. returns error when agent does not have access to conversation
-2. authorization - returns not found for create when agent has no access to inbox
-
-**Analysis:**
-- Tests expect HTTP 404 (not found)
-- Controller returns HTTP 401 (unauthorized)
-- Likely authorization check happening before conversation lookup
-
-**Next Steps:**
-- Review controller authorization flow
-- May need to adjust test expectations or controller logic
-- Check if `authorize @message.conversation.inbox, :show?` is returning 401
-
----
-
-### 3. ConversationAnalyzerService (44 tests not yet run)
+### 2. ConversationAnalyzerService (44 tests not yet run)
 
 **Status:** Skipped for now  
 **Reason:** Tests are for Phase 1.5 (Historical Mining)  
@@ -202,7 +163,6 @@ allow(state_service).to receive(:update_issue_summary)
    - Verify callback integration works properly
 
 2. **Fix Controller Authorization Tests (15 min)**
-   - Review authorization flow in MessageFeedbacksController
    - Adjust test expectations or fix authorization logic
    - Get 2 remaining controller tests passing
 
@@ -259,8 +219,6 @@ allow(state_service).to receive(:update_issue_summary)
 ```bash
 # 1. Run failing test suites to debug
 bundle exec rspec spec/models/message_human_takeover_spec.rb --format documentation
-bundle exec rspec spec/enterprise/controllers/api/v1/accounts/captain/message_feedbacks_controller_spec.rb --format documentation
-
 # 2. After fixes, run full suite
 bundle exec rspec spec/enterprise/models/captain_message_feedback_spec.rb \
                   spec/enterprise/services/captain/ \
@@ -274,8 +232,7 @@ bundle exec rubocop enterprise/app/services/captain/ --format simple
 
 ### Debug Focus:
 1. **Human Takeover:** Check how `captain_state` JSONB stores hash keys
-2. **Controller Auth:** Review authorization order in `MessageFeedbacksController`
-3. **Analyzer Tests:** Run and fix any WebMock or translation service issues
+2. **Analyzer Tests:** Run and fix any WebMock or translation service issues
 
 ---
 

@@ -96,11 +96,9 @@ docs/improve/phase_1/MASTER_IMPLEMENTATION_GUIDE.md
 ```
 Session 1:  Database Setup (30min)
 Session 2:  ConversationStateService (45min)
-Session 3:  MessageFeedbackService (40min)
 Session 4:  Auto-Detect Takeover (30min)
 Session 5:  API Endpoints (45min)
 Session 6:  AssistantChat Integration (60min)
-Session 7:  MessageFeedback UI (50min)
 Session 8:  StatePanel UI (45min)
 Session 9:  Vuex Store (30min)
 Session 10: Testing & Fixes (60min)

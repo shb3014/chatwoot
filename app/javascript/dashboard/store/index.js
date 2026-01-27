@@ -59,7 +59,6 @@ import captainScenarios from './captain/scenarios';
 import captainTools from './captain/tools';
 import captainCustomTools from './captain/customTools';
 import captainLearnedConversations from './captain/learnedConversations';
-import captainFeedback from './modules/captainFeedback';
 
 const plugins = [];
 
@@ -124,7 +123,6 @@ export default createStore({
     captainTools,
     captainCustomTools,
     captainLearnedConversations,
-    captainFeedback,
   },
   plugins,
 });

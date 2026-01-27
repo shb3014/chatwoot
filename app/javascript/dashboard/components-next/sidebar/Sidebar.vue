@@ -228,6 +228,11 @@ const menuItems = computed(() => {
           to: accountScopedRoute('captain_documents_index'),
         },
         {
+          name: 'Conversations',
+          label: t('SIDEBAR.CAPTAIN_CONVERSATIONS'),
+          to: accountScopedRoute('captain_conversations_index'),
+        },
+        {
           name: 'Responses',
           label: t('SIDEBAR.CAPTAIN_RESPONSES'),
           to: accountScopedRoute('captain_responses_index'),

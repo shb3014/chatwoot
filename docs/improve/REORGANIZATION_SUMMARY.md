@@ -66,7 +66,6 @@ docs/improve/
 
 3. **Full Code Examples**
    - ConversationStateService (complete)
-   - MessageFeedbackService (complete)
    - ConversationAnalyzerService (complete)
    - All integration points
    - All UI components

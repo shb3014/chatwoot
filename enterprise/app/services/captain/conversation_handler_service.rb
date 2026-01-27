@@ -50,18 +50,17 @@ module Captain
       # Add issue context
       context_parts << "CURRENT ISSUE: #{summary[:issue]}" if summary[:issue].present?
 
-      # Add attempted solutions with feedback
+      # Add attempted solutions
       if summary[:attempted_solutions].any?
         solutions_text = summary[:attempted_solutions].map do |s|
-          feedback = s[:agent_feedback] ? " (agent feedback: #{s[:agent_feedback]})" : ''
-          "- #{s[:solution]}#{feedback}"
+          "- #{s[:solution]}"
         end.join("\n")
 
         context_parts << <<~TEXT
           ALREADY ATTEMPTED SOLUTIONS:
           #{solutions_text}
 
-          IMPORTANT: Do NOT suggest these solutions again unless agent feedback was positive.
+          IMPORTANT: Do NOT suggest these solutions again.
         TEXT
       end
 

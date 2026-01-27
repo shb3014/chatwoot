@@ -50,33 +50,11 @@ Human takeover is automatically detected when an agent sends a message:
 
 No additional code needed!
 
-### 3. Agent Feedback Collection
-
-Agents can provide feedback via the API:
-
-```javascript
-// Frontend: When agent clicks feedback button
-POST /api/v1/accounts/:account_id/captain/message_feedbacks
-
-{
-  message_id: 12345,
-  rating: 1,  // 1 = helpful, -1 = unhelpful, 0 = neutral
-  feedback_type: "helpful",  // helpful, unhelpful, incorrect, incomplete, too_technical, too_vague
-  notes: "This solution worked perfectly"
-}
-```
-
-The feedback is automatically integrated into the conversation state.
-
 ## Key Services
 
 ### ConversationStateService
 - Tracks turn count, solutions, sentiment, escalation suggestions
 - Stores state in `conversations.captain_state` JSON column
-
-### MessageFeedbackService
-- Records agent feedback on Captain messages
-- Updates conversation state with feedback
 
 ### ConversationHandlerService
 - Orchestrates state tracking before/after responses
@@ -99,13 +77,6 @@ ConversationHandlerService.after_response()
   - Track solution attempt
   - Check escalation need
   ↓
-[Optional] Agent provides feedback
-  ↓
-MessageFeedbackService.record_feedback()
-  - Store feedback
-  - Update conversation state
-  ↓
-Next Captain response uses feedback context
 ```
 
 ## Database Schema
@@ -120,8 +91,7 @@ Next Captain response uses feedback context
       "solution": "reset_router",
       "result": "suggested",
       "timestamp": 1234567890,
-      "message_id": 123,
-      "agent_feedback": "helpful"
+      "message_id": 123
     }
   ],
   "sentiment_history": [
@@ -138,12 +108,6 @@ Next Captain response uses feedback context
 }
 ```
 
-### captain_message_feedbacks
-- message_id, conversation_id, rated_by_id
-- rating (-1, 0, 1)
-- feedback_type (helpful, unhelpful, incorrect, etc.)
-- notes, issue_resolved, resolution_method
-
 ## Testing
 
 ```ruby
@@ -155,10 +119,6 @@ handler = Captain::ConversationHandlerService.new(conversation, message)
 handler.before_response
 expect(conversation.reload.captain_state['turn_count']).to eq(1)
 
-# Test feedback recording
-service = Captain::MessageFeedbackService.new(message, agent)
-result = service.record_feedback(rating: 1, feedback_type: 'helpful')
-expect(result[:success]).to be true
 ```
 
 ## Production Deployment
@@ -173,7 +133,7 @@ expect(result[:success]).to be true
    - Wrap with `ConversationHandlerService` calls
    - Add state context to system prompts
 
-3. **Enable frontend feedback UI** (Phase 1 Sessions 7-9)
+3. **Enable frontend UI components** (Phase 1 Sessions)
 
 4. **Monitor logs**:
    ```bash
@@ -183,7 +143,6 @@ expect(result[:success]).to be true
 ## Important Notes
 
 - **No auto-resolve**: System only suggests escalation, never forces status changes
-- **Human feedback critical**: Agent feedback improves future responses
 - **Safe for production**: Only adds columns, no data loss
 - **Cloud deployment**: Migrations are safe to run on cloud Ubuntu environment
 
@@ -192,5 +151,4 @@ expect(result[:success]).to be true
 After integration:
 1. Test with real conversations
 2. Monitor state tracking in logs
-3. Collect agent feedback for 1-2 weeks
-4. Run historical mining (Phase 1.5) to analyze patterns
+3. Run historical mining (Phase 1.5) to analyze patterns
