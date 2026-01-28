@@ -28,13 +28,14 @@ module Captain::ChatHelper
       # This is a safety mechanism because some models (like Qwen) ignore system prompt instructions
       captain_logger.debug "Checking should_force_search? - messages length: #{@messages.length}, last message: '#{@messages.last&.dig(:content) || @messages.last&.dig('content')}'"
       force_search_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      should_force = should_force_search?
+      force_search_result = should_force_search?
       force_search_elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - force_search_start) * 1000).round
-      captain_logger.info "should_force_search?=#{should_force} in #{force_search_elapsed_ms}ms"
-      if should_force
+      captain_logger.info "should_force_search?=#{force_search_result.inspect} in #{force_search_elapsed_ms}ms"
+      if force_search_result
+        classification_type = force_search_result.is_a?(String) ? force_search_result : 'continuation'
         captain_logger.warn '🔒 FORCED SEARCH: Enforcing documentation search in conversation'
         # Return the result from the forced search (which calls request_chat_completion recursively)
-        return force_documentation_search
+        return force_documentation_search(classification_type)
       else
         captain_logger.debug 'should_force_search? returned false - continuing normal flow'
       end
@@ -326,8 +327,8 @@ module Captain::ChatHelper
     content = parsed_message[content_key].to_s
     return parsed_message unless should_include_references?(content)
 
+    # Strip any markdown link citations like [[1](url)], but keep simple [1] markers for conversion
     content = strip_inline_citations(content)
-    content = remove_reference_section(content)
     parsed_message[content_key] = append_reference_list(content, filter_references_by_locale(references))
     parsed_message
   end
@@ -404,7 +405,26 @@ module Captain::ChatHelper
   def strip_inline_citations(content)
     content
       .gsub(/\s*\[\[\d+\]\([^)]+\)\]/, '')
-      .gsub(/\s*\[\d+\]/, '')
+  end
+
+  def convert_inline_citations(content, references)
+    return content if references.empty?
+
+    # Build a lookup of citation chips by index
+    citation_chips = {}
+    references.each_with_index do |reference, index|
+      ref_num = index + 1
+      title_escaped = CGI.escapeHTML(reference[:title].to_s)
+      url_escaped = CGI.escapeHTML(reference[:url].to_s)
+      citation_chips[ref_num] =
+        "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
+    end
+
+    # Replace [1], [2], etc. with citation chips
+    content.gsub(/\[(\d+)\]/) do |_match|
+      ref_num = ::Regexp.last_match(1).to_i
+      citation_chips[ref_num] || _match
+    end
   end
 
   def remove_reference_section(content)
@@ -434,11 +454,27 @@ module Captain::ChatHelper
   def append_reference_list(content, references)
     return content.rstrip if references.empty?
 
-    reference_lines = references.map.with_index do |reference, index|
-      "#{index + 1}. [#{reference[:title]}](#{reference[:url]})"
+    # Convert inline [1], [2] markers to citation chips
+    processed_content = convert_inline_citations(content, references)
+
+    # Remove any Sources section at the end (since citations are now inline)
+    processed_content = remove_reference_section(processed_content)
+
+    # Check if any inline citations were actually added
+    has_inline_citations = processed_content.include?('class="citation-chip"')
+
+    # If no inline citations were added, append citations at the end as a fallback
+    unless has_inline_citations
+      citation_chips = references.map.with_index do |reference, index|
+        ref_num = index + 1
+        title_escaped = CGI.escapeHTML(reference[:title].to_s)
+        url_escaped = CGI.escapeHTML(reference[:url].to_s)
+        "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
+      end
+      processed_content = "#{processed_content.rstrip}\n\n**Sources:** #{citation_chips.join(' ')}"
     end
 
-    "#{content.rstrip}\n\n---\n\n**Sources**\n#{reference_lines.join("\n")}"
+    processed_content.rstrip
   end
 
   def should_include_references?(content)
@@ -510,7 +546,8 @@ module Captain::ChatHelper
 
     if first_user_message?
       # Skip classifier on first user message to avoid extra call
-      return !greeting_only?(last_user_message)
+      # Return 'new_question' if it's a real question, false if it's just a greeting
+      return greeting_only?(last_user_message) ? false : 'new_question'
     end
 
     # Use LLM to intelligently classify the user's message
@@ -523,8 +560,9 @@ module Captain::ChatHelper
       false
     when 'continuation', 'new_question'
       # In ongoing conversations we always search, regardless of continuation vs new question
+      # Return the classification type so force_documentation_search knows which query to use
       captain_logger.info "LLM classified as #{classification} - forcing search in ongoing conversation"
-      true
+      classification
     else
       # Fallback: use simple pattern matching if LLM classification fails
       captain_logger.warn 'LLM classification failed, falling back to pattern matching'
@@ -608,8 +646,12 @@ module Captain::ChatHelper
       end
 
       captain_logger.info 'Fallback: detected continuation signal'
-      return true
+      return 'continuation'
     end
+
+    # If it's not a continuation signal, it might be a new question
+    # Return 'new_question' if the message is substantive (not a greeting)
+    return 'new_question' unless greeting_only?(last_user_message)
 
     false
   end
@@ -701,19 +743,31 @@ module Captain::ChatHelper
   end
 
   # Force a documentation search with context from the conversation
-  def force_documentation_search
-    # Build search query from conversation context
-    # Look back at the last few messages to understand what we're troubleshooting
-    recent_context = @messages.last(5)
-                              .select { |m| (m[:role] || m['role']) == 'user' || (m[:role] || m['role']) == 'assistant' }
-                              .map { |m| m[:content] || m['content'] }
-                              .join(' ')
+  # @param classification [String] 'new_question' or 'continuation' - determines which query to use
+  def force_documentation_search(classification = 'continuation')
+    # Get the current user message (the one we're responding to)
+    current_user_message = last_user_message_content
 
-    # Extract key terms (simplified - just use the original problem description)
-    user_messages = @messages.select { |m| (m[:role] || m['role']) == 'user' }
-    original_problem = user_messages.find { |m| (m[:content] || m['content']).to_s.length > 20 }&.then { |msg| msg[:content] || msg['content'] }
+    # For new questions, always use the current message as the search query
+    # For continuations (yes, done, ok, next), use the original problem from conversation context
+    if classification == 'new_question' && current_user_message.present? && current_user_message.length > 3
+      search_query = current_user_message
+      captain_logger.info 'Using current user message for new_question search'
+    else
+      # Build search query from conversation context for continuations
+      # Look back at the last few messages to understand what we're troubleshooting
+      recent_context = @messages.last(5)
+                                .select { |m| (m[:role] || m['role']) == 'user' || (m[:role] || m['role']) == 'assistant' }
+                                .map { |m| m[:content] || m['content'] }
+                                .join(' ')
 
-    search_query = original_problem || recent_context.slice(0, 200)
+      # Extract key terms (simplified - just use the original problem description)
+      user_messages = @messages.select { |m| (m[:role] || m['role']) == 'user' }
+      original_problem = user_messages.find { |m| (m[:content] || m['content']).to_s.length > 20 }&.then { |msg| msg[:content] || msg['content'] }
+
+      search_query = original_problem || recent_context.slice(0, 200)
+      captain_logger.info 'Using original problem for continuation search'
+    end
 
     captain_logger.info "Force searching with query: #{search_query}"
 

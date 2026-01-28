@@ -131,6 +131,10 @@ export default {
     hasReplyTo() {
       return this.replyTo && (this.replyTo.content || this.replyTo.attachments);
     },
+    isAIAgent() {
+      const senderType = this.message.sender?.type;
+      return senderType === 'agent_bot' || senderType === 'captain_assistant';
+    },
   },
   watch: {
     message() {
@@ -164,17 +168,6 @@ export default {
     }"
   >
     <div v-if="!isASubmittedForm" class="agent-message">
-      <div class="avatar-wrap">
-        <div class="user-thumbnail-box">
-          <Avatar
-            v-if="message.showAvatar || hasRecordedResponse"
-            :src="avatarUrl"
-            :size="24"
-            :name="agentName"
-            rounded-full
-          />
-        </div>
-      </div>
       <div class="message-wrap">
         <div v-if="hasReplyTo" class="flex mt-2 mb-1 text-xs">
           <ReplyToChip :reply-to="replyTo" />
@@ -198,7 +191,7 @@ export default {
             />
             <div
               v-if="hasAttachments"
-              class="space-y-2 chat-bubble has-attachment agent bg-n-background dark:bg-n-solid-3"
+              class="space-y-2 chat-bubble has-attachment agent"
               :class="wrapClass"
             >
               <div
@@ -238,11 +231,19 @@ export default {
             />
           </div>
         </div>
-        <p
+        <div
           v-if="message.showAvatar || hasRecordedResponse"
-          v-dompurify-html="agentName"
-          class="agent-name text-n-slate-11"
-        />
+          class="agent-info"
+        >
+          <Avatar :src="avatarUrl" :size="20" :name="agentName" rounded-full />
+          <span
+            v-dompurify-html="agentName"
+            class="agent-name text-n-slate-11"
+          />
+          <span v-if="isAIAgent" class="ai-label text-n-slate-10">
+            {{ $t('AGENT.AI_LABEL') }}
+          </span>
+        </div>
       </div>
     </div>
 

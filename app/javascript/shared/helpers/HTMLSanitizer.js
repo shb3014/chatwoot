@@ -17,4 +17,6 @@ export const domPurifyConfig = {
   hooks: {
     afterSanitizeAttributes,
   },
+  ADD_TAGS: ['cite'],
+  ADD_ATTR: ['data-ref', 'data-title', 'data-url', 'data-type'],
 };

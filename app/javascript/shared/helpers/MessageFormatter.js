@@ -33,7 +33,7 @@ const imgResizeManager = md => {
 
 const createMarkdownInstance = (linkify = true) => {
   return MarkdownIt({
-    html: false,
+    html: true,
     xhtmlOut: true,
     breaks: true,
     langPrefix: 'language-',

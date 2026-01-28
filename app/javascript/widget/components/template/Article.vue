@@ -21,10 +21,7 @@ export default {
 
 <!-- eslint-disable-next-line vue/no-root-v-if -->
 <template>
-  <div
-    v-if="!!items.length"
-    class="chat-bubble agent bg-n-background dark:bg-n-solid-3"
-  >
+  <div v-if="!!items.length" class="chat-bubble agent">
     <div
       v-for="item in items"
       :key="item.link"

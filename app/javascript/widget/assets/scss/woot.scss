@@ -48,6 +48,68 @@ body {
   }
 }
 
+// Citation chip styles (inline)
+.citation-chip {
+  @apply inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 text-[10px] font-medium rounded-full cursor-pointer transition-all duration-150;
+  @apply bg-n-slate-4 dark:bg-n-slate-6 text-n-slate-11 dark:text-n-slate-11;
+  font-style: normal;
+  vertical-align: middle;
+  margin-left: 2px;
+  margin-right: 1px;
+  position: relative;
+
+  &:hover {
+    @apply bg-n-slate-12 dark:bg-n-slate-12 text-white;
+  }
+}
+
+// Citation popup (positioned via inline styles from component)
+.citation-popup {
+  @apply z-[9999] bg-white dark:bg-n-solid-2 rounded-lg p-3;
+  @apply shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)];
+  @apply border border-n-weak dark:border-n-strong;
+  position: fixed;
+  transform: translateX(-50%) translateY(-100%);
+  margin-top: -8px;
+  min-width: 200px;
+  max-width: 280px;
+  width: max-content;
+  overflow: visible;
+  // Note: position, left, top, transform are set inline by the component
+
+  &::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: inherit;
+    @apply bg-white dark:bg-n-solid-2 border-r border-b border-n-weak dark:border-n-strong;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .citation-type {
+    @apply flex items-center gap-1.5 text-xs text-n-slate-10 mb-1;
+
+    .type-icon {
+      @apply w-3.5 h-3.5;
+    }
+  }
+
+  .citation-title {
+    @apply text-sm font-semibold text-n-slate-12 leading-snug;
+
+    a {
+      @apply text-n-slate-12 no-underline;
+
+      &:hover {
+        @apply underline;
+      }
+    }
+  }
+}
+
 .is-flat-design {
   .chat-bubble {
     border-radius: 0 !important;

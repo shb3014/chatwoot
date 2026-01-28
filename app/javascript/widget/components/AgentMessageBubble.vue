@@ -7,6 +7,7 @@ import ChatArticle from './template/Article.vue';
 import EmailInput from './template/EmailInput.vue';
 import CustomerSatisfaction from 'shared/components/CustomerSatisfaction.vue';
 import IntegrationCard from './template/IntegrationCard.vue';
+import CitationPopup from './CitationPopup.vue';
 
 export default {
   name: 'AgentMessageBubble',
@@ -18,6 +19,7 @@ export default {
     EmailInput,
     CustomerSatisfaction,
     IntegrationCard,
+    CitationPopup,
   },
   props: {
     message: { type: String, default: null },
@@ -37,6 +39,13 @@ export default {
       getPlainText,
       truncateMessage,
       highlightContent,
+    };
+  },
+  data() {
+    return {
+      activeCitation: null,
+      citationPosition: { x: 0, y: 0 },
+      citationHideTimeout: null,
     };
   },
   computed: {
@@ -65,6 +74,16 @@ export default {
       return this.contentType === 'integrations';
     },
   },
+  mounted() {
+    this.$nextTick(() => {
+      this.setupCitationListeners();
+    });
+  },
+  updated() {
+    this.$nextTick(() => {
+      this.setupCitationListeners();
+    });
+  },
   methods: {
     onResponse(messageResponse) {
       this.$store.dispatch('message/update', messageResponse);
@@ -85,6 +104,81 @@ export default {
         messageId: this.messageId,
       });
     },
+    setupCitationListeners() {
+      const bubbleEl = this.$el?.querySelector('.chat-bubble');
+      if (!bubbleEl) return;
+
+      const citations = bubbleEl.querySelectorAll('.citation-chip');
+      citations.forEach(chip => {
+        chip.removeEventListener('mouseenter', this.handleCitationEnter);
+        chip.removeEventListener('mouseleave', this.handleCitationLeave);
+        chip.addEventListener('mouseenter', this.handleCitationEnter);
+        chip.addEventListener('mouseleave', this.handleCitationLeave);
+      });
+    },
+    handleCitationEnter(event) {
+      // Clear any pending hide timeout
+      if (this.citationHideTimeout) {
+        clearTimeout(this.citationHideTimeout);
+        this.citationHideTimeout = null;
+      }
+      const chip = event.target;
+      const rect = chip.getBoundingClientRect();
+      this.citationPosition = {
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+      };
+      this.activeCitation = {
+        ref: chip.dataset.ref,
+        title: chip.dataset.title,
+        url: chip.dataset.url,
+        type: chip.dataset.type,
+      };
+      this.$nextTick(() => {
+        this.adjustPopupPositionWithinWidget();
+      });
+    },
+    handleCitationLeave() {
+      // Delay hiding to allow mouse to move to popup
+      this.citationHideTimeout = setTimeout(() => {
+        this.activeCitation = null;
+      }, 100);
+    },
+    handlePopupEnter() {
+      // Cancel hide when mouse enters popup
+      if (this.citationHideTimeout) {
+        clearTimeout(this.citationHideTimeout);
+        this.citationHideTimeout = null;
+      }
+    },
+    handlePopupLeave() {
+      // Hide popup when mouse leaves it
+      this.activeCitation = null;
+    },
+    adjustPopupPositionWithinWidget() {
+      const popup = document.querySelector('.citation-popup');
+      const widgetHolder = document.querySelector('.woot-widget-holder');
+      if (!popup || !widgetHolder) return;
+
+      const holderRect = widgetHolder.getBoundingClientRect();
+      const maxWidth = Math.max(160, holderRect.width - 16);
+      popup.style.maxWidth = `${maxWidth}px`;
+      const popupRect = popup.getBoundingClientRect();
+
+      let x = this.citationPosition.x;
+      const halfWidth = popupRect.width / 2;
+      const minX = holderRect.left + 8 + halfWidth;
+      const maxX = holderRect.right - 8 - halfWidth;
+      x = Math.min(Math.max(x, minX), maxX);
+
+      let y = this.citationPosition.y;
+      const popupTop = y - popupRect.height - 8;
+      if (popupTop < holderRect.top + 8) {
+        y = holderRect.top + popupRect.height + 8;
+      }
+
+      this.citationPosition = { x, y };
+    },
   },
 };
 </script>
@@ -95,7 +189,7 @@ export default {
       v-if="
         !isCards && !isOptions && !isForm && !isArticle && !isCards && !isCSAT
       "
-      class="chat-bubble agent bg-n-background dark:bg-n-solid-3 text-n-slate-12"
+      class="chat-bubble agent text-n-slate-12"
     >
       <div
         v-dompurify-html="formatMessage(message, false)"
@@ -111,6 +205,12 @@ export default {
         v-if="isIntegrations"
         :message-id="messageId"
         :meeting-data="messageContentAttributes.data"
+      />
+      <CitationPopup
+        :citation="activeCitation"
+        :position="citationPosition"
+        @mouseenter="handlePopupEnter"
+        @mouseleave="handlePopupLeave"
       />
     </div>
     <div v-if="isOptions">
