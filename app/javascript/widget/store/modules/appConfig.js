@@ -17,7 +17,7 @@ const state = {
   position: 'right',
   referrerHost: '',
   showPopoutButton: false,
-  widgetColor: '',
+  widgetColor: '#FFCE2D',
   widgetStyle: 'standard',
   darkMode: 'light',
   isUpdatingRoute: false,

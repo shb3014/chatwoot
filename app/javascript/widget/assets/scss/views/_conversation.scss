@@ -1,8 +1,45 @@
+// Bubble appear animation - only for last child to prevent replaying on re-renders
+@keyframes bubbleAppear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bubbleAppearFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
 .file-uploads .attachment-button + label {
   cursor: pointer;
 }
 
 .conversation-wrap {
+  // Only animate the last message in each group to prevent replay on re-renders
+  .messages-wrap:last-child {
+    @apply pb-4;
+
+    .agent-message-wrap:last-child,
+    .user-message-wrap:last-child {
+      animation: bubbleAppear 0.25s ease-out both;
+    }
+
+    .user-message-wrap:last-child {
+      animation-name: bubbleAppearFromRight;
+    }
+  }
+
   .agent-message {
     @apply flex flex-col justify-start mt-0 ltr:mr-0 rtl:mr-2 mb-0.5 ltr:ml-2 rtl:ml-0 max-w-[88%];
 
@@ -46,10 +83,6 @@
   .agent-message-wrap {
     + .agent-message-wrap {
       @apply mt-0.5;
-
-      .agent-message .chat-bubble {
-        @apply ltr:rounded-tl-[0.25rem] rtl:rounded-tr-[0.25rem];
-      }
     }
 
     + .user-message-wrap {
@@ -58,10 +91,6 @@
 
     &.has-response + .user-message-wrap {
       @apply mt-0.5;
-
-      .chat-bubble {
-        @apply ltr:rounded-tr-[0.25rem] rtl:rounded-tl-[0.25rem];
-      }
     }
 
     &.has-response + .agent-message-wrap {
@@ -102,10 +131,6 @@
   .user-message-wrap {
     + .user-message-wrap {
       @apply mt-0.5;
-
-      .user-message .chat-bubble {
-        @apply ltr:rounded-tr-[0.25rem] rtl:rounded-tl-[0.25rem];
-      }
     }
 
     + .agent-message-wrap {
@@ -129,17 +154,7 @@
     }
 
     .chat-bubble {
-      @apply bg-n-slate-3 dark:bg-n-slate-3 text-n-black;
-    }
-
-    + .chat-bubble-wrap {
-      .chat-bubble {
-      @apply ltr:rounded-tl-[0.25rem] rtl:rounded-tr-[0.25rem];
-      }
-    }
-
-    &:last-child .chat-bubble {
-      @apply ltr:rounded-bl-[1rem] rtl:rounded-br-[1rem];
+      @apply bg-n-slate-3 dark:bg-n-slate-3 text-n-black rounded-[1rem];
     }
   }
 }
@@ -149,17 +164,7 @@
 
   .chat-bubble-wrap {
     .chat-bubble {
-      @apply ltr:rounded-br-[0.25rem] rtl:rounded-bl-[0.25rem] rounded-[1rem];
-    }
-
-    + .chat-bubble-wrap {
-      .chat-bubble {
-        @apply ltr:rounded-tr-[0.25rem] rtl:rounded-tl-[0.25rem];
-      }
-    }
-
-    &:last-child .chat-bubble {
-      @apply ltr:rounded-br-[1rem] rtl:rounded-bl-[1rem];
+      @apply rounded-[1rem];
     }
   }
 
@@ -198,11 +203,12 @@
   }
 
   &.user {
-    @apply ltr:rounded-br-[0.25rem] rtl:rounded-bl-[0.25rem];
+    @apply rounded-[1rem];
   }
 
   &.agent {
-    @apply ltr:rounded-bl-[0.25rem] rtl:rounded-br-[0.25rem] text-n-slate-12 bg-n-slate-3 dark:bg-n-slate-3;
+    @apply rounded-[1rem] text-n-slate-12 dark:bg-n-slate-3;
+    background-color: rgb(243,243,243);
 
     .link {
       word-break: break-word;

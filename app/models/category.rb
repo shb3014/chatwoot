@@ -82,9 +82,9 @@ class Category < ApplicationRecord
   def allowed_locales
     return if portal.blank?
 
-    allowed_locales = portal.config['allowed_locales']
+    allowed_locales = portal.config&.dig('allowed_locales') || []
 
-    return true if allowed_locales.include?(locale)
+    return true if allowed_locales.empty? || allowed_locales.include?(locale)
 
     errors.add(:locale, "#{locale} of category is not part of portal's #{allowed_locales}.")
   end

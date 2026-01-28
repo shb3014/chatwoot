@@ -78,7 +78,8 @@
       </div>
 
       <%# Locale switcher section %>
-      <% if @portal.config["allowed_locales"].length > 1 %>
+      <% allowed_locales = @portal.config&.dig("allowed_locales") || [] %>
+      <% if allowed_locales.length > 1 %>
         <div class="relative flex-grow flex-shrink-0 px-1 py-2 cursor-pointer">
           <button id="toggle-locale" class="flex justify-between min-w-[76px] flex-row items-center stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 gap-1" type="button">
             <div class="flex flex-row items-center gap-1">
@@ -96,10 +97,10 @@
                class="locale-menu absolute hidden flex-col w-auto min-w-[160px] h-auto bg-white border border-solid rounded dark:bg-slate-900 top-9 ltr:right-1 rtl:left-1 border-slate-100 dark:border-slate-800 shadow-lg transition-all duration-200 ease-out opacity-0 scale-95 data-[dropdown-open=true]:opacity-100 data-[dropdown-open=true]:scale-100 data-[dropdown-open=true]:flex" 
                aria-hidden="true" 
                data-dropdown="locale-dropdown">
-            <% @portal.config["allowed_locales"].each_with_index do |locale_obj, index| %>
+            <% allowed_locales.each_with_index do |locale_obj, index| %>
               <% locale_code = locale_obj.is_a?(Hash) ? (locale_obj['code'] || locale_obj[:code]) : locale_obj %>
               <button 
-                class="desktop-locale-button flex flex-row items-center justify-between gap-2 px-2 py-2 <%= index < @portal.config["allowed_locales"].length - 1 ? 'border-b border-solid border-slate-100 dark:border-slate-800' : '' %> stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors <%= index == @portal.config["allowed_locales"].length - 1 ? 'rounded-b' : '' %>" 
+                class="desktop-locale-button flex flex-row items-center justify-between gap-2 px-2 py-2 <%= index < allowed_locales.length - 1 ? 'border-b border-solid border-slate-100 dark:border-slate-800' : '' %> stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors <%= index == allowed_locales.length - 1 ? 'rounded-b' : '' %>" 
                 data-locale="<%= locale_code %>">
                 <div class="flex flex-row items-center gap-2">
                   <span class="text-xs font-medium whitespace-nowrap"><%= language_name(locale_code) %></span>

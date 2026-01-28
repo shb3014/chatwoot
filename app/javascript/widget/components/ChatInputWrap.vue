@@ -2,7 +2,6 @@
 import { mapGetters } from 'vuex';
 
 import ChatAttachmentButton from 'widget/components/ChatAttachment.vue';
-import ChatSendButton from 'widget/components/ChatSendButton.vue';
 import configMixin from '../mixins/configMixin';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import ResizableTextArea from 'shared/components/ResizableTextArea.vue';
@@ -13,7 +12,6 @@ export default {
   name: 'ChatInputWrap',
   components: {
     ChatAttachmentButton,
-    ChatSendButton,
     EmojiInput,
     FluentIcon,
     ResizableTextArea,
@@ -45,14 +43,23 @@ export default {
       shouldShowEmojiPicker: 'appConfig/getShouldShowEmojiPicker',
     }),
     showAttachment() {
-      return (
-        this.shouldShowFilePicker &&
-        this.hasAttachmentsEnabled &&
-        this.userInput.length === 0
-      );
+      return this.shouldShowFilePicker && this.hasAttachmentsEnabled;
     },
-    showSendButton() {
-      return this.userInput.length > 0;
+    hasInput() {
+      return this.userInput.trim().length > 0;
+    },
+    sendButtonStyle() {
+      return this.hasInput
+        ? { backgroundColor: this.widgetColor }
+        : { backgroundColor: '#9CA3AF' };
+    },
+    inputWrapperStyle() {
+      if (this.isFocused) {
+        return {
+          boxShadow: `0 0 0 2px ${this.widgetColor}40, 0 8px 20px rgba(15,23,42,0.12)`,
+        };
+      }
+      return {};
     },
   },
   watch: {
@@ -122,60 +129,84 @@ export default {
 
 <template>
   <div
-    class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-[12px] transition-all duration-200 bg-n-background !shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_8px_20px_rgba(15,23,42,0.08)]"
-    :class="{
-      '!shadow-[0_0_0_2px_rgba(59,130,246,0.45),0_8px_20px_rgba(15,23,42,0.12)]':
-        isFocused,
-      '!shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_8px_20px_rgba(15,23,42,0.08)]':
-        !isFocused,
-    }"
+    class="flex flex-col rounded-[12px] transition-all duration-200 bg-n-background shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_8px_20px_rgba(15,23,42,0.08)]"
+    :style="inputWrapperStyle"
     @keydown.esc="hideEmojiPicker"
   >
-    <ResizableTextArea
-      id="chat-input"
-      ref="chatInput"
-      v-model="userInput"
-      :rows="1"
-      :aria-label="$t('CHAT_PLACEHOLDER')"
-      :placeholder="$t('CHAT_PLACEHOLDER')"
-      class="user-message-input reset-base"
-      @typing-off="onTypingOff"
-      @typing-on="onTypingOn"
-      @focus="onFocus"
-      @blur="onBlur"
-    />
-    <div class="flex items-center ltr:pl-2 rtl:pr-2">
-      <ChatAttachmentButton
-        v-if="showAttachment"
-        class="text-n-slate-12"
-        :on-attach="onSendAttachment"
+    <!-- Text input area -->
+    <div class="px-3 pt-2">
+      <ResizableTextArea
+        id="chat-input"
+        ref="chatInput"
+        v-model="userInput"
+        :rows="1"
+        :aria-label="$t('CHAT_PLACEHOLDER')"
+        :placeholder="$t('CHAT_PLACEHOLDER')"
+        class="user-message-input reset-base"
+        @typing-off="onTypingOff"
+        @typing-on="onTypingOn"
+        @focus="onFocus"
+        @blur="onBlur"
       />
-      <button
-        v-if="shouldShowEmojiPicker && hasEmojiPickerEnabled"
-        class="flex items-center justify-center min-h-8 min-w-8"
-        :aria-label="$t('EMOJI.ARIA_LABEL')"
-        @click="toggleEmojiPicker"
-      >
-        <FluentIcon
-          icon="emoji"
-          class="transition-all duration-150"
-          :class="{
-            'text-n-slate-12': !showEmojiPicker,
-            'text-n-brand': showEmojiPicker,
-          }"
+    </div>
+
+    <!-- Bottom bar with buttons -->
+    <div class="flex items-center justify-between px-2 pb-2">
+      <!-- Left side: attachment and emoji buttons -->
+      <div class="flex items-center gap-0.5">
+        <ChatAttachmentButton
+          v-if="showAttachment"
+          class="icon-button text-n-slate-11 hover:text-n-slate-12"
+          :on-attach="onSendAttachment"
         />
-      </button>
-      <EmojiInput
-        v-if="shouldShowEmojiPicker && showEmojiPicker"
-        v-on-clickaway="hideEmojiPicker"
-        :on-click="emojiOnClick"
-        @keydown.esc="hideEmojiPicker"
-      />
-      <ChatSendButton
-        v-if="showSendButton"
-        :color="widgetColor"
+        <button
+          v-if="shouldShowEmojiPicker && hasEmojiPickerEnabled"
+          class="icon-button text-n-slate-11 hover:text-n-slate-12"
+          :aria-label="$t('EMOJI.ARIA_LABEL')"
+          @click="toggleEmojiPicker"
+        >
+          <FluentIcon
+            icon="emoji"
+            size="18"
+            class="transition-all duration-150"
+            :class="{
+              'text-n-slate-11': !showEmojiPicker,
+              'text-n-brand': showEmojiPicker,
+            }"
+          />
+        </button>
+        <EmojiInput
+          v-if="shouldShowEmojiPicker && showEmojiPicker"
+          v-on-clickaway="hideEmojiPicker"
+          :on-click="emojiOnClick"
+          @keydown.esc="hideEmojiPicker"
+        />
+      </div>
+
+      <!-- Right side: send button -->
+      <button
+        type="submit"
+        class="send-button"
+        :style="sendButtonStyle"
+        :disabled="!hasInput"
         @click="handleButtonClick"
-      />
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M12 4L12 20M12 4L6 10M12 4L18 10"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
     </div>
   </div>
 </template>
@@ -186,6 +217,35 @@ export default {
 }
 
 .user-message-input {
-  @apply border-none outline-none w-full placeholder:text-n-slate-10 resize-none h-8 min-h-8 max-h-60 py-1 px-0 my-2 bg-n-background text-n-slate-12 transition-all duration-200;
+  @apply border-none outline-none w-full placeholder:text-n-slate-10 resize-none h-6 min-h-6 max-h-40 py-0 px-0 bg-n-background text-n-slate-12 text-[13px] leading-relaxed transition-all duration-200;
+}
+
+.icon-button {
+  @apply flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150;
+
+  &:hover {
+    @apply bg-n-slate-2;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.send-button {
+  @apply flex items-center justify-center w-8 h-8 rounded-full text-white transition-all duration-200;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: scale(1.05);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    @apply cursor-default;
+  }
 }
 </style>

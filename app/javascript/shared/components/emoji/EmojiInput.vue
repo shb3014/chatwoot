@@ -219,6 +219,8 @@ export default {
 
 .emoji--item {
   @apply bg-transparent border-0 rounded cursor-pointer text-lg h-6 m-0 py-0 px-1 hover:bg-n-slate-4;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji',
+    'Twemoji Mozilla', sans-serif;
 }
 
 .emoji--row {
