@@ -21,7 +21,11 @@ class Captain::ResponseValidatorService
     end
 
     # Count substantive messages (not just tool calls or system messages)
-    substantive_messages = messages.count { |m| m['role'] == 'user' || (m['role'] == 'assistant' && m['content'].present?) }
+    substantive_messages = messages.count do |message|
+      role = message[:role] || message['role']
+      content = message[:content] || message['content']
+      role == 'user' || (role == 'assistant' && content.present?)
+    end
 
     @conversation_context = substantive_messages > 1 ? :ongoing : :greeting
     captain_logger.info "ResponseValidator: Conversation context set to #{@conversation_context} (#{substantive_messages} substantive messages)"

@@ -32,7 +32,7 @@ module Captain::ChatHelper
       force_search_elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - force_search_start) * 1000).round
       captain_logger.info "should_force_search?=#{should_force} in #{force_search_elapsed_ms}ms"
       if should_force
-        captain_logger.warn '🔒 FORCED SEARCH: Detected continuation signal in ongoing conversation'
+        captain_logger.warn '🔒 FORCED SEARCH: Enforcing documentation search in conversation'
         # Return the result from the forced search (which calls request_chat_completion recursively)
         return force_documentation_search
       else
@@ -508,6 +508,11 @@ module Captain::ChatHelper
     last_user_message = last_user_message_content
     return false if last_user_message.nil? || last_user_message.strip.empty?
 
+    if first_user_message?
+      # Skip classifier on first user message to avoid extra call
+      return !greeting_only?(last_user_message)
+    end
+
     # Use LLM to intelligently classify the user's message
     classification = classify_user_message_intent(last_user_message)
 
@@ -671,6 +676,17 @@ module Captain::ChatHelper
 
   def message_role(message)
     message&.dig(:role) || message&.dig('role')
+  end
+
+  def first_user_message?
+    user_messages = @messages.count { |message| message_role(message) == 'user' }
+    assistant_messages = @messages.count { |message| message_role(message) == 'assistant' }
+    user_messages == 1 && assistant_messages.zero?
+  end
+
+  def greeting_only?(message)
+    normalized = message.to_s.strip.downcase
+    normalized.match?(/\A(?:hi|hello|hey|thanks|thank you|bye|goodbye)[!. ]*\z/)
   end
 
   # Determine which model to use for classification
