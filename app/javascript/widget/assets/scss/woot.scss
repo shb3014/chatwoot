@@ -75,19 +75,6 @@ body {
   max-width: 280px;
   width: max-content;
   overflow: visible;
-  // Note: position, left, top, transform are set inline by the component
-
-  &::after {
-    content: '';
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background: inherit;
-    @apply bg-white dark:bg-n-solid-2 border-r border-b border-n-weak dark:border-n-strong;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%) rotate(45deg);
-  }
 
   .citation-type {
     @apply flex items-center gap-1.5 text-xs text-n-slate-10 mb-1;

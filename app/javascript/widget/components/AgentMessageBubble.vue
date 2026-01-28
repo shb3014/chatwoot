@@ -157,24 +157,48 @@ export default {
     },
     adjustPopupPositionWithinWidget() {
       const popup = document.querySelector('.citation-popup');
-      const widgetHolder = document.querySelector('.woot-widget-holder');
-      if (!popup || !widgetHolder) return;
+      if (!popup) return;
 
-      const holderRect = widgetHolder.getBoundingClientRect();
-      const maxWidth = Math.max(160, holderRect.width - 16);
+      // Widget runs inside an iframe, so use window dimensions
+      const widgetWidth = window.innerWidth;
+      const padding = 12;
+
+      // Calculate max width that fits in widget
+      const maxWidth = Math.max(160, widgetWidth - padding * 2);
       popup.style.maxWidth = `${maxWidth}px`;
+
+      // Also constrain min-width for narrow widgets to prevent overflow
+      const minWidth = Math.min(200, maxWidth);
+      popup.style.minWidth = `${minWidth}px`;
+
+      // Force reflow to get accurate dimensions after style changes
+      // eslint-disable-next-line no-unused-expressions
+      popup.offsetWidth;
       const popupRect = popup.getBoundingClientRect();
 
+      // Horizontal positioning
+      // CSS uses transform: translateX(-50%), so popup extends halfWidth to each side of x
       let x = this.citationPosition.x;
       const halfWidth = popupRect.width / 2;
-      const minX = holderRect.left + 8 + halfWidth;
-      const maxX = holderRect.right - 8 - halfWidth;
-      x = Math.min(Math.max(x, minX), maxX);
 
+      // Calculate bounds ensuring popup stays within widget viewport
+      const minX = padding + halfWidth;
+      const maxX = widgetWidth - padding - halfWidth;
+
+      if (maxX >= minX) {
+        // Widget is wide enough, clamp x within bounds
+        x = Math.min(Math.max(x, minX), maxX);
+      } else {
+        // Widget is narrower than popup, center it
+        x = widgetWidth / 2;
+      }
+
+      // Vertical positioning
       let y = this.citationPosition.y;
       const popupTop = y - popupRect.height - 8;
-      if (popupTop < holderRect.top + 8) {
-        y = holderRect.top + popupRect.height + 8;
+      if (popupTop < padding) {
+        // Not enough room above, position below the citation
+        y = popupRect.height + padding + 8;
       }
 
       this.citationPosition = { x, y };
