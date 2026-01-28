@@ -38,7 +38,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
     results = []
     results.concat(responses.map { |response| format_response(response) })
-    results.concat(articles.map.with_index { |article, index| format_article(article, index + 1) })
+    results.concat(articles.map { |article| format_article(article) })
 
     # Add reference list at the end
     documentation = results.join
@@ -155,7 +155,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     formatted_response
   end
 
-  def format_article(article, reference_number = nil)
+  def format_article(article)
     formatted_article = "
         Article Title: #{article.title}
         Description: #{article.description}
@@ -164,7 +164,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     if article.try(:slug).present?
       article_url = generate_article_url(article)
       formatted_article += "
-          Source [#{reference_number}]: #{article_url}
+          Source: #{article_url}
           "
     end
 
@@ -178,10 +178,11 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
   def format_article_references
     return '' if @cited_articles.empty?
 
-    references = "\n\n---\n**Referenced Articles:**\n"
+    references = "\n\n\n**Referenced Articles:**\n"
     @cited_articles.each_with_index do |article, index|
       article_url = generate_article_url(article)
-      references += "\n[#{index + 1}] #{article.title} - #{article_url}"
+      locale_label = article.try(:locale).presence || 'unknown'
+      references += "\n[#{index + 1}] [#{article.title}](#{article_url}) (locale: #{locale_label})"
     end
     references
   end

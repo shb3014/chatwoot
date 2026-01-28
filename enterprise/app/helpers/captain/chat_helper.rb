@@ -18,9 +18,7 @@ module Captain::ChatHelper
     @response_validator ||= Captain::ResponseValidatorService.new(strictness: strictness)
 
     # Clear validator at the start of a new user turn (not during recursive tool processing)
-    # We detect a new turn by checking if the last message is from the user
-    last_message_role = @messages.last&.dig(:role) || @messages.last&.dig('role')
-    if last_message_role == 'user'
+    if new_user_turn?
       captain_logger.info 'Starting new conversation turn - clearing previous documentation'
       @response_validator.clear
       # Set conversation context so validator knows if this is an ongoing conversation
@@ -192,6 +190,7 @@ module Captain::ChatHelper
           end
         end
 
+        parsed_message = append_referenced_articles(parsed_message)
         persist_message(parsed_message, 'assistant')
         parsed_message
       rescue JSON::ParserError => e
@@ -236,6 +235,7 @@ module Captain::ChatHelper
           end
         end
 
+        fallback_message = append_referenced_articles(fallback_message)
         persist_message(fallback_message, 'assistant')
         fallback_message
       end
@@ -312,6 +312,167 @@ module Captain::ChatHelper
     }
   end
 
+  def append_referenced_articles(parsed_message)
+    references = extract_referenced_articles
+    return parsed_message if references.empty?
+
+    content_key = if parsed_message.key?('response')
+                    'response'
+                  elsif parsed_message.key?('content')
+                    'content'
+                  end
+    return parsed_message unless content_key
+
+    content = parsed_message[content_key].to_s
+    return parsed_message unless should_include_references?(content)
+
+    content = strip_inline_citations(content)
+    content = remove_reference_section(content)
+    parsed_message[content_key] = append_reference_list(content, filter_references_by_locale(references))
+    parsed_message
+  end
+
+  def extract_referenced_articles
+    return [] unless @response_validator
+
+    tool_results = @response_validator.tool_results.select { |result| result[:tool] == 'search_documentation' }
+    references = tool_results.flat_map { |result| parse_referenced_articles_from_text(result[:content]) }
+
+    # Deduplicate by URL (preferred) then title
+    seen = {}
+    references.select do |ref|
+      key = ref[:url].presence || ref[:title]
+      next false if key.blank? || seen[key]
+
+      seen[key] = true
+      true
+    end
+  end
+
+  def parse_referenced_articles_from_text(text)
+    return [] if text.blank?
+
+    references = []
+
+    if text.include?('**Referenced Articles:**')
+      section = text.split('**Referenced Articles:**', 2).last
+      section.to_s.lines.each do |line|
+        stripped = line.strip
+        next unless stripped.match?(/^\[\d+\]\s+/)
+
+        match = stripped.match(%r{^\[\d+\]\s+(?:\[(.+?)\]\((https?://\S+)\)|(.+?)\s+-\s+(https?://\S+))(?:\s+\(locale:\s*([^)]+)\))?})
+        next unless match
+
+        title = match[1].presence || match[3].to_s
+        url = match[2].presence || match[4].to_s
+        locale = match[5].to_s.strip.presence
+        references << {
+          title: title.strip,
+          locale: locale,
+          url: url.strip
+        }
+      end
+    end
+
+    # Fallback: parse article blocks when reference list is missing
+    if references.empty?
+      current_title = nil
+      text.lines.each do |line|
+        stripped = line.strip
+        if stripped.start_with?('Article Title:')
+          current_title = stripped.sub('Article Title:', '').strip
+        elsif stripped.start_with?('Source:')
+          url = stripped.split(':', 2).last&.strip
+          url = url.gsub(%r{\A\[(.+?)\]\((https?://\S+)\)\z}, '\2')
+          if url.present? && current_title.present?
+            references << { title: current_title, url: url, locale: nil }
+            current_title = nil
+          end
+        elsif stripped.match?(%r{\A\[(.+?)\]\((https?://\S+)\)\s*\z})
+          match = stripped.match(%r{\A\[(.+?)\]\((https?://\S+)\)\s*\z})
+          if match
+            references << { title: match[1].strip, url: match[2].strip, locale: nil }
+            current_title = nil
+          end
+        end
+      end
+    end
+
+    references
+  end
+
+  def strip_inline_citations(content)
+    content
+      .gsub(/\s*\[\[\d+\]\([^)]+\)\]/, '')
+      .gsub(/\s*\[\d+\]/, '')
+  end
+
+  def remove_reference_section(content)
+    lines = content.lines
+    cleaned = []
+    skipping = false
+
+    lines.each do |line|
+      if line.match?(/referenced articles:/i)
+        skipping = true
+        next
+      end
+
+      if skipping
+        next if line.strip.empty? || line.strip == '---' || line.strip.match?(/^\d+\.\s+/)
+        next if line.strip.match?(/^\[\d+\]\s+/)
+
+        skipping = false
+      end
+
+      cleaned << line unless skipping
+    end
+
+    cleaned.join
+  end
+
+  def append_reference_list(content, references)
+    return content.rstrip if references.empty?
+
+    reference_lines = references.map.with_index do |reference, index|
+      "#{index + 1}. [#{reference[:title]}](#{reference[:url]})"
+    end
+
+    "#{content.rstrip}\n\n\nReferenced Articles:\n#{reference_lines.join("\n")}"
+  end
+
+  def should_include_references?(content)
+    fallback_phrases = [
+      "i couldn't find",
+      "i don't have that information",
+      "i apologize, but i couldn't find reliable information",
+      'unable to provide accurate information'
+    ]
+    fallback_phrases.none? { |phrase| content.downcase.include?(phrase) }
+  end
+
+  def filter_references_by_locale(references)
+    locale = detect_conversation_locale
+    return references if locale.blank?
+
+    language = locale.to_s.split(/[-_]/).first
+    return references if language.blank?
+
+    references.select do |reference|
+      ref_locale = reference[:locale].to_s.split(/[-_]/).first
+      ref_locale.blank? || ref_locale == language
+    end
+  end
+
+  def detect_conversation_locale
+    return nil unless @conversation
+
+    locale = @conversation.custom_attributes['locale']
+    locale ||= @conversation.additional_attributes['browser_language']
+    locale ||= @conversation.contact&.additional_attributes&.dig('browser_language')
+    locale.to_s.split(/[-_]/).first.presence
+  end
+
   def log_chat_completion_request
     endpoint_url = instance_variable_get(:@custom_endpoint_full_path) ||
                    "#{@client.instance_variable_get(:@uri_base)}/v1/chat/completions"
@@ -343,26 +504,22 @@ module Captain::ChatHelper
     return false unless @messages.length > 2 # Need at least: system, user, assistant, user
     return false unless @tool_registry&.respond_to?(:search_documentation)
 
-    # Handle both symbol and string keys
-    last_user_message = @messages.last&.dig(:content) || @messages.last&.dig('content')
+    # Use the last user message, even if system context was appended after it
+    last_user_message = last_user_message_content
     return false if last_user_message.nil? || last_user_message.strip.empty?
 
     # Use LLM to intelligently classify the user's message
     classification = classify_user_message_intent(last_user_message)
 
     case classification
-    when 'continuation'
-      # User is continuing troubleshooting (e.g., "yes", "done", "next")
-      captain_logger.info 'LLM classified as continuation signal - forcing search'
-      true
     when 'handoff_confirmation'
       # User is confirming a handoff request (e.g., "yes" after "Would you like to speak with an agent?")
       captain_logger.info 'LLM classified as handoff confirmation - skipping forced search'
       false
-    when 'new_question'
-      # User asked a new question - let model decide whether to search
-      captain_logger.info 'LLM classified as new question - letting model decide'
-      false
+    when 'continuation', 'new_question'
+      # In ongoing conversations we always search, regardless of continuation vs new question
+      captain_logger.info "LLM classified as #{classification} - forcing search in ongoing conversation"
+      true
     else
       # Fallback: use simple pattern matching if LLM classification fails
       captain_logger.warn 'LLM classification failed, falling back to pattern matching'
@@ -492,6 +649,28 @@ module Captain::ChatHelper
     end
 
     content
+  end
+
+  def new_user_turn?
+    last_user_index = @messages.rindex { |message| message_role(message) == 'user' }
+    return false unless last_user_index
+
+    last_assistant_index = @messages.rindex { |message| message_role(message) == 'assistant' }
+    last_tool_index = @messages.rindex { |message| message_role(message) == 'tool' }
+    last_response_index = [last_assistant_index, last_tool_index].compact.max
+
+    # If the most recent non-system response was before the last user message,
+    # this is a new user turn (even if system context was appended after it).
+    last_response_index.nil? || last_user_index > last_response_index
+  end
+
+  def last_user_message_content
+    message = @messages.reverse.find { |entry| message_role(entry) == 'user' }
+    message&.dig(:content) || message&.dig('content')
+  end
+
+  def message_role(message)
+    message&.dig(:role) || message&.dig('role')
   end
 
   # Determine which model to use for classification

@@ -121,10 +121,10 @@ class Captain::Llm::SystemPromptsService
     def copilot_response_generator(product_name, available_tools, config = {})
       citation_guidelines = if config['feature_citation']
                               <<~CITATION_TEXT
-                                - Always include citations for any information provided, referencing the specific source.
-                                - Citations must be numbered sequentially and formatted as `[[n](URL)]` (where n is the sequential number) at the end of each paragraph or sentence where external information is used.
-                                - If multiple sentences share the same source, reuse the same citation number.
-                                - Do not generate citations if the information is derived from the conversation context.
+                                - Do NOT place citations inline in the response body.
+                                - If you used external documents, add a "Referenced Articles" section at the VERY END.
+                                - Format the section as a numbered list with article title and URL (e.g., `1. Title - URL`).
+                                - Do not add a references section if information is derived only from conversation context.
                               CITATION_TEXT
                             else
                               ''
@@ -159,7 +159,7 @@ class Captain::Llm::SystemPromptsService
         6. Never suggest contacting support, as you are assisting the support agent directly.
         7. Write the response in multiple paragraphs and in markdown format.
         8. DO NOT use headings in Markdown
-        #{'9. Cite the sources if you used a tool to find the response.' if config['feature_citation']}
+        #{'9. If you used a tool to find information, include a Referenced Articles section at the end.' if config['feature_citation']}
 
         ```json
         {
@@ -186,10 +186,10 @@ class Captain::Llm::SystemPromptsService
     def assistant_response_generator(assistant_name, product_name, config = {})
       assistant_citation_guidelines = if config['feature_citation']
                                         <<~CITATION_TEXT
-                                          - Always include citations for any information provided, referencing the specific source (document only - skip if it was derived from a conversation).
-                                          - Citations must be numbered sequentially and formatted as `[[n](URL)]` (where n is the sequential number) at the end of each paragraph or sentence where external information is used.
-                                          - If multiple sentences share the same source, reuse the same citation number.
-                                          - Do not generate citations if the information is derived from a conversation and not an external document.
+                                          - Do NOT place citations inline in the response body.
+                                          - If you used external documents, add a "Referenced Articles" section at the VERY END.
+                                          - Format the section as a numbered list with article title and URL (e.g., `1. Title - URL`).
+                                          - Do not add a references section if information is derived only from a conversation.
                                         CITATION_TEXT
                                       else
                                         ''
@@ -268,7 +268,7 @@ class Captain::Llm::SystemPromptsService
         - If the user explicitly requests to chat with another agent (e.g., "connect me with an agent", "I need human help", "talk to support"), return `conversation_handoff` as the response in JSON.
         - If you previously offered handoff ("Would you like to speak with a support agent?") and the user confirms with "yes", "sure", "okay" or similar, return `conversation_handoff` as the response. Do NOT provide additional troubleshooting steps.
         - NEVER make up information or use your training data. Only use what's in the search_documentation results.
-        #{'- You MUST provide numbered citations at the appropriate places in the text.' if config['feature_citation']}
+        #{'- If you used documentation, include a Referenced Articles section at the end.' if config['feature_citation']}
       SYSTEM_PROMPT_MESSAGE
     end
 
