@@ -140,6 +140,7 @@ export default {
         id="chat-input"
         ref="chatInput"
         v-model="userInput"
+        :min-height="1.5"
         :rows="1"
         :aria-label="$t('CHAT_PLACEHOLDER')"
         :placeholder="$t('CHAT_PLACEHOLDER')"
@@ -152,9 +153,9 @@ export default {
     </div>
 
     <!-- Bottom bar with buttons -->
-    <div class="flex items-center justify-between px-2 pb-2">
+    <div class="flex items-center justify-between px-2 pb-2 min-h-8">
       <!-- Left side: attachment and emoji buttons -->
-      <div class="flex items-center gap-0.5">
+      <div class="flex items-center gap-0.5 min-h-8">
         <ChatAttachmentButton
           v-if="showAttachment"
           class="icon-button text-n-slate-11 hover:text-n-slate-12"

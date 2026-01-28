@@ -46,6 +46,8 @@
   "END_CONVERSATION": "End Conversation",
   "CLOSE_WIDGET": "Close",
   "OPTIONS": "Options",
+  "NO_OPTIONS_AVAILABLE": "No options available",
+  "DOWNLOAD_TRANSCRIPT": "Download Transcript",
   "CONTINUE_CONVERSATION": "Continue conversation",
   "YOU": "You",
   "START_NEW_CONVERSATION": "Start a new conversation",

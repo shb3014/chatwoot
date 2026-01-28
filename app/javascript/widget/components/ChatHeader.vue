@@ -25,24 +25,28 @@ const onBackButtonClick = () => {
 </script>
 
 <template>
-  <header class="flex justify-between w-full p-5 bg-n-background gap-2">
+  <header class="chat-header flex justify-between w-full px-4 py-3 gap-2">
     <div class="flex items-center">
       <button
         v-if="showBackButton"
-        class="px-2 ltr:-ml-3 rtl:-mr-3"
+        class="group px-2 ltr:-ml-2 rtl:-mr-2 rounded-md transition-colors duration-150 hover:bg-n-slate-2"
         @click="onBackButtonClick"
       >
-        <FluentIcon icon="chevron-left" size="24" class="text-n-slate-12" />
+        <FluentIcon
+          icon="chevron-left"
+          size="18"
+          class="text-n-slate-12 transition-colors duration-150 group-hover:text-n-slate-11"
+        />
       </button>
       <img
         v-if="avatarUrl"
-        class="w-8 h-8 ltr:mr-3 rtl:ml-3 rounded-full"
+        class="w-7 h-7 ltr:mr-2 rtl:ml-2 rounded-full"
         :src="avatarUrl"
         alt="avatar"
       />
       <div class="flex flex-col gap-1">
         <div
-          class="flex items-center text-base font-medium leading-4 text-n-slate-12"
+          class="flex items-center text-sm font-semibold leading-4 text-n-slate-12"
         >
           <span v-dompurify-html="title" class="ltr:mr-1 rtl:ml-1" />
           <div
@@ -61,3 +65,10 @@ const onBackButtonClick = () => {
     <HeaderActions :show-popout-button="showPopoutButton" />
   </header>
 </template>
+
+<style scoped lang="scss">
+.chat-header {
+  @apply bg-n-background border-b border-solid;
+  border-bottom-color: rgb(229, 231, 235);
+}
+</style>
