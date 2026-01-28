@@ -42,6 +42,10 @@ body {
     list-style: decimal;
     @apply ltr:pl-4 rtl:pr-4;
   }
+
+  hr {
+    @apply border-0 border-t border-n-weak dark:border-n-strong my-3;
+  }
 }
 
 .is-flat-design {

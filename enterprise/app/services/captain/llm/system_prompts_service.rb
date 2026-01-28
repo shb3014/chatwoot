@@ -122,7 +122,7 @@ class Captain::Llm::SystemPromptsService
       citation_guidelines = if config['feature_citation']
                               <<~CITATION_TEXT
                                 - Do NOT place citations inline in the response body.
-                                - If you used external documents, add a "Referenced Articles" section at the VERY END.
+                                - If you used external documents, add a "Sources" section at the VERY END.
                                 - Format the section as a numbered list with article title and URL (e.g., `1. Title - URL`).
                                 - Do not add a references section if information is derived only from conversation context.
                               CITATION_TEXT
@@ -159,7 +159,7 @@ class Captain::Llm::SystemPromptsService
         6. Never suggest contacting support, as you are assisting the support agent directly.
         7. Write the response in multiple paragraphs and in markdown format.
         8. DO NOT use headings in Markdown
-        #{'9. If you used a tool to find information, include a Referenced Articles section at the end.' if config['feature_citation']}
+        #{'9. If you used a tool to find information, include a Sources section at the end.' if config['feature_citation']}
 
         ```json
         {
@@ -187,7 +187,7 @@ class Captain::Llm::SystemPromptsService
       assistant_citation_guidelines = if config['feature_citation']
                                         <<~CITATION_TEXT
                                           - Do NOT place citations inline in the response body.
-                                          - If you used external documents, add a "Referenced Articles" section at the VERY END.
+                                          - If you used external documents, add a "Sources" section at the VERY END.
                                           - Format the section as a numbered list with article title and URL (e.g., `1. Title - URL`).
                                           - Do not add a references section if information is derived only from a conversation.
                                         CITATION_TEXT
@@ -268,7 +268,7 @@ class Captain::Llm::SystemPromptsService
         - If the user explicitly requests to chat with another agent (e.g., "connect me with an agent", "I need human help", "talk to support"), return `conversation_handoff` as the response in JSON.
         - If you previously offered handoff ("Would you like to speak with a support agent?") and the user confirms with "yes", "sure", "okay" or similar, return `conversation_handoff` as the response. Do NOT provide additional troubleshooting steps.
         - NEVER make up information or use your training data. Only use what's in the search_documentation results.
-        #{'- If you used documentation, include a Referenced Articles section at the end.' if config['feature_citation']}
+        #{'- If you used documentation, include a Sources section at the end.' if config['feature_citation']}
       SYSTEM_PROMPT_MESSAGE
     end
 

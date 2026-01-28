@@ -122,10 +122,12 @@ export default {
 
 <template>
   <div
-    class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-[7px] transition-all duration-200 bg-n-background !shadow-[0_0_0_1px,0_0_2px_3px]"
+    class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-[12px] transition-all duration-200 bg-n-background !shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_8px_20px_rgba(15,23,42,0.08)]"
     :class="{
-      '!shadow-n-brand dark:!shadow-n-brand': isFocused,
-      '!shadow-n-strong dark:!shadow-n-strong': !isFocused,
+      '!shadow-[0_0_0_2px_rgba(59,130,246,0.45),0_8px_20px_rgba(15,23,42,0.12)]':
+        isFocused,
+      '!shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_8px_20px_rgba(15,23,42,0.08)]':
+        !isFocused,
     }"
     @keydown.esc="hideEmojiPicker"
   >

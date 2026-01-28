@@ -354,8 +354,8 @@ module Captain::ChatHelper
 
     references = []
 
-    if text.include?('**Referenced Articles:**')
-      section = text.split('**Referenced Articles:**', 2).last
+    if text.match?(/\*\*(?:Sources|Referenced Articles)\*\*:?/i)
+      section = text.split(/\*\*(?:Sources|Referenced Articles)\*\*:?/i, 2).last
       section.to_s.lines.each do |line|
         stripped = line.strip
         next unless stripped.match?(/^\[\d+\]\s+/)
@@ -413,7 +413,7 @@ module Captain::ChatHelper
     skipping = false
 
     lines.each do |line|
-      if line.match?(/referenced articles:/i)
+      if line.match?(/\A\**\s*(?:referenced articles|sources)\s*\**:?/i)
         skipping = true
         next
       end
@@ -438,7 +438,7 @@ module Captain::ChatHelper
       "#{index + 1}. [#{reference[:title]}](#{reference[:url]})"
     end
 
-    "#{content.rstrip}\n\n\nReferenced Articles:\n#{reference_lines.join("\n")}"
+    "#{content.rstrip}\n\n---\n\n**Sources**\n#{reference_lines.join("\n")}"
   end
 
   def should_include_references?(content)

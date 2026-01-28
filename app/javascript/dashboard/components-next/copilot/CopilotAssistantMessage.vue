@@ -78,3 +78,22 @@ const useCopilotResponse = () => {
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+.prose-sm {
+  :deep(a) {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  :deep(a:hover) {
+    text-decoration-color: transparent;
+  }
+
+  :deep(hr) {
+    @apply border-0 border-t border-n-weak dark:border-n-strong my-3;
+  }
+}
+</style>

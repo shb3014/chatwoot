@@ -178,7 +178,7 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
   def format_article_references
     return '' if @cited_articles.empty?
 
-    references = "\n\n\n**Referenced Articles:**\n"
+    references = "\n\n\n**Sources**\n"
     @cited_articles.each_with_index do |article, index|
       article_url = generate_article_url(article)
       locale_label = article.try(:locale).presence || 'unknown'
