@@ -2,9 +2,12 @@
 import { mapGetters } from 'vuex';
 import { IFrameHelper, RNHelper } from 'widget/helpers/utils';
 import { popoutChatWindow } from '../helpers/popoutHelper';
+import { sendEmailTranscript } from 'widget/api/conversation';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import configMixin from 'widget/mixins/configMixin';
 import { CONVERSATION_STATUS } from 'shared/constants/messages';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { emitter } from 'shared/helpers/mitt';
 
 export default {
   name: 'HeaderActions',
@@ -20,10 +23,16 @@ export default {
       default: true,
     },
   },
+  data() {
+    return {
+      showMenu: false,
+    };
+  },
   computed: {
     ...mapGetters({
       conversationAttributes: 'conversationAttributes/getConversationParams',
       canUserEndConversation: 'appConfig/getCanUserEndConversation',
+      conversationSize: 'conversation/getConversationSize',
     }),
     canLeaveConversation() {
       return [
@@ -46,6 +55,17 @@ export default {
     },
     hasWidgetOptions() {
       return this.showPopoutButton || this.conversationStatus === 'open';
+    },
+    showMenuButton() {
+      return this.canShowEndConversation || this.conversationSize > 0;
+    },
+    canShowEndConversation() {
+      return (
+        this.canLeaveConversation &&
+        this.canUserEndConversation &&
+        this.hasEndConversationEnabled &&
+        this.showEndConversationButton
+      );
     },
   },
   methods: {
@@ -72,6 +92,26 @@ export default {
     },
     resolveConversation() {
       this.$store.dispatch('conversation/resolveConversation');
+      this.showMenu = false;
+    },
+    toggleMenu() {
+      this.showMenu = !this.showMenu;
+    },
+    closeMenu() {
+      this.showMenu = false;
+    },
+    async sendTranscript() {
+      try {
+        await sendEmailTranscript();
+        emitter.emit(BUS_EVENTS.SHOW_ALERT, {
+          message: this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_SUCCESS'),
+        });
+      } catch (error) {
+        emitter.emit(BUS_EVENTS.SHOW_ALERT, {
+          message: this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_ERROR'),
+        });
+      }
+      this.showMenu = false;
     },
   },
 };
@@ -79,35 +119,56 @@ export default {
 
 <!-- eslint-disable-next-line vue/no-root-v-if -->
 <template>
-  <div v-if="showHeaderActions" class="actions flex items-center gap-3">
-    <button
-      v-if="
-        canLeaveConversation &&
-        canUserEndConversation &&
-        hasEndConversationEnabled &&
-        showEndConversationButton
-      "
-      class="button transparent compact"
-      :title="$t('END_CONVERSATION')"
-      @click="resolveConversation"
-    >
-      <FluentIcon icon="sign-out" size="22" class="text-n-slate-12" />
-    </button>
+  <div v-if="showHeaderActions" class="actions flex items-center gap-2">
     <button
       v-if="showPopoutButton"
       class="button transparent compact new-window--button"
       @click="popoutWindow"
     >
-      <FluentIcon icon="open" size="22" class="text-n-slate-12" />
+      <FluentIcon icon="open" size="20" class="text-n-slate-11" />
     </button>
+
+    <!-- Menu button -->
+    <div v-if="showMenuButton" class="relative">
+      <button
+        class="header-action-btn"
+        :title="$t('OPTIONS')"
+        @click="toggleMenu"
+      >
+        <FluentIcon icon="more-vertical" size="20" class="text-n-slate-11" />
+      </button>
+
+      <!-- Dropdown menu -->
+      <div v-if="showMenu" v-on-clickaway="closeMenu" class="menu-dropdown">
+        <button
+          v-if="canShowEndConversation"
+          class="menu-item"
+          @click="resolveConversation"
+        >
+          <FluentIcon icon="sign-out" size="16" />
+          <span>{{ $t('END_CONVERSATION') }}</span>
+        </button>
+        <button
+          v-if="conversationSize > 0"
+          class="menu-item"
+          @click="sendTranscript"
+        >
+          <FluentIcon icon="mail" size="16" />
+          <span>{{ $t('EMAIL_TRANSCRIPT.BUTTON_TEXT') }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Close button -->
     <button
-      class="button transparent compact close-button"
+      class="header-action-btn close-button"
       :class="{
         'rn-close-button': isRNWebView,
       }"
+      :title="$t('CLOSE_WIDGET')"
       @click="closeWindow"
     >
-      <FluentIcon icon="dismiss" size="24" class="text-n-slate-12" />
+      <FluentIcon icon="dismiss" size="20" class="text-n-slate-11" />
     </button>
   </div>
 </template>
@@ -115,11 +176,29 @@ export default {
 <style scoped lang="scss">
 .actions {
   .close-button {
-    display: none;
+    display: flex;
+  }
+}
+
+.header-action-btn {
+  @apply flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-150;
+  @apply hover:bg-n-slate-2 active:bg-n-slate-3;
+}
+
+.menu-dropdown {
+  @apply absolute right-0 top-full mt-1 py-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-n-weak z-50;
+}
+
+.menu-item {
+  @apply flex items-center gap-2 w-full px-3 py-2 text-sm text-n-slate-12 transition-colors duration-150;
+  @apply hover:bg-n-slate-2;
+
+  &:first-child {
+    @apply rounded-t-lg;
   }
 
-  .rn-close-button {
-    display: block !important;
+  &:last-child {
+    @apply rounded-b-lg;
   }
 }
 </style>

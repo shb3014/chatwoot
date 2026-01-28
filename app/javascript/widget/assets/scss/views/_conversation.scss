@@ -207,8 +207,7 @@
   }
 
   &.agent {
-    @apply rounded-[1rem] text-n-slate-12 dark:bg-n-slate-3;
-    background-color: rgb(243,243,243);
+    @apply rounded-[1rem] text-n-slate-10 bg-[rgb(243,243,243)] dark:bg-n-slate-3;
 
     .link {
       word-break: break-word;

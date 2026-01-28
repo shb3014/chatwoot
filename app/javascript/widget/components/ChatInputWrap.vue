@@ -56,7 +56,8 @@ export default {
     inputWrapperStyle() {
       if (this.isFocused) {
         return {
-          boxShadow: `0 0 0 2px ${this.widgetColor}40, 0 8px 20px rgba(15,23,42,0.12)`,
+          borderColor: this.widgetColor,
+          boxShadow: `0 0 0 2px ${this.widgetColor}30`,
         };
       }
       return {};
@@ -129,7 +130,7 @@ export default {
 
 <template>
   <div
-    class="flex flex-col rounded-[12px] transition-all duration-200 bg-n-background shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_8px_20px_rgba(15,23,42,0.08)]"
+    class="flex flex-col rounded-[12px] transition-all duration-200 bg-white border border-solid border-[rgb(80,80,80)]"
     :style="inputWrapperStyle"
     @keydown.esc="hideEmojiPicker"
   >

@@ -44,6 +44,8 @@
   },
   "START_CONVERSATION": "Start Conversation",
   "END_CONVERSATION": "End Conversation",
+  "CLOSE_WIDGET": "Close",
+  "OPTIONS": "Options",
   "CONTINUE_CONVERSATION": "Continue conversation",
   "YOU": "You",
   "START_NEW_CONVERSATION": "Start a new conversation",
