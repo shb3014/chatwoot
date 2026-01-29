@@ -23,7 +23,11 @@ class Captain::Llm::AssistantChatService < Llm::BaseOpenAiService
   def generate_response(additional_message: nil, message_history: [], role: 'user')
     @messages += message_history
     learned_context = learned_conversation_context(additional_message, message_history)
-    @messages << { role: 'system', content: learned_context } if learned_context.present?
+    if learned_context.present?
+      @messages << { role: 'system', content: learned_context }
+      @response_validator ||= Captain::ResponseValidatorService.new(strictness: validation_strictness)
+      @response_validator.capture_tool_result('learned_conversations', learned_context)
+    end
     @messages << { role: role, content: additional_message } if additional_message.present?
     request_chat_completion
   end

@@ -56,7 +56,21 @@ class Captain::ResponseValidatorService
   # Get all captured documentation content
   def get_documentation_content
     @tool_results
+      .select { |r| r[:tool] == 'search_documentation' || r[:tool] == 'learned_conversations' }
+      .map { |r| r[:content] }
+      .join("\n")
+  end
+
+  def get_search_documentation_content
+    @tool_results
       .select { |r| r[:tool] == 'search_documentation' }
+      .map { |r| r[:content] }
+      .join("\n")
+  end
+
+  def get_learned_conversations_content
+    @tool_results
+      .select { |r| r[:tool] == 'learned_conversations' }
       .map { |r| r[:content] }
       .join("\n")
   end
@@ -65,6 +79,8 @@ class Captain::ResponseValidatorService
   # Returns: { valid: boolean, reason: string, confidence: float, should_reject: boolean }
   def validate_response(response_text)
     documentation = get_documentation_content
+    search_docs = get_search_documentation_content
+    learned_docs = get_learned_conversations_content
 
     # If model responded without searching documentation, check if that's acceptable
     if @tool_results.empty?
@@ -133,7 +149,7 @@ class Captain::ResponseValidatorService
     end
 
     # If no documentation was found, response should indicate this
-    if documentation.blank? || documentation.include?('No documentation found')
+    if (search_docs.blank? || search_docs.include?('No documentation found')) && learned_docs.blank?
       result = validate_no_docs_response(response_text)
       result[:should_reject] = !result[:valid] && should_reject_based_on_strictness(result[:confidence])
       return result

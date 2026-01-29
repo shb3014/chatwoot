@@ -12,10 +12,7 @@ module Captain::ChatHelper
 
     # Initialize response validator if not already present
     # Strictness can be configured via assistant config or globally via InstallationConfig
-    strictness = @assistant&.config&.[]('validation_strictness')&.to_sym ||
-                 InstallationConfig.find_by(name: 'CAPTAIN_VALIDATION_STRICTNESS')&.value&.to_sym ||
-                 :moderate
-    @response_validator ||= Captain::ResponseValidatorService.new(strictness: strictness)
+    @response_validator ||= Captain::ResponseValidatorService.new(strictness: validation_strictness)
 
     # Clear validator at the start of a new user turn (not during recursive tool processing)
     if new_user_turn?
@@ -51,6 +48,7 @@ module Captain::ChatHelper
     # Temperature: use assistant config, fallback to global config, then default to 1
     default_temp = InstallationConfig.find_by(name: 'CAPTAIN_DEFAULT_TEMPERATURE')&.value&.to_f || 1
     temperature = @assistant&.config&.[]('temperature')&.to_f || default_temp
+    temperature = normalized_temperature(temperature, @model, purpose: :chat)
 
     parameters = {
       model: @model,
@@ -65,17 +63,25 @@ module Captain::ChatHelper
     is_deepseek_v32 = deepseek_v32_model?(@model)
     is_qwen = qwen_model?(@model)
 
+    # Disable thinking mode for models that don't support it reliably.
+    effective_thinking_enabled = thinking_enabled && !kimi_model?(@model)
+    captain_logger.info 'Thinking mode disabled for this model' if thinking_enabled && !effective_thinking_enabled
+
     # response_format: json_object is not supported by Ark DeepSeek-V3.2 (even when thinking is disabled).
     # Qwen models also don't work well with response_format when tools are present - they return JSON content
     # directly instead of using tool_calls mechanism.
     # So we only enforce response_format for models that support it properly.
-    parameters[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32 && !is_qwen
+    parameters[:response_format] = { type: 'json_object' } if !effective_thinking_enabled && !is_deepseek_v32 && !(is_qwen && has_tools)
 
     # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
     if is_deepseek_v32
       parameters[:thinking] = ark_thinking_param(thinking_enabled)
       Rails.logger.warn 'DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON' if has_tools
-    elsif thinking_enabled
+    elsif kimi_model?(@model)
+      # Some Kimi models enable thinking by default unless explicitly disabled.
+      parameters[:thinking] = ark_thinking_param(false)
+      captain_logger.info 'Kimi model detected - forcing thinking=disabled to avoid reasoning_content errors'
+    elsif effective_thinking_enabled
       # Non-Ark providers typically accept boolean.
       parameters[:thinking] = true
       captain_logger.warn 'Thinking mode enabled - response format constraint removed, relying on prompt for JSON' if has_tools
@@ -125,6 +131,23 @@ module Captain::ChatHelper
   def qwen_model?(model_name)
     model = model_name.to_s
     model.match?(/qwen/i)
+  end
+
+  def kimi_model?(model_name)
+    model = model_name.to_s
+    model.match?(/kimi/i)
+  end
+
+  def normalized_temperature(value, model_name, purpose:)
+    return value if value.nil?
+
+    if kimi_model?(model_name)
+      return 1.0 if purpose == :classification
+
+      return 0.6
+    end
+
+    value
   end
 
   def ark_thinking_param(enabled)
@@ -325,7 +348,10 @@ module Captain::ChatHelper
     return parsed_message unless content_key
 
     content = parsed_message[content_key].to_s
-    return parsed_message unless should_include_references?(content)
+    unless should_include_references?(content)
+      parsed_message[content_key] = strip_plain_citations(strip_inline_citations(content))
+      return parsed_message
+    end
 
     # Strip any markdown link citations like [[1](url)], but keep simple [1] markers for conversion
     content = strip_inline_citations(content)
@@ -407,6 +433,10 @@ module Captain::ChatHelper
       .gsub(/\s*\[\[\d+\]\([^)]+\)\]/, '')
   end
 
+  def strip_plain_citations(content)
+    content.gsub(/\s*\[(\d+)\]/, '')
+  end
+
   def convert_inline_citations(content, references)
     return content if references.empty?
 
@@ -420,10 +450,11 @@ module Captain::ChatHelper
         "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
     end
 
-    # Replace [1], [2], etc. with citation chips
-    content.gsub(/\[(\d+)\]/) do |_match|
+    # Replace [1], [2], etc. with citation chips, or remove if no matching reference
+    # This handles citations for learned conversations (which shouldn't have citations)
+    content.gsub(/\s*\[(\d+)\]/) do |_match|
       ref_num = ::Regexp.last_match(1).to_i
-      citation_chips[ref_num] || _match
+      citation_chips[ref_num] || '' # Remove citations without matching references
     end
   end
 
@@ -478,6 +509,8 @@ module Captain::ChatHelper
   end
 
   def should_include_references?(content)
+    return true if content.match?(/\[\d+\]/)
+
     fallback_phrases = [
       "i couldn't find",
       "i don't have that information",
@@ -607,7 +640,7 @@ module Captain::ChatHelper
           { role: 'system', content: 'You are a precise classifier. Respond with only the classification keyword.' },
           { role: 'user', content: classification_prompt }
         ],
-        temperature: 0.0,
+        temperature: normalized_temperature(0.0, classification_model, purpose: :classification),
         max_tokens: 10
       }
     )
@@ -731,6 +764,12 @@ module Captain::ChatHelper
     normalized.match?(/\A(?:hi|hello|hey|thanks|thank you|bye|goodbye)[!. ]*\z/)
   end
 
+  def validation_strictness
+    @assistant&.config&.[]('validation_strictness')&.to_sym ||
+      InstallationConfig.find_by(name: 'CAPTAIN_VALIDATION_STRICTNESS')&.value&.to_sym ||
+      :moderate
+  end
+
   # Determine which model to use for classification
   # Use the cheapest/fastest available model, or fall back to main model
   def classification_model
@@ -742,6 +781,81 @@ module Captain::ChatHelper
     @model
   end
 
+  # Extract what topic to search for when user confirms a continuation (e.g., "yes", "ok")
+  # This looks at the assistant's last offer and extracts a relevant search query
+  def extract_continuation_search_query
+    # Get the assistant's last message to see what they offered
+    last_assistant_msg = @messages.reverse.find do |m|
+      role = m[:role] || m['role']
+      role == 'assistant'
+    end
+
+    assistant_content = extract_message_content(last_assistant_msg)
+
+    # If no assistant message or content, fall back to original problem
+    return fallback_to_original_problem unless assistant_content.present?
+
+    # Use LLM to extract the follow-up topic from the assistant's offer
+    extraction_prompt = <<~PROMPT
+      The assistant just said: "#{assistant_content.slice(0, 500)}"
+
+      The user responded with a confirmation like "yes", "ok", "sure", etc.
+
+      Extract what topic the user is confirming they want help with. Return ONLY a concise search query (5-10 words) that would find relevant documentation for that topic.
+
+      For example:
+      - If assistant offered "Would you like step-by-step guidance on updating it?" -> "how to update firmware step by step"
+      - If assistant offered "Would you like help connecting to Wi-Fi?" -> "how to connect to Wi-Fi setup guide"
+
+      Return ONLY the search query, nothing else.
+    PROMPT
+
+    begin
+      extraction_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      extraction_response = @client.chat(
+        parameters: {
+          model: classification_model,
+          messages: [
+            { role: 'system', content: 'You extract search queries from conversation context. Return only the search query.' },
+            { role: 'user', content: extraction_prompt }
+          ],
+          temperature: normalized_temperature(0.0, classification_model, purpose: :classification),
+          max_tokens: 50
+        }
+      )
+      extraction_elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - extraction_start) * 1000).round
+
+      extracted_query = extraction_response.dig('choices', 0, 'message', 'content')&.strip
+      captain_logger.info "Extracted continuation query: '#{extracted_query}' in #{extraction_elapsed_ms}ms"
+
+      # Validate the extracted query is reasonable
+      return extracted_query if extracted_query.present? && extracted_query.length > 5 && extracted_query.length < 200
+
+      captain_logger.warn 'Extracted query invalid, falling back to original problem'
+      fallback_to_original_problem
+    rescue StandardError => e
+      captain_logger.warn "Failed to extract continuation query: #{e.message}, falling back"
+      fallback_to_original_problem
+    end
+  end
+
+  def fallback_to_original_problem
+    user_messages = @messages.select { |m| (m[:role] || m['role']) == 'user' }
+    original_problem = user_messages.find { |m| (m[:content] || m['content']).to_s.length > 20 }&.then { |msg| msg[:content] || msg['content'] }
+
+    if original_problem.present?
+      captain_logger.info 'Falling back to original problem for search'
+      original_problem
+    else
+      recent_context = @messages.last(5)
+                                .select { |m| (m[:role] || m['role']) == 'user' || (m[:role] || m['role']) == 'assistant' }
+                                .map { |m| m[:content] || m['content'] }
+                                .join(' ')
+      captain_logger.info 'Falling back to recent context for search'
+      recent_context.slice(0, 200)
+    end
+  end
+
   # Force a documentation search with context from the conversation
   # @param classification [String] 'new_question' or 'continuation' - determines which query to use
   def force_documentation_search(classification = 'continuation')
@@ -749,24 +863,14 @@ module Captain::ChatHelper
     current_user_message = last_user_message_content
 
     # For new questions, always use the current message as the search query
-    # For continuations (yes, done, ok, next), use the original problem from conversation context
+    # For continuations (yes, done, ok, next), extract what the user is confirming from the assistant's offer
     if classification == 'new_question' && current_user_message.present? && current_user_message.length > 3
       search_query = current_user_message
       captain_logger.info 'Using current user message for new_question search'
     else
-      # Build search query from conversation context for continuations
-      # Look back at the last few messages to understand what we're troubleshooting
-      recent_context = @messages.last(5)
-                                .select { |m| (m[:role] || m['role']) == 'user' || (m[:role] || m['role']) == 'assistant' }
-                                .map { |m| m[:content] || m['content'] }
-                                .join(' ')
-
-      # Extract key terms (simplified - just use the original problem description)
-      user_messages = @messages.select { |m| (m[:role] || m['role']) == 'user' }
-      original_problem = user_messages.find { |m| (m[:content] || m['content']).to_s.length > 20 }&.then { |msg| msg[:content] || msg['content'] }
-
-      search_query = original_problem || recent_context.slice(0, 200)
-      captain_logger.info 'Using original problem for continuation search'
+      # For continuations, extract the topic from the assistant's last offer/question
+      search_query = extract_continuation_search_query
+      captain_logger.info "Using extracted continuation topic for search: #{search_query}"
     end
 
     captain_logger.info "Force searching with query: #{search_query}"

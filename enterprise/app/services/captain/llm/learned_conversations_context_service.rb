@@ -58,19 +58,16 @@ module Captain
       end
 
       def format_results(records)
-        lines = records.each_with_index.map do |learning, index|
-          conversation_id = learning.conversation&.display_id || learning.conversation_id
+        lines = records.map do |learning|
           [
-            "#{index + 1}. Conversation #{conversation_id}",
-            "   Issue: #{learning.issue_summary.presence || '-'}",
-            "   Resolution: #{learning.resolution_summary.presence || '-'}",
-            ("   Rating: #{learning.quality_rating}/100" if learning.quality_rating.present?)
-          ].compact.join("\n")
+            "Issue: #{learning.issue_summary.presence || '-'}",
+            "Resolution: #{learning.resolution_summary.presence || '-'}"
+          ].join("\n")
         end
 
         <<~TEXT
-          LEARNED CONVERSATIONS (higher rating = higher reliability):
-          #{lines.join("\n")}
+          BACKGROUND CONTEXT (this is NOT a citable source - citation numbers like [1], [2] refer ONLY to search_documentation results below, NOT to this section):
+          #{lines.join("\n\n")}
         TEXT
       end
     end

@@ -28,7 +28,7 @@ class Captain::LlmService
     # Qwen models also don't work well with response_format when tools are present - they return JSON content
     # directly instead of using tool_calls mechanism.
     # So we only enforce response_format for models that support it properly.
-    openai_params[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32 && !is_qwen
+    openai_params[:response_format] = { type: 'json_object' } if !thinking_enabled && !is_deepseek_v32 && !(is_qwen && has_tools)
 
     if has_tools
       openai_params[:tools] = functions
