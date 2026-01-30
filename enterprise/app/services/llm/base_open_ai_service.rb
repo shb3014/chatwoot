@@ -1,3 +1,5 @@
+require 'net/http'
+
 class Llm::BaseOpenAiService
   DEFAULT_MODEL = 'gpt-4o-mini'.freeze
 
@@ -120,32 +122,115 @@ class Llm::BaseOpenAiService
 
     # Monkey-patch the client instance to override the chat endpoint (only if custom chat endpoint is set)
     if custom_chat_path.present?
-      @client.define_singleton_method(:chat) do |parameters:|
+      @client.define_singleton_method(:chat) do |parameters:, stream: nil|
         # Make direct HTTP request to custom endpoint instead of using gem's path
         headers = {
           'Content-Type' => 'application/json',
           'Authorization' => "Bearer #{main_api_key}"
         }
 
-        logger.info('=' * 80)
-        logger.info("Calling custom chat endpoint: #{custom_chat_path}")
-        logger.info("Headers: #{headers.to_json}")
-        logger.info("Request body: #{parameters.to_json}")
+        # Handle streaming requests
+        if stream.is_a?(Proc)
+          # Add stream: true to parameters for SSE streaming
+          streaming_params = parameters.merge(stream: true)
 
-        response = HTTParty.post(
-          custom_chat_path,
-          headers: headers,
-          body: parameters.to_json,
-          **proxy_options
-        )
+          logger.info('=' * 80)
+          logger.info("Calling custom chat endpoint (streaming): #{custom_chat_path}")
+          logger.info("Headers: #{headers.to_json}")
+          logger.info("Request body: #{streaming_params.to_json}")
 
-        logger.info("Response status: #{response.code}")
-        logger.info("Response body: #{response.body}")
-        logger.info('=' * 80)
+          uri = URI.parse(custom_chat_path)
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = (uri.scheme == 'https')
+          http.read_timeout = 120
 
-        raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
+          # Configure proxy if present
+          if proxy_options[:http_proxyaddr].present?
+            http = Net::HTTP.new(
+              uri.host, uri.port,
+              proxy_options[:http_proxyaddr],
+              proxy_options[:http_proxyport]
+            )
+            http.use_ssl = (uri.scheme == 'https')
+            http.read_timeout = 120
+          end
 
-        JSON.parse(response.body)
+          request = Net::HTTP::Post.new(uri.request_uri)
+          headers.each { |k, v| request[k] = v }
+          request.body = streaming_params.to_json
+
+          http.request(request) do |response|
+            unless response.is_a?(Net::HTTPSuccess)
+              error_body = response.body
+              logger.warn("Streaming response error: #{response.code} - #{error_body}")
+              raise OpenAI::Error, "HTTP #{response.code}: #{error_body}"
+            end
+
+            # Buffer to handle partial lines across TCP chunks
+            buffer = +''
+
+            response.read_body do |chunk|
+              buffer << chunk
+
+              # Process complete lines from buffer
+              while (newline_idx = buffer.index("\n"))
+                line = buffer.slice!(0..newline_idx).strip
+                next if line.empty?
+                next unless line.start_with?('data: ')
+
+                data = line.sub(/^data: /, '')
+                next if data == '[DONE]'
+
+                begin
+                  parsed = JSON.parse(data)
+                  stream.call(parsed)
+                rescue JSON::ParserError => e
+                  logger.warn("Failed to parse streaming chunk: #{e.message} - #{data}")
+                end
+              end
+            end
+
+            # Process any remaining data in buffer
+            if buffer.strip.start_with?('data: ')
+              data = buffer.strip.sub(/^data: /, '')
+              unless data == '[DONE]'
+                begin
+                  parsed = JSON.parse(data)
+                  stream.call(parsed)
+                rescue JSON::ParserError => e
+                  logger.warn("Failed to parse final streaming chunk: #{e.message} - #{data}")
+                end
+              end
+            end
+          end
+
+          logger.info('=' * 80)
+          logger.info('Streaming completed')
+
+          # Return nil for streaming - the caller handles building the response
+          nil
+        else
+          # Non-streaming request
+          logger.info('=' * 80)
+          logger.info("Calling custom chat endpoint: #{custom_chat_path}")
+          logger.info("Headers: #{headers.to_json}")
+          logger.info("Request body: #{parameters.to_json}")
+
+          response = HTTParty.post(
+            custom_chat_path,
+            headers: headers,
+            body: parameters.to_json,
+            **proxy_options
+          )
+
+          logger.info("Response status: #{response.code}")
+          logger.info("Response body: #{response.body}")
+          logger.info('=' * 80)
+
+          raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
+
+          JSON.parse(response.body)
+        end
       end
     end
 

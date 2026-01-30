@@ -127,13 +127,19 @@ watch(
         class="w-full rounded-md border border-n-slate-7 bg-n-white px-3 py-2 text-sm text-n-slate-12 focus:border-w-500 focus:outline-none focus:ring-1 focus:ring-w-500"
       >
         <option value="strict">
-          {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.STRICT') }}
+          {{
+            t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.STRICT')
+          }}
         </option>
         <option value="moderate">
-          {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.MODERATE') }}
+          {{
+            t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.MODERATE')
+          }}
         </option>
         <option value="lenient">
-          {{ t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.LENIENT') }}
+          {{
+            t('CAPTAIN.ASSISTANTS.FORM.VALIDATION_STRICTNESS.OPTIONS.LENIENT')
+          }}
         </option>
       </select>
       <p class="text-sm text-n-slate-11 italic">

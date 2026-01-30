@@ -12,8 +12,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     captain_logger.info("[Captain][ResponseBuilderJob] start conversation_id=#{@conversation.id} assistant_id=#{@assistant.id} inbox_id=#{@inbox.id}")
-    ActiveRecord::Base.transaction do
+    if streaming_enabled?
       generate_and_process_response
+    else
+      ActiveRecord::Base.transaction do
+        generate_and_process_response
+      end
     end
     elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
     captain_logger.info("[Captain][ResponseBuilderJob] completed in #{elapsed_ms}ms conversation_id=#{@conversation.id}")
@@ -36,23 +40,36 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     captain_logger.info("[Captain][ResponseBuilderJob] message_history size=#{message_history.length} in #{history_elapsed_ms}ms conversation_id=#{@conversation.id}")
 
     response_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    @response = if captain_v2_enabled?
-                  captain_logger.info('[Captain][ResponseBuilderJob] using v2 agent runner')
-                  Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation).generate_response(
-                    message_history: message_history
-                  )
-                else
-                  captain_logger.info('[Captain][ResponseBuilderJob] using v1 assistant chat')
-                  Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
-                    message_history: message_history
-                  )
-                end
+    used_streaming = false
+    if streaming_enabled? && !captain_v2_enabled?
+      captain_logger.info('[Captain][ResponseBuilderJob] using v1 assistant chat with streaming')
+      @streaming_message = create_streaming_message
+      used_streaming = true
+      @response = Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
+        message_history: message_history,
+        stream: true,
+        on_chunk: method(:handle_stream_chunk)
+      )
+      finalize_streaming_message
+    else
+      @response = if captain_v2_enabled?
+                    captain_logger.info('[Captain][ResponseBuilderJob] using v2 agent runner')
+                    Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation).generate_response(
+                      message_history: message_history
+                    )
+                  else
+                    captain_logger.info('[Captain][ResponseBuilderJob] using v1 assistant chat')
+                    Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
+                      message_history: message_history
+                    )
+                  end
+    end
     response_elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - response_start) * 1000).round
     captain_logger.info("[Captain][ResponseBuilderJob] response_generated in #{response_elapsed_ms}ms conversation_id=#{@conversation.id}")
 
     return process_action('handoff') if handoff_requested?
 
-    create_messages
+    create_messages unless used_streaming
     captain_logger.info("[Captain][ResponseBuilderJob] Incrementing response usage for account_id=#{account.id}")
     account.increment_response_usage
   end
@@ -147,6 +164,91 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     )
   end
 
+  def create_streaming_message
+    @conversation.messages.create!(
+      message_type: :outgoing,
+      account_id: account.id,
+      inbox_id: inbox.id,
+      sender: @assistant,
+      content: '',
+      additional_attributes: { streaming: true }
+    )
+  end
+
+  def handle_stream_chunk(full_content, delta_content)
+    return unless @streaming_message
+    return if delta_content.blank?
+
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    @last_stream_update_at ||= now
+    @last_stream_length ||= 0
+
+    # Try to extract just the "response" field from JSON content
+    # This prevents showing the "reasoning" field to users during streaming
+    display_content = extract_response_for_streaming(full_content)
+
+    return if display_content.blank?
+
+    should_update = (display_content.length - @last_stream_length) >= 40 ||
+                    (now - @last_stream_update_at) >= 0.25
+
+    return unless should_update
+
+    @streaming_message.update!(content: display_content)
+    @last_stream_update_at = now
+    @last_stream_length = display_content.length
+  rescue StandardError => e
+    captain_logger.warn("[Captain][ResponseBuilderJob] stream update failed: #{e.message}")
+  end
+
+  def extract_response_for_streaming(content)
+    # Try to extract just the response portion from JSON
+    # The LLM returns: {"reasoning":"...", "response":"..."}
+    # We only want to show the "response" part to users
+
+    # First, try to parse as complete JSON
+    begin
+      parsed = JSON.parse(content)
+      return parsed['response'] || content if parsed.is_a?(Hash) && parsed['response']
+    rescue JSON::ParserError
+      # Not complete JSON yet, try regex extraction
+    end
+
+    # Try to extract partial response using regex
+    # Look for "response": "..." pattern and extract content
+    if (match = content.match(/"response"\s*:\s*"((?:[^"\\]|\\.)*)/))
+      # Unescape the captured string
+      extracted = match[1].gsub('\\n', "\n").gsub('\"', '"').gsub('\\\\', '\\')
+      return extracted if extracted.present?
+    end
+
+    # If we can see "reasoning" but haven't started "response" yet, keep empty
+    return '' if content.include?('"reasoning"') && !content.include?('"response"')
+
+    # Avoid exposing raw JSON to the user while streaming
+    return '' if content.strip.start_with?('{')
+
+    # Fallback: return original content only if it looks like plain text
+    content
+  end
+
+  def finalize_streaming_message
+    return unless @streaming_message
+
+    if handoff_requested?
+      @streaming_message.destroy!
+      @streaming_message = nil
+      return
+    end
+
+    final_content = @response['response'].to_s
+    validate_message_content!(final_content)
+    attrs = (@streaming_message.additional_attributes || {}).merge('streaming' => false)
+    attrs['agent_name'] = @response['agent_name'] if @response['agent_name'].present?
+    @streaming_message.update!(content: final_content, additional_attributes: attrs)
+    @streaming_message = nil
+  end
+
   def handle_error(error)
     log_error(error)
     process_action('handoff')
@@ -162,6 +264,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def captain_v2_enabled?
-    return account.feature_enabled?('captain_integration_v2')
+    v2_config = InstallationConfig.find_by(name: 'CAPTAIN_V2_ENABLED')
+    return ActiveModel::Type::Boolean.new.cast(v2_config.value) if v2_config&.value.present?
+
+    account.feature_enabled?('captain_integration_v2')
+  end
+
+  def streaming_enabled?
+    streaming_config = InstallationConfig.find_by(name: 'CAPTAIN_STREAMING_ENABLED')
+    streaming_config&.value.present? && ActiveModel::Type::Boolean.new.cast(streaming_config.value)
   end
 end

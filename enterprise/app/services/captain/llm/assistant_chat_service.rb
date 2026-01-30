@@ -20,7 +20,7 @@ class Captain::Llm::AssistantChatService < Llm::BaseOpenAiService
   #
   # NOTE: Parameters are provided as keyword arguments to improve clarity and avoid relying on
   # positional ordering.
-  def generate_response(additional_message: nil, message_history: [], role: 'user')
+  def generate_response(additional_message: nil, message_history: [], role: 'user', stream: false, on_chunk: nil)
     @messages += message_history
     learned_context = learned_conversation_context(additional_message, message_history)
     if learned_context.present?
@@ -29,7 +29,12 @@ class Captain::Llm::AssistantChatService < Llm::BaseOpenAiService
       @response_validator.capture_tool_result('learned_conversations', learned_context)
     end
     @messages << { role: role, content: additional_message } if additional_message.present?
+
+    @streaming_callback = stream && on_chunk.respond_to?(:call) ? on_chunk : nil
+
     request_chat_completion
+  ensure
+    @streaming_callback = nil
   end
 
   private

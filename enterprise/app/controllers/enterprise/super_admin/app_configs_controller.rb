@@ -49,6 +49,8 @@ module Enterprise::SuperAdmin::AppConfigsController
       CAPTAIN_THINKING_ENABLED
       CAPTAIN_VALIDATION_STRICTNESS
       CAPTAIN_DEFAULT_TEMPERATURE
+      CAPTAIN_V2_ENABLED
+      CAPTAIN_STREAMING_ENABLED
     ]
   end
 end

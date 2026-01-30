@@ -199,6 +199,18 @@
   value: false
   locked: false
   type: boolean
+- name: CAPTAIN_V2_ENABLED
+  display_title: 'Enable Captain v2'
+  description: 'Enable the multi-agent Captain runtime. When disabled, Captain uses the direct LLM chat flow.'
+  value: false
+  locked: false
+  type: boolean
+- name: CAPTAIN_STREAMING_ENABLED
+  display_title: 'Enable streaming responses'
+  description: 'Stream Captain responses as they are generated. Streaming is supported only for the v1 chat flow.'
+  value: false
+  locked: false
+  type: boolean
 - name: CAPTAIN_CLOUD_PLAN_LIMITS
   display_title: 'Captain Cloud Plan Limits'
   description: 'The limits for the Captain AI service for different plans'
