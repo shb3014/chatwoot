@@ -551,20 +551,6 @@ module Captain::ChatHelper
     # Remove any Sources section at the end (since citations are now inline)
     processed_content = remove_reference_section(processed_content)
 
-    # Check if any inline citations were actually added
-    has_inline_citations = processed_content.include?('class="citation-chip"')
-
-    # If no inline citations were added, append citations at the end as a fallback
-    unless has_inline_citations
-      citation_chips = references.map.with_index do |reference, index|
-        ref_num = index + 1
-        title_escaped = CGI.escapeHTML(reference[:title].to_s)
-        url_escaped = CGI.escapeHTML(reference[:url].to_s)
-        "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
-      end
-      processed_content = "#{processed_content.rstrip}\n\n**Sources:** #{citation_chips.join(' ')}"
-    end
-
     processed_content.rstrip
   end
 
