@@ -26,6 +26,7 @@ export default {
     contentType: { type: String, default: null },
     messageType: { type: Number, default: null },
     messageId: { type: Number, default: null },
+    isStreamingThinking: { type: Boolean, default: false },
     messageContentAttributes: {
       type: Object,
       default: () => {},
@@ -215,7 +216,16 @@ export default {
       "
       class="chat-bubble agent text-n-slate-12"
     >
+      <div v-if="isStreamingThinking" class="message-content text-n-slate-12">
+        <span class="thinking-text">{{ $t('AGENT.THINKING') }}</span>
+        <span class="thinking-dots" aria-hidden="true">
+          <span class="thinking-dot" />
+          <span class="thinking-dot" />
+          <span class="thinking-dot" />
+        </span>
+      </div>
       <div
+        v-else
         v-dompurify-html="formatMessage(message, false)"
         class="message-content text-n-slate-12"
       />
@@ -274,3 +284,39 @@ export default {
     />
   </div>
 </template>
+
+<style scoped lang="scss">
+.thinking-dot {
+  animation: typing-bounce 1.2s infinite;
+  background-color: currentColor;
+  border-radius: 999px;
+  display: inline-block;
+  height: 0.25rem;
+  width: 0.25rem;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  gap: 0.125rem;
+  margin-left: 0.25rem;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+</style>

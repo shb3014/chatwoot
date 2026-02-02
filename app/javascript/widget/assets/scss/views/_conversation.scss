@@ -53,6 +53,13 @@
       .agent-info {
         display: none;
       }
+
+      &.is-streaming-active,
+      &.is-streaming-thinking {
+        .agent-info {
+          display: flex;
+        }
+      }
     }
   }
 

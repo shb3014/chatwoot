@@ -45,6 +45,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       captain_logger.info('[Captain][ResponseBuilderJob] using v1 assistant chat with streaming')
       @streaming_message = create_streaming_message
       used_streaming = true
+      start_typing_indicator
       @response = Captain::Llm::AssistantChatService.new(assistant: @assistant, conversation: @conversation).generate_response(
         message_history: message_history,
         stream: true,
@@ -195,6 +196,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless should_update
 
     @streaming_message.update!(content: display_content)
+    stop_typing_indicator
     @last_stream_update_at = now
     @last_stream_length = display_content.length
   rescue StandardError => e
@@ -238,6 +240,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     if handoff_requested?
       @streaming_message.destroy!
       @streaming_message = nil
+      stop_typing_indicator
       return
     end
 
@@ -247,6 +250,31 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     attrs['agent_name'] = @response['agent_name'] if @response['agent_name'].present?
     @streaming_message.update!(content: final_content, additional_attributes: attrs)
     @streaming_message = nil
+    stop_typing_indicator
+  end
+
+  def start_typing_indicator
+    return if @typing_indicator_on
+
+    toggle_typing_indicator('on')
+    @typing_indicator_on = true
+  end
+
+  def stop_typing_indicator
+    return unless @typing_indicator_on
+
+    toggle_typing_indicator('off')
+    @typing_indicator_on = false
+  end
+
+  def toggle_typing_indicator(status)
+    Conversations::TypingStatusManager.new(
+      @conversation,
+      @assistant,
+      { typing_status: status, is_private: false }
+    ).toggle_typing_status
+  rescue StandardError => e
+    captain_logger.warn("[Captain][ResponseBuilderJob] typing indicator failed: #{e.message}")
   end
 
   def handle_error(error)

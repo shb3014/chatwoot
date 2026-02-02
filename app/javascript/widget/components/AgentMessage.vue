@@ -53,7 +53,7 @@ export default {
       ) {
         return false;
       }
-      return this.message.content;
+      return this.message.content || this.isStreamingThinking;
     },
     readableTime() {
       const { created_at: createdAt = '' } = this.message;
@@ -135,6 +135,14 @@ export default {
       const senderType = this.message.sender?.type;
       return senderType === 'agent_bot' || senderType === 'captain_assistant';
     },
+    isStreamingMessage() {
+      const { additional_attributes: additionalAttributes = {} } = this.message;
+      return additionalAttributes.streaming;
+    },
+    isStreamingThinking() {
+      const { additional_attributes: additionalAttributes = {} } = this.message;
+      return additionalAttributes.streaming && !this.message.content;
+    },
   },
   watch: {
     message() {
@@ -167,7 +175,14 @@ export default {
       'has-response': hasRecordedResponse || isASubmittedForm,
     }"
   >
-    <div v-if="!isASubmittedForm" class="agent-message">
+    <div
+      v-if="!isASubmittedForm"
+      class="agent-message"
+      :class="{
+        'is-streaming-thinking': isStreamingThinking,
+        'is-streaming-active': isStreamingMessage,
+      }"
+    >
       <div class="message-wrap">
         <div v-if="hasReplyTo" class="flex mt-2 mb-1 text-xs">
           <ReplyToChip :reply-to="replyTo" />
@@ -187,6 +202,7 @@ export default {
               :message-content-attributes="messageContentAttributes"
               :message-id="message.id"
               :message-type="messageType"
+              :is-streaming-thinking="isStreamingThinking"
               :message="message.content"
             />
             <div

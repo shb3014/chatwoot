@@ -62,7 +62,8 @@
     "LABEL": "Chat with us"
   },
   "AGENT": {
-    "AI_LABEL": "• AI Agent"
+    "AI_LABEL": "• AI Agent",
+    "THINKING": "Thinking"
   },
   "POWERED_BY": "Powered by Chatwoot",
   "EMAIL_PLACEHOLDER": "Please enter your email",

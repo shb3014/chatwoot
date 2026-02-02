@@ -26,7 +26,7 @@ This document summarizes the recent changes that move Captain runtime switches t
 
 ### Streaming UX improvements
 - During streaming, only the `response` field from JSON is displayed to users (not the `reasoning` field).
-- While the model is generating reasoning, a "..." placeholder is shown.
+- While the model is generating reasoning (before any stream text arrives), a "Thinking ..." placeholder is shown with animated dots.
 - The `extract_response_for_streaming` method in `ResponseBuilderJob` handles JSON parsing during stream.
 
 ### Learned conversation context improvements

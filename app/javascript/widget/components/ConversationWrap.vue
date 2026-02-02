@@ -53,8 +53,10 @@ export default {
       const shouldForceIndicator =
         lastMessageType === MESSAGE_TYPE.TEMPLATE &&
         lastMessageContentType === 'input_email';
+      const hasStreamingMessage =
+        this.lastMessage?.additional_attributes?.streaming;
       return (
-        this.isAgentTyping ||
+        (this.isAgentTyping && !hasStreamingMessage) ||
         shouldForceIndicator ||
         (isConversationInPendingStatus && isLastMessageIncoming)
       );
