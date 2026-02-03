@@ -187,6 +187,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     # Try to extract just the "response" field from JSON content
     # This prevents showing the "reasoning" field to users during streaming
     display_content = extract_response_for_streaming(full_content)
+    display_content = strip_streaming_citations(display_content)
 
     return if display_content.blank?
 
@@ -232,6 +233,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     # Fallback: return original content only if it looks like plain text
     content
+  end
+
+  def strip_streaming_citations(content)
+    return content if content.blank?
+
+    content
+      .gsub(/\s*\[\[\d+\]\([^)]+\)\]/, '')
+      .gsub(/\s*\[(\d+)\]/, '')
   end
 
   def finalize_streaming_message

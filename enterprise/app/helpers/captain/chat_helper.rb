@@ -518,6 +518,34 @@ module Captain::ChatHelper
     end
   end
 
+  def normalize_inline_citations(content, references)
+    ref_order = content.scan(/\[(\d+)\]/).flatten.map(&:to_i).uniq
+    ref_order = ref_order.select { |ref| references[ref - 1].present? }
+
+    ref_mapping = {}
+    normalized_references = []
+    ref_order.each_with_index do |old_ref, index|
+      new_ref = index + 1
+      ref_mapping[old_ref] = new_ref
+      normalized_references << references[old_ref - 1]
+    end
+
+    seen = {}
+    cleaned_content = content.gsub(/\s*\[(\d+)\]/) do
+      ref_num = ::Regexp.last_match(1).to_i
+      next '' if seen[ref_num]
+
+      seen[ref_num] = true
+      new_ref = ref_mapping[ref_num]
+      new_ref ? "[#{new_ref}]" : ''
+    end.rstrip
+
+    # Ensure citations appear after sentence-ending punctuation.
+    cleaned_content = cleaned_content.gsub(/(\[\d+\])([.!?])/, '\2\1')
+
+    [cleaned_content, normalized_references]
+  end
+
   def remove_reference_section(content)
     lines = content.lines
     cleaned = []
@@ -545,13 +573,25 @@ module Captain::ChatHelper
   def append_reference_list(content, references)
     return content.rstrip if references.empty?
 
+    # Normalize inline citations to paragraph-end before conversion
+    processed_content, normalized_references = normalize_inline_citations(content, references)
+
     # Convert inline [1], [2] markers to citation chips
-    processed_content = convert_inline_citations(content, references)
+    processed_content = convert_inline_citations(processed_content, normalized_references)
 
     # Remove any Sources section at the end (since citations are now inline)
     processed_content = remove_reference_section(processed_content)
 
-    processed_content.rstrip
+    return processed_content.rstrip if normalized_references.empty?
+
+    citation_chips = normalized_references.map.with_index do |reference, index|
+      ref_num = index + 1
+      title_escaped = CGI.escapeHTML(reference[:title].to_s)
+      url_escaped = CGI.escapeHTML(reference[:url].to_s)
+      "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
+    end
+
+    "#{processed_content.rstrip}\n\n**Sources:** #{citation_chips.join(' ')}"
   end
 
   def should_include_references?(content)

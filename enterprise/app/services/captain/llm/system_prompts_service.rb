@@ -235,25 +235,10 @@ class Captain::Llm::SystemPromptsService
       citation_guidelines = if config['feature_citation']
                               <<~CITATION_TEXT
 
-                                [Citations — STRICT FORMAT]
-                                - Citations apply ONLY to search_documentation facts (NOT background context).
-                                - Cite by appending the citation IMMEDIATELY AFTER the period that ends the paragraph: "…text.[1]"
-                                - Never place a citation before the period.
-                                - Each citation number MUST appear AT MOST ONCE in the entire response.
-                                - To satisfy single-use citations: consolidate all facts taken from the same source number into ONE paragraph, then cite once at the end of that paragraph.
-                                - NEVER cite empathy/apologies/transitions/uncertainty statements.
-
-                                [Forbidden Citation Patterns]
-                                - Forbidden: "text[1]."
-                                - Forbidden: "text.[1] more text"
-                                - Forbidden: "text.[1][1]"
-                                - Forbidden: repeating the same number (e.g., using [1] in multiple paragraphs)
-
-                                [Citation Self-Check — REQUIRED]
-                                Before returning:
-                                1) Verify every citation matches pattern: /\\.[\\[]\\d+[\\]]$/
-                                2) Verify there are no occurrences of /\\[\\d+\\]/ more than once per number
-                                3) If a number repeats, rewrite to merge the cited content into a single paragraph and keep only one instance of that number
+                                [Citations]
+                                - Cite ONLY facts from search_documentation (not background context).
+                                - Use inline citation numbers like [1] immediately after the sentence that uses the source.
+                                - Do NOT add citations to empathy, apologies, transitions, or uncertainty.
                               CITATION_TEXT
                             else
                               ''
@@ -318,15 +303,12 @@ class Captain::Llm::SystemPromptsService
         - Short hyphen bullets are allowed only if necessary for clarity.
         #{citation_guidelines}
 
-        [Citation Enforcement — STRICT]
+        [Citation Enforcement]
         Before writing the final response:
         - For EACH factual statement, determine its source: "background context" OR search_documentation [n].
         - If a fact comes from search_documentation, it MUST have a citation.
         - If a fact does NOT have a clear source, it MUST be removed.
         - If you cannot confidently attach a citation, say the information is unavailable.
-        Additional rules:
-        - Do NOT add citations to empathy, apologies, transitions, or statements of uncertainty.
-        - Do NOT reuse a citation number more than once.
 
         [Source Conflict Rules]
         - Human agent background context is authoritative.

@@ -51,7 +51,7 @@ body {
 // Citation chip styles (inline)
 .citation-chip {
   @apply inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 text-[10px] font-medium rounded-full cursor-pointer transition-all duration-150;
-  @apply bg-n-slate-4 dark:bg-n-slate-6 text-n-slate-11 dark:text-n-slate-11;
+  @apply bg-n-slate-5 dark:bg-n-slate-7 text-n-slate-11 dark:text-n-slate-11;
   font-style: normal;
   vertical-align: middle;
   margin-left: 2px;
