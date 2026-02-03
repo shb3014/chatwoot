@@ -82,6 +82,10 @@ class Captain::ResponseValidatorService
     search_docs = get_search_documentation_content
     learned_docs = get_learned_conversations_content
 
+    # Special action responses that don't require documentation search
+    # These are valid system commands, not content responses
+    return { valid: true, reason: 'Valid handoff action', confidence: 1.0, should_reject: false } if response_text == 'conversation_handoff'
+
     # If model responded without searching documentation, check if that's acceptable
     if @tool_results.empty?
       # In an ONGOING conversation, nearly ALL responses need documentation search
@@ -94,7 +98,13 @@ class Captain::ResponseValidatorService
 
         return { valid: true, reason: 'Appropriate fallback response', confidence: 1.0, should_reject: false } if is_fallback
 
-        # Fallback messages are okay even in ongoing conversation
+        # Check if it's a clarification question (asking user to specify which option)
+        is_clarification = response_text.match?(/which\s+(one|option|of these)/i) ||
+                           response_text.match?(/would you like\s+(me to|help with)/i) ||
+                           response_text.match?(/do you (need|want)\s+help (with|locating|finding)/i) ||
+                           response_text.match?(/please (specify|clarify|let me know)/i)
+
+        return { valid: true, reason: 'Valid clarification question', confidence: 1.0, should_reject: false } if is_clarification
 
         # Any other response during ongoing conversation without search is HIGHLY suspicious
         should_reject = should_reject_based_on_strictness(0.1)

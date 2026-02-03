@@ -52,10 +52,27 @@ class MessageTemplates::Template::EmailCollect
   def translate_message(message)
     return message unless defined?(Llm::TranslationService)
 
+    # Skip LLM translation if i18n already provided a translation in the user's locale
+    # This avoids wasteful LLM calls when we already have the message in the correct language
+    user_language = detect_user_language
+    i18n_locale_language = template_locale.to_s.split('_').first
+
+    if user_language.present? && i18n_locale_language.present? && user_language == i18n_locale_language
+      Rails.logger.info "[EmailCollect] Skipping LLM translation - i18n already provided #{i18n_locale_language} translation"
+      return message
+    end
+
     Llm::TranslationService.new(conversation).translate_message(message)
   rescue StandardError => e
     Rails.logger.error "[EmailCollect] Translation failed: #{e.message}"
     message
+  end
+
+  def detect_user_language
+    # Detect the user's language from conversation or browser language
+    language = conversation.additional_attributes&.dig('conversation_language') ||
+               conversation.additional_attributes&.dig('browser_language')
+    language.to_s.split(/[-_]/).first.presence
   end
 
   def template_locale

@@ -215,26 +215,19 @@ module Captain::ChatHelper
   end
 
   def handle_response(response)
-    captain_logger.info '=' * 80
-    captain_logger.info "#{self.class.name} Assistant: #{@assistant.id} - Handling Response"
-    captain_logger.info "Full response: #{response.to_json}"
-
     message = response.dig('choices', 0, 'message')
 
     # Log reasoning content if present (from thinking mode)
     reasoning_content = message['reasoning_content']
-    captain_logger.info "Reasoning content (thinking mode): #{reasoning_content}" if reasoning_content.present?
+    captain_logger.debug "Reasoning content (thinking mode): #{reasoning_content}" if reasoning_content.present?
 
-    captain_logger.info "Message extracted: #{message.to_json}"
-    captain_logger.info "Tool calls present: #{message['tool_calls'].present?}"
-    captain_logger.info "Tool calls content: #{message['tool_calls'].to_json}" if message['tool_calls']
-    captain_logger.info '=' * 80
+    has_tool_calls = message['tool_calls'].present?
+    content_length = message['content']&.length || 0
+    captain_logger.info "[Response] tool_calls=#{has_tool_calls} content_length=#{content_length}"
 
     if message['tool_calls']
-      captain_logger.info 'Processing tool calls...'
       process_tool_calls(message['tool_calls'])
     else
-      captain_logger.info 'No tool calls, parsing message content as JSON...'
       content = message['content'].strip
 
       # Strip markdown code fences if present (some models like DeepSeek wrap JSON in ```json ... ```)
@@ -247,26 +240,16 @@ module Captain::ChatHelper
         if @response_validator
           validation = @response_validator.validate_response(parsed_message['response'] || '')
 
-          captain_logger.info '=' * 80
-          captain_logger.info 'Response Validation:'
-          captain_logger.info "Valid: #{validation[:valid]}"
-          captain_logger.info "Reason: #{validation[:reason]}"
-          captain_logger.info "Confidence: #{validation[:confidence]}"
-          captain_logger.info "Should Reject: #{validation[:should_reject]}"
-          captain_logger.info "Strictness: #{@response_validator.instance_variable_get(:@strictness)}"
-          captain_logger.info "Documentation content available: #{@response_validator.get_documentation_content.length} chars"
-          captain_logger.info "Indicators: #{validation[:indicators]&.join(', ') || 'none'}" if validation[:indicators]
-          captain_logger.info '=' * 80
+          captain_logger.info "[Validation] valid=#{validation[:valid]} reject=#{validation[:should_reject]} reason=\"#{validation[:reason]}\""
 
           # If validation determines response should be rejected, force a safe response
           if validation[:should_reject]
             captain_logger.warn "VALIDATION REJECTED: #{validation[:reason]}"
-            captain_logger.warn "Original response: #{parsed_message['response']}"
 
-            # Force a safe response
+            # Force a safe response using i18n
             parsed_message = {
               'reasoning' => 'Response validation detected potential issues. Unable to provide accurate information from documentation.',
-              'response' => "I apologize, but I couldn't find reliable information about that in our documentation. Would you like to speak with a support agent who can help you better?"
+              'response' => I18n.t('captain.assistant.no_answer_fallback')
             }
           elsif !validation[:valid]
             # Log warning but allow response (based on strictness setting)
@@ -308,10 +291,10 @@ module Captain::ChatHelper
             captain_logger.warn "VALIDATION REJECTED (Fallback): #{validation[:reason]}"
             captain_logger.warn "Original response: #{fallback_message['response']}"
 
-            # Force a safe response
+            # Force a safe response using i18n
             fallback_message = {
               'reasoning' => 'Response validation detected potential issues. Unable to provide accurate information from documentation.',
-              'response' => "I apologize, but I couldn't find reliable information about that in our documentation. Would you like to speak with a support agent who can help you better?"
+              'response' => I18n.t('captain.assistant.no_answer_fallback')
             }
           elsif !validation[:valid]
             # Log warning but allow response (based on strictness setting)
@@ -629,24 +612,8 @@ module Captain::ChatHelper
   end
 
   def log_chat_completion_request
-    endpoint_url = instance_variable_get(:@custom_endpoint_full_path) ||
-                   "#{@client.instance_variable_get(:@uri_base)}/v1/chat/completions"
-
-    headers = {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{@client.instance_variable_get(:@access_token)}"
-    }
-
-    captain_logger.info '=' * 80
-    captain_logger.info "#{self.class.name} Assistant: #{@assistant.id} - Requesting Chat Completion"
-    captain_logger.info "Endpoint URL: #{endpoint_url}"
-    captain_logger.info "Headers: #{headers.to_json}"
-    captain_logger.info "Model: #{@model}"
-    captain_logger.info "Number of messages: #{@messages.length}"
-    captain_logger.info "Number of tools: #{@tool_registry&.registered_tools&.length || 0}"
-    captain_logger.info "Tools: #{(@tool_registry&.registered_tools || []).to_json}"
-    captain_logger.info "Messages: #{@messages.to_json}"
-    captain_logger.info '=' * 80
+    # Simplified logging - avoid dumping full messages which can be huge
+    captain_logger.info "[ChatCompletion] assistant=#{@assistant.id} model=#{@model} messages=#{@messages.length} tools=#{@tool_registry&.registered_tools&.length || 0}"
   end
 
   # Check if we should force a documentation search
@@ -656,6 +623,9 @@ module Captain::ChatHelper
   # 3. The search_documentation tool is available
   # 4. The assistant didn't just offer a handoff (to avoid interfering with handoff flow)
   def should_force_search?
+    # Skip if we're already in a forced search context (prevents infinite loop)
+    return false if @skip_forced_search
+
     return false unless @messages.length > 2 # Need at least: system, user, assistant, user
     return false unless @tool_registry&.respond_to?(:search_documentation)
 
@@ -677,6 +647,10 @@ module Captain::ChatHelper
       # User is confirming a handoff request (e.g., "yes" after "Would you like to speak with an agent?")
       captain_logger.info 'LLM classified as handoff confirmation - skipping forced search'
       false
+    when 'clarification_needed'
+      # User said "yes" to an offer with multiple options - need to ask which one
+      captain_logger.info 'LLM classified as clarification_needed - will ask user to specify'
+      classification
     when 'continuation', 'new_question'
       # In ongoing conversations we always search, regardless of continuation vs new question
       # Return the classification type so force_documentation_search knows which query to use
@@ -710,9 +684,15 @@ module Captain::ChatHelper
       User's response: "#{user_message}"
 
       Classify the user's response as ONE of:
-      - "continuation": User acknowledging completion of a step and ready to continue (e.g., "yes", "done", "ok", "next")
-      - "handoff_confirmation": User confirming they want to speak with a human agent (only if assistant offered handoff)
+      - "handoff_confirmation": User confirming they want to speak with a human agent (only if assistant explicitly offered to transfer to human/agent)
+      - "clarification_needed": User said "yes" to an offer with MULTIPLE DISTINCT options presented (e.g., "help with X or Y?", a bulleted list of choices)
+      - "continuation": User wants to proceed with a SINGLE offered action, OR user completed a step (e.g., "done", "yes please", "I tried that")
       - "new_question": User asking a new question or providing new information
+
+      CRITICAL RULES:
+      1. If assistant offered ONE thing (e.g., "Would you like step-by-step guidance?") and user says "yes" → "continuation"
+      2. If assistant offered MULTIPLE choices (e.g., "X or Y?" or a list of options) and user says "yes" → "clarification_needed"
+      3. "clarification_needed" is ONLY for when you cannot determine which of multiple options the user wants
 
       Respond with ONLY the classification keyword, nothing else.
     PROMPT
@@ -736,7 +716,7 @@ module Captain::ChatHelper
     captain_logger.info "LLM classification result: #{result} in #{classification_elapsed_ms}ms"
 
     # Validate result is one of expected values
-    %w[continuation handoff_confirmation new_question].include?(result) ? result : nil
+    %w[continuation handoff_confirmation new_question clarification_needed].include?(result) ? result : nil
   rescue StandardError => e
     captain_logger.warn "LLM classification error: #{e.message}"
     nil
@@ -943,10 +923,26 @@ module Captain::ChatHelper
   end
 
   # Force a documentation search with context from the conversation
-  # @param classification [String] 'new_question' or 'continuation' - determines which query to use
+  # @param classification [String] 'new_question', 'continuation', or 'clarification_needed'
   def force_documentation_search(classification = 'continuation')
     # Get the current user message (the one we're responding to)
     current_user_message = last_user_message_content
+
+    # For clarification_needed, don't search - just add context for the LLM to ask which option
+    if classification == 'clarification_needed'
+      captain_logger.info 'Clarification needed - adding context to ask user which option they want'
+      @messages << {
+        role: 'system',
+        content: 'IMPORTANT: The user said "yes" but your previous message offered multiple options. Do NOT repeat your previous response. Ask the user to specify which option they need help with. Be brief and direct.'
+      }
+      # Set flag to skip forced search on recursive call (prevent infinite loop)
+      @skip_forced_search = true
+      begin
+        return request_chat_completion
+      ensure
+        @skip_forced_search = false
+      end
+    end
 
     # For new questions, always use the current message as the search query
     # For continuations (yes, done, ok, next), extract what the user is confirming from the assistant's offer

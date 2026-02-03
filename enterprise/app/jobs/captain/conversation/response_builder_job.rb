@@ -26,6 +26,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     handle_error(e)
   ensure
+    # Always clean up streaming message if it exists and wasn't finalized
+    cleanup_streaming_message
     Current.executed_by = nil
   end
 
@@ -247,8 +249,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless @streaming_message
 
     if handoff_requested?
-      @streaming_message.destroy!
-      @streaming_message = nil
+      # Mark as deleted to trigger MESSAGE_UPDATED event for frontend, then destroy
+      destroy_streaming_message
       stop_typing_indicator
       return
     end
@@ -290,6 +292,43 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     log_error(error)
     process_action('handoff')
     true
+  end
+
+  def cleanup_streaming_message
+    return unless @streaming_message
+
+    # If streaming message still exists and has empty or streaming content, destroy it
+    if @streaming_message.persisted?
+      captain_logger.info('[Captain][ResponseBuilderJob] Cleaning up orphaned streaming message')
+      destroy_streaming_message
+    end
+    @streaming_message = nil
+    stop_typing_indicator
+  rescue StandardError => e
+    captain_logger.warn("[Captain][ResponseBuilderJob] cleanup_streaming_message failed: #{e.message}")
+  end
+
+  def destroy_streaming_message
+    return unless @streaming_message&.persisted?
+
+    # First mark as deleted to trigger MESSAGE_UPDATED event for frontend
+    # This ensures the frontend removes the "Thinking..." bubble
+    @streaming_message.update!(
+      content: '',
+      content_attributes: (@streaming_message.content_attributes || {}).merge('deleted' => true, 'streaming' => false)
+    )
+    # Now actually destroy the record
+    @streaming_message.destroy!
+    @streaming_message = nil
+  rescue StandardError => e
+    captain_logger.warn("[Captain][ResponseBuilderJob] destroy_streaming_message failed: #{e.message}")
+    # Fallback: try direct destroy if update failed
+    begin
+      @streaming_message&.destroy!
+    rescue StandardError
+      nil
+    end
+    @streaming_message = nil
   end
 
   def log_error(error)

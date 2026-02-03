@@ -134,10 +134,7 @@ class Llm::BaseOpenAiService
           # Add stream: true to parameters for SSE streaming
           streaming_params = parameters.merge(stream: true)
 
-          logger.info('=' * 80)
-          logger.info("Calling custom chat endpoint (streaming): #{custom_chat_path}")
-          logger.info("Headers: #{headers.to_json}")
-          logger.info("Request body: #{streaming_params.to_json}")
+          logger.debug "[API] Streaming request to #{URI.parse(custom_chat_path).host}"
 
           uri = URI.parse(custom_chat_path)
           http = Net::HTTP.new(uri.host, uri.port)
@@ -204,17 +201,13 @@ class Llm::BaseOpenAiService
             end
           end
 
-          logger.info('=' * 80)
-          logger.info('Streaming completed')
+          logger.debug '[API] Streaming completed'
 
           # Return nil for streaming - the caller handles building the response
           nil
         else
           # Non-streaming request
-          logger.info('=' * 80)
-          logger.info("Calling custom chat endpoint: #{custom_chat_path}")
-          logger.info("Headers: #{headers.to_json}")
-          logger.info("Request body: #{parameters.to_json}")
+          request_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
           response = HTTParty.post(
             custom_chat_path,
@@ -223,9 +216,8 @@ class Llm::BaseOpenAiService
             **proxy_options
           )
 
-          logger.info("Response status: #{response.code}")
-          logger.info("Response body: #{response.body}")
-          logger.info('=' * 80)
+          elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - request_start) * 1000).round
+          logger.info "[API] Chat status=#{response.code} elapsed=#{elapsed_ms}ms"
 
           raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
 
@@ -247,10 +239,7 @@ class Llm::BaseOpenAiService
       # Determine the embeddings endpoint
       embeddings_endpoint = (custom_embeddings_path.presence || "#{uri_base}/v1/embeddings")
 
-      logger.info('=' * 80)
-      logger.info("Calling embeddings endpoint: #{embeddings_endpoint}")
-      logger.info("Headers: #{headers.to_json}")
-      logger.info("Request body: #{parameters.to_json}")
+      request_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       response = HTTParty.post(
         embeddings_endpoint,
@@ -259,9 +248,8 @@ class Llm::BaseOpenAiService
         **proxy_options
       )
 
-      logger.info("Response status: #{response.code}")
-      logger.info("Response body: #{response.body}")
-      logger.info('=' * 80)
+      elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - request_start) * 1000).round
+      logger.info "[API] Embeddings status=#{response.code} elapsed=#{elapsed_ms}ms"
 
       raise OpenAI::Error, "HTTP #{response.code}: #{response.body}" unless response.success?
 
