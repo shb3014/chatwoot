@@ -2,12 +2,8 @@ class MessageTemplates::Template::EmailCollect
   pattr_initialize [:conversation!]
 
   def perform
-    ActiveRecord::Base.transaction do
-      conversation.messages.create!(ways_to_reach_you_message_params)
-      conversation.messages.create!(email_input_box_template_message_params)
-    end
-  rescue StandardError => e
-    ChatwootExceptionTracker.new(e, account: conversation.account).capture_exception
+    # Email collection now handled by widget banner
+    # No longer creating bot messages for email collection
     true
   end
 

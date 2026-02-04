@@ -63,7 +63,14 @@
   },
   "AGENT": {
     "AI_LABEL": "• AI Agent",
-    "THINKING": "Thinking"
+    "THINKING": "Thinking",
+    "TIME": {
+      "JUST_NOW": "Just now",
+      "FEW_MINUTES": "Minutes ago"
+    }
+  },
+  "EMAIL_BANNER": {
+    "ENTER_EMAIL": "Enter your email to get notified"
   },
   "POWERED_BY": "Powered by Chatwoot",
   "EMAIL_PLACEHOLDER": "Please enter your email",

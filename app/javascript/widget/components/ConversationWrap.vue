@@ -3,6 +3,7 @@ import ChatMessage from 'widget/components/ChatMessage.vue';
 import AgentTypingBubble from 'widget/components/AgentTypingBubble.vue';
 import DateSeparator from 'shared/components/DateSeparator.vue';
 import Spinner from 'shared/components/Spinner.vue';
+import EmailBanner from 'widget/components/EmailBanner.vue';
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
 import { mapActions, mapGetters } from 'vuex';
@@ -14,6 +15,7 @@ export default {
     AgentTypingBubble,
     DateSeparator,
     Spinner,
+    EmailBanner,
   },
   props: {
     groupedMessages: {
@@ -29,6 +31,7 @@ export default {
     return {
       previousScrollHeight: 0,
       previousConversationSize: 0,
+      scrollContainerRef: null,
     };
   },
   computed: {
@@ -40,7 +43,19 @@ export default {
       conversationSize: 'conversation/getConversationSize',
       isAgentTyping: 'conversation/getIsAgentTyping',
       conversationAttributes: 'conversationAttributes/getConversationParams',
+      allMessages: 'conversation/getConversation',
     }),
+    latestAgentMessageId() {
+      // Find the latest agent message (outgoing message)
+      const messages = Object.values(this.allMessages);
+      const agentMessages = messages.filter(
+        msg => msg.message_type === MESSAGE_TYPE.OUTGOING
+      );
+      if (agentMessages.length === 0) return null;
+      // Sort by created_at descending and get the first one
+      agentMessages.sort((a, b) => b.created_at - a.created_at);
+      return agentMessages[0]?.id || null;
+    },
     colorSchemeClass() {
       return `${this.darkMode === 'dark' ? 'dark-scheme' : 'light-scheme'}`;
     },
@@ -69,6 +84,7 @@ export default {
   },
   mounted() {
     this.$el.addEventListener('scroll', this.handleScroll);
+    this.scrollContainerRef = this.$el;
     this.scrollToBottom();
   },
   updated() {
@@ -107,6 +123,7 @@ export default {
 
 <template>
   <div class="conversation--container" :class="colorSchemeClass">
+    <EmailBanner :scroll-container="scrollContainerRef" />
     <div class="conversation-wrap" :class="{ 'is-typing': isAgentTyping }">
       <div v-if="isFetchingList" class="message--loader">
         <Spinner />
@@ -121,6 +138,7 @@ export default {
           v-for="message in groupedMessage.messages"
           :key="message.id"
           :message="message"
+          :latest-agent-message-id="latestAgentMessageId"
         />
       </div>
       <AgentTypingBubble v-if="showStatusIndicator" />

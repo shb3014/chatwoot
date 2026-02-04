@@ -1,6 +1,9 @@
 import BaseActionCableConnector from '../../shared/helpers/BaseActionCableConnector';
 import { playNewMessageNotificationInWidget } from 'widget/helpers/WidgetAudioNotificationHelper';
-import { ON_AGENT_MESSAGE_RECEIVED } from '../constants/widgetBusEvents';
+import {
+  ON_AGENT_MESSAGE_RECEIVED,
+  ON_CONVERSATION_HANDOFF,
+} from '../constants/widgetBusEvents';
 import { IFrameHelper } from 'widget/helpers/utils';
 import { shouldTriggerMessageUpdateEvent } from './IframeEventHelper';
 import { CHATWOOT_ON_MESSAGE } from '../constants/sdkEvents';
@@ -45,9 +48,19 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onStatusChange = data => {
+    const currentStatus =
+      this.app.$store.getters['conversationAttributes/getConversationParams']
+        .status;
+
     if (data.status === 'resolved') {
       this.app.$store.dispatch('campaign/resetCampaign');
     }
+
+    // Emit handoff event when conversation status changes to 'open' (handoff from bot to human)
+    if (data.status === 'open' && currentStatus !== 'open') {
+      emitter.emit(ON_CONVERSATION_HANDOFF);
+    }
+
     this.app.$store.dispatch('conversationAttributes/update', data);
   };
 

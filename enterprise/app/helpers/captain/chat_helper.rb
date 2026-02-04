@@ -525,6 +525,10 @@ module Captain::ChatHelper
 
     # Ensure citations appear after sentence-ending punctuation.
     cleaned_content = cleaned_content.gsub(/(\[\d+\])([.!?])/, '\2\1')
+    # If punctuation is between adjacent citations, move it after the last citation.
+    3.times do
+      cleaned_content = cleaned_content.gsub(/(\[\d+\])\.\s*(\[\d+\])/, '\1\2.')
+    end
 
     [cleaned_content, normalized_references]
   end
@@ -535,7 +539,7 @@ module Captain::ChatHelper
     skipping = false
 
     lines.each do |line|
-      if line.match?(/\A\**\s*(?:referenced articles|sources)\s*\**:?/i)
+      if line.match?(/\A\**\s*(?:referenced articles|sources?)\s*\**:?/i)
         skipping = true
         next
       end
@@ -546,6 +550,8 @@ module Captain::ChatHelper
 
         skipping = false
       end
+
+      next if line.strip.match?(/\A\**\s*source\s*:\s*/i)
 
       cleaned << line unless skipping
     end
@@ -562,7 +568,7 @@ module Captain::ChatHelper
     # Convert inline [1], [2] markers to citation chips
     processed_content = convert_inline_citations(processed_content, normalized_references)
 
-    # Remove any Sources section at the end (since citations are now inline)
+    # Remove any Source/Sources section at the end (since we will re-append)
     processed_content = remove_reference_section(processed_content)
 
     return processed_content.rstrip if normalized_references.empty?

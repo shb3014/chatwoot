@@ -2,7 +2,7 @@
 import UserMessage from 'widget/components/UserMessage.vue';
 import AgentMessageBubble from 'widget/components/AgentMessageBubble.vue';
 import MessageReplyButton from 'widget/components/MessageReplyButton.vue';
-import { messageStamp } from 'shared/helpers/timeHelper';
+import { messageStamp, dynamicTime } from 'shared/helpers/timeHelper';
 import ImageBubble from 'widget/components/ImageBubble.vue';
 import VideoBubble from 'widget/components/VideoBubble.vue';
 import FileBubble from 'widget/components/FileBubble.vue';
@@ -37,11 +37,17 @@ export default {
       type: Object,
       default: () => {},
     },
+    isLatestAgentMessage: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
       hasImageError: false,
       hasVideoError: false,
+      timeRefreshKey: 0,
+      timeRefreshTimer: null,
     };
   },
   computed: {
@@ -58,6 +64,29 @@ export default {
     readableTime() {
       const { created_at: createdAt = '' } = this.message;
       return messageStamp(createdAt, 'LLL d yyyy, h:mm a');
+    },
+    relativeTime() {
+      // timeRefreshKey forces re-computation when timer triggers
+      // eslint-disable-next-line no-unused-vars
+      const _ = this.timeRefreshKey;
+      const { created_at: createdAt = '' } = this.message;
+      if (!createdAt) return '';
+
+      // Calculate minutes elapsed
+      const now = Date.now();
+      const messageTime = createdAt * 1000; // convert unix timestamp to ms
+      const minutesAgo = Math.floor((now - messageTime) / 60000);
+
+      // Vague time display
+      if (minutesAgo < 1) {
+        return this.$t('AGENT.TIME.JUST_NOW');
+      }
+      if (minutesAgo < 10) {
+        return this.$t('AGENT.TIME.FEW_MINUTES');
+      }
+
+      // Fall back to dynamicTime for older messages
+      return dynamicTime(createdAt);
     },
     messageType() {
       const { message_type: type = 1 } = this.message;
@@ -149,10 +178,23 @@ export default {
       this.hasImageError = false;
       this.hasVideoError = false;
     },
+    isLatestAgentMessage: {
+      immediate: true,
+      handler(isLatest) {
+        if (isLatest) {
+          this.startTimeRefresh();
+        } else {
+          this.stopTimeRefresh();
+        }
+      },
+    },
   },
   mounted() {
     this.hasImageError = false;
     this.hasVideoError = false;
+  },
+  beforeUnmount() {
+    this.stopTimeRefresh();
   },
   methods: {
     onImageLoadError() {
@@ -163,6 +205,20 @@ export default {
     },
     toggleReply() {
       emitter.emit(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.message);
+    },
+    startTimeRefresh() {
+      // Refresh every 30 seconds for accurate relative time
+      if (!this.timeRefreshTimer) {
+        this.timeRefreshTimer = setInterval(() => {
+          this.timeRefreshKey += 1;
+        }, 30000);
+      }
+    },
+    stopTimeRefresh() {
+      if (this.timeRefreshTimer) {
+        clearInterval(this.timeRefreshTimer);
+        this.timeRefreshTimer = null;
+      }
     },
   },
 };
@@ -259,6 +315,14 @@ export default {
           <span v-if="isAIAgent" class="ai-label text-n-slate-10">
             {{ $t('AGENT.AI_LABEL') }}
           </span>
+          <transition name="fade-time">
+            <span
+              v-if="isLatestAgentMessage && relativeTime"
+              class="time-label text-n-slate-10"
+            >
+              • {{ relativeTime }}
+            </span>
+          </transition>
         </div>
       </div>
     </div>

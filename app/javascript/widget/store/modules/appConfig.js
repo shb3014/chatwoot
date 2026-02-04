@@ -28,6 +28,7 @@ const state = {
   enableFileUpload: true,
   enableEmojiPicker: true,
   enableEndConversation: true,
+  enableEmailCollect: false,
 };
 
 export const getters = {
@@ -48,6 +49,7 @@ export const getters = {
   getShouldShowFilePicker: $state => $state.enableFileUpload,
   getShouldShowEmojiPicker: $state => $state.enableEmojiPicker,
   getCanUserEndConversation: $state => $state.enableEndConversation,
+  getEnableEmailCollect: $state => $state.enableEmailCollect,
 };
 
 export const actions = {
@@ -67,6 +69,7 @@ export const actions = {
       enableFileUpload = true,
       enableEmojiPicker = true,
       enableEndConversation = true,
+      enableEmailCollect = false,
     }
   ) {
     commit(SET_WIDGET_APP_CONFIG, {
@@ -83,6 +86,7 @@ export const actions = {
       enableFileUpload,
       enableEmojiPicker,
       enableEndConversation,
+      enableEmailCollect,
     });
   },
   toggleWidgetOpen({ commit }, isWidgetOpen) {
@@ -125,6 +129,7 @@ export const mutations = {
     $state.enableFileUpload = data.enableFileUpload;
     $state.enableEmojiPicker = data.enableEmojiPicker;
     $state.enableEndConversation = data.enableEndConversation;
+    $state.enableEmailCollect = data.enableEmailCollect;
   },
   [TOGGLE_WIDGET_OPEN]($state, isWidgetOpen) {
     $state.isWidgetOpen = isWidgetOpen;

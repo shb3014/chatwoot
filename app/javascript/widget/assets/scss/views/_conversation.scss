@@ -75,6 +75,24 @@
     @apply text-xs;
   }
 
+  .time-label {
+    @apply text-xs;
+  }
+
+  /* Fade animation for time label */
+  .fade-time-enter-active {
+    transition: opacity 0.3s ease;
+  }
+
+  .fade-time-leave-active {
+    transition: opacity 0.5s ease;
+  }
+
+  .fade-time-enter-from,
+  .fade-time-leave-to {
+    opacity: 0;
+  }
+
   .has-attachment {
     overflow: hidden;
 

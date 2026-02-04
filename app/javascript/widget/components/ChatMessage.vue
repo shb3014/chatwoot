@@ -14,6 +14,10 @@ export default {
       type: Object,
       default: () => {},
     },
+    latestAgentMessageId: {
+      type: [Number, String],
+      default: null,
+    },
   },
   computed: {
     ...mapGetters({
@@ -42,6 +46,7 @@ export default {
     :id="`cwmsg-${message.id}`"
     :message="message"
     :reply-to="replyTo"
+    :is-latest-agent-message="message.id === latestAgentMessageId"
   />
 </template>
 
