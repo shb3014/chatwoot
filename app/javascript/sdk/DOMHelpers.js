@@ -5,7 +5,9 @@ export const loadCSS = () => {
   const css = document.createElement('style');
   css.innerHTML = `${SDK_CSS}`;
   css.id = 'cw-widget-styles';
+  // Support both Turbo (modern) and Turbolinks 5.x (legacy)
   css.dataset.turboPermanent = true;
+  css.dataset.turbolinksPermanent = true;
 
   if (document.body) {
     document.body.appendChild(css);

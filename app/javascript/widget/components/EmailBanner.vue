@@ -12,15 +12,9 @@ import { MESSAGE_TYPE } from 'shared/constants/messages';
 
 export default {
   name: 'EmailBanner',
-  components: {
-    FluentIcon,
-    Spinner,
-  },
+  components: { FluentIcon, Spinner },
   props: {
-    scrollContainer: {
-      type: Object,
-      default: null,
-    },
+    scrollContainer: { type: Object, default: null },
   },
   setup() {
     return { v$: useVuelidate() };
@@ -34,10 +28,16 @@ export default {
       recentlySaved: false,
       isEditing: false,
       isFocused: false,
-      handoffTriggered: false,
       isReady: false,
       scrollInitialized: false,
       lastScrollTop: 0,
+      lastSyncedEmail: '',
+      scrollDebounceTimer: null,
+      bannerWasShown: false,
+      stateChangeCooldown: false,
+      isAtTop: true,
+      showAtTopTemporarily: false,
+      atTopTimer: null,
     };
   },
   computed: {
@@ -47,8 +47,9 @@ export default {
       allMessages: 'conversation/getConversation',
     }),
     hasUserSentMessage() {
-      const messages = Object.values(this.allMessages);
-      return messages.some(msg => msg.message_type === MESSAGE_TYPE.INCOMING);
+      return Object.values(this.allMessages).some(
+        msg => msg.message_type === MESSAGE_TYPE.INCOMING
+      );
     },
     textColor() {
       return getContrastingTextColor(this.widgetColor);
@@ -57,80 +58,70 @@ export default {
       return this.currentUser?.email || '';
     },
     hasEmail() {
-      // Consider email saved if either store has it or we just saved it locally
       return !!this.userEmail || this.isSaved;
     },
     submitButtonStyle() {
-      const isValid = !this.v$.emailInput.$invalid;
-      return isValid
-        ? { backgroundColor: this.widgetColor, color: this.textColor }
-        : { backgroundColor: '#9CA3AF', color: '#fff' };
+      return this.v$.emailInput.$invalid
+        ? { backgroundColor: '#9CA3AF', color: '#fff' }
+        : { backgroundColor: this.widgetColor, color: this.textColor };
     },
     inputWrapperStyle() {
-      if (this.isFocused) {
-        return {
-          borderColor: this.widgetColor,
-          boxShadow: `0 0 0 2px ${this.widgetColor}30`,
-        };
-      }
-      return {};
+      return this.isFocused
+        ? {
+            borderColor: this.widgetColor,
+            boxShadow: `0 0 0 2px ${this.widgetColor}30`,
+          }
+        : {};
     },
     shouldShowBanner() {
       return this.enableEmailCollect && !this.isCollapsed;
     },
-    isSticky() {
-      // Sticky when email is not saved, recently saved, or handoff just triggered
-      return !this.hasEmail || this.recentlySaved || this.handoffTriggered;
-    },
-    shouldRender() {
-      // Only render after initial ready state is confirmed
-      return this.isReady;
+    shouldShowOverlay() {
+      if (!this.enableEmailCollect) return false;
+      // When email is saved (and not recently saved), only show temporarily at top
+      if (this.hasEmail && !this.isEditing && !this.recentlySaved) {
+        return this.showAtTopTemporarily;
+      }
+      return !this.isCollapsed || this.hasEmail;
     },
     enableEmailCollect() {
-      // Check if email collection is enabled and user has sent a message
-      if (!this.hasUserSentMessage) return false;
-      return window.chatwootWebChannel?.enableEmailCollect ?? false;
+      const enabled = window.chatwootWebChannel?.enableEmailCollect ?? false;
+      if (this.bannerWasShown) return enabled;
+      return this.isReady && this.hasUserSentMessage && enabled;
     },
   },
   validations: {
-    emailInput: {
-      required,
-      email,
-    },
+    emailInput: { required, email },
   },
   watch: {
     scrollContainer: {
       immediate: true,
       handler(container) {
-        if (container) {
-          container.addEventListener('scroll', this.handleScroll);
-        }
+        if (container) container.addEventListener('scroll', this.handleScroll);
       },
     },
     userEmail: {
       immediate: true,
       handler(newEmail) {
-        if (newEmail) {
-          if (!this.emailInput) {
-            this.emailInput = newEmail;
-          }
-          // Sync isSaved state when store has email
-          this.isSaved = true;
-        }
+        if (newEmail && newEmail !== this.lastSyncedEmail)
+          this.syncEmailFromStore();
       },
+    },
+    enableEmailCollect(val) {
+      if (val && !this.bannerWasShown) this.bannerWasShown = true;
     },
   },
   mounted() {
-    // Listen for conversation handoff events (bot to human agent)
     emitter.on(ON_CONVERSATION_HANDOFF, this.onConversationHandoff);
-    // Delay showing banner to prevent flickering during initial load
-    // Only set ready once, after initial data has stabilized
-    this.initReadyState();
+    setTimeout(() => {
+      this.isReady = true;
+      this.syncEmailFromStore();
+    }, 300);
   },
   beforeUnmount() {
-    if (this.scrollContainer) {
-      this.scrollContainer.removeEventListener('scroll', this.handleScroll);
-    }
+    this.scrollContainer?.removeEventListener('scroll', this.handleScroll);
+    clearTimeout(this.scrollDebounceTimer);
+    clearTimeout(this.atTopTimer);
     emitter.off(ON_CONVERSATION_HANDOFF, this.onConversationHandoff);
   },
   methods: {
@@ -138,39 +129,67 @@ export default {
       if (!this.scrollContainer || !this.isReady) return;
 
       const currentScrollTop = this.scrollContainer.scrollTop;
+      const wasAtTop = this.isAtTop;
+      this.isAtTop = currentScrollTop < 10;
 
-      // Initialize scroll position on first scroll event after ready
-      // This prevents reacting to the initial scroll-to-bottom
+      // When email is saved and user scrolls to top, show banner temporarily
+      if (this.hasEmail && !this.isEditing && !this.recentlySaved) {
+        if (this.isAtTop && !wasAtTop) {
+          this.showBannerTemporarily();
+        }
+        return;
+      }
+
+      if (this.stateChangeCooldown) return;
+
+      clearTimeout(this.scrollDebounceTimer);
+      this.scrollDebounceTimer = setTimeout(() => this.processScroll(), 100);
+    },
+    showBannerTemporarily() {
+      clearTimeout(this.atTopTimer);
+      this.showAtTopTemporarily = true;
+      this.atTopTimer = setTimeout(() => {
+        this.showAtTopTemporarily = false;
+      }, 2000);
+    },
+    processScroll() {
+      if (this.stateChangeCooldown || this.recentlySaved) return;
+      if (this.hasEmail) return;
+
+      const currentScrollTop = this.scrollContainer.scrollTop;
+
       if (!this.scrollInitialized) {
         this.lastScrollTop = currentScrollTop;
         this.scrollInitialized = true;
         return;
       }
 
-      // Don't collapse if recently saved (give user time to see the success state)
-      if (this.recentlySaved) return;
-
       const scrollDelta = currentScrollTop - this.lastScrollTop;
+      this.lastScrollTop = currentScrollTop;
 
-      // Only collapse/expand after scrolling more than 50px
       if (Math.abs(scrollDelta) > 50) {
-        // Scrolling down - collapse the banner and reset handoff state
-        if (scrollDelta > 0 && currentScrollTop > 100) {
+        const wasCollapsed = this.isCollapsed;
+
+        if (scrollDelta > 0 && currentScrollTop > 150) {
           this.isCollapsed = true;
-          this.handoffTriggered = false;
-        }
-        // Scrolling up - expand the banner
-        else if (scrollDelta < 0) {
+        } else if (scrollDelta < -50) {
           this.isCollapsed = false;
         }
-        this.lastScrollTop = currentScrollTop;
+
+        if (wasCollapsed !== this.isCollapsed) this.startCooldown();
       }
+    },
+    startCooldown() {
+      this.stateChangeCooldown = true;
+      setTimeout(() => {
+        this.stateChangeCooldown = false;
+        if (this.scrollContainer)
+          this.lastScrollTop = this.scrollContainer.scrollTop;
+      }, 300);
     },
     async onSubmit() {
       this.v$.$touch();
-      if (this.v$.$invalid) {
-        return;
-      }
+      if (this.v$.$invalid) return;
 
       this.isUpdating = true;
       try {
@@ -178,59 +197,46 @@ export default {
         this.isSaved = true;
         this.recentlySaved = true;
         this.isEditing = false;
-        // Ensure banner is expanded and visible
         this.isCollapsed = false;
         await this.$store.dispatch('contacts/get');
-        // Keep banner visible for 1.5 seconds after save
         setTimeout(() => {
           this.recentlySaved = false;
         }, 1500);
-      } catch (error) {
-        // Handle error silently
       } finally {
         this.isUpdating = false;
       }
     },
     expandBanner() {
-      this.isCollapsed = false;
+      if (this.isCollapsed) {
+        this.isCollapsed = false;
+        this.startCooldown();
+      }
     },
     onConversationHandoff() {
-      // When conversation is handed off from bot to human, show the email banner
-      // and keep it fixed on top until user scrolls down
       this.expandBanner();
-      this.handoffTriggered = true;
-    },
-    startEditing() {
-      this.isEditing = true;
-      this.$nextTick(() => {
-        this.$refs.emailInputField?.focus();
-        this.$refs.emailInputField?.select();
-      });
+      // Also show temporarily if email is already saved
+      if (this.hasEmail && !this.isEditing) {
+        this.showBannerTemporarily();
+      }
     },
     onInputFocus() {
       this.isFocused = true;
-      if (this.hasEmail) {
-        this.isEditing = true;
-      }
+      if (this.hasEmail) this.isEditing = true;
     },
     onInputBlur() {
       this.isFocused = false;
     },
     onEmailInput() {
       this.v$.emailInput.$touch();
-      // If user clears the input, they're editing
-      if (!this.emailInput) {
-        this.isEditing = true;
-      }
+      if (!this.emailInput) this.isEditing = true;
     },
-    initReadyState() {
-      // Wait for DOM and data to stabilize before showing
-      // Use requestAnimationFrame + setTimeout to ensure we're past initial render cycles
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          this.isReady = true;
-        }, 100);
-      });
+    syncEmailFromStore() {
+      const storeEmail = this.currentUser?.email;
+      if (storeEmail && storeEmail !== this.lastSyncedEmail) {
+        this.lastSyncedEmail = storeEmail;
+        this.emailInput = storeEmail;
+        this.isSaved = true;
+      }
     },
   },
 };
@@ -238,9 +244,9 @@ export default {
 
 <template>
   <div
-    v-if="shouldRender && enableEmailCollect"
-    class="email-banner-container"
-    :class="{ 'is-sticky': isSticky }"
+    v-if="enableEmailCollect"
+    class="email-banner-overlay"
+    :class="{ show: shouldShowOverlay }"
   >
     <!-- Collapsed state - small clickable bar -->
     <div
@@ -254,7 +260,7 @@ export default {
     </div>
 
     <!-- Expanded state -->
-    <div v-if="shouldShowBanner" class="email-banner">
+    <div v-else-if="shouldShowBanner" class="email-banner">
       <form
         class="email-input-form"
         :class="{ 'is-saved': hasEmail && !isEditing }"
@@ -281,7 +287,6 @@ export default {
         </div>
         <input
           id="email-banner-input"
-          ref="emailInputField"
           v-model="emailInput"
           name="email"
           type="email"
@@ -345,21 +350,35 @@ export default {
 </template>
 
 <style lang="scss" scoped>
-.email-banner-container {
-  @apply z-10;
+.email-banner-overlay {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  width: 100%;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease,
+    visibility 200ms ease;
+  pointer-events: none;
 
-  &.is-sticky {
-    @apply sticky top-0;
+  &.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
 }
 
 .email-banner {
-  @apply bg-n-slate-2 dark:bg-n-solid-2 px-3 py-2;
+  @apply mx-5 mt-2 p-2 bg-white dark:bg-n-solid-2 rounded-xl;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .email-banner-collapsed {
   @apply flex items-center gap-2 px-3 py-1.5 bg-n-slate-2 dark:bg-n-solid-2 border-b border-n-weak cursor-pointer text-xs text-n-slate-11;
-
   &:hover {
     @apply bg-n-slate-3 dark:bg-n-solid-3;
   }
@@ -367,7 +386,6 @@ export default {
 
 .email-input-form {
   @apply flex items-center rounded-lg bg-white dark:bg-n-solid-1 border border-solid border-n-slate-10 dark:border-n-slate-6 transition-all duration-200 py-1.5 px-2;
-
   &.is-saved {
     @apply bg-n-slate-1 dark:bg-n-solid-2 border-n-slate-4;
   }
@@ -388,8 +406,13 @@ export default {
     outline: none !important;
     box-shadow: none !important;
   }
+  &::placeholder {
+    @apply text-n-slate-9;
+  }
+  &:read-only {
+    @apply cursor-default;
+  }
 
-  /* Disable browser autofill background */
   &:-webkit-autofill,
   &:-webkit-autofill:hover,
   &:-webkit-autofill:focus,
@@ -397,14 +420,6 @@ export default {
     -webkit-box-shadow: 0 0 0 30px white inset !important;
     -webkit-text-fill-color: inherit !important;
     transition: background-color 5000s ease-in-out 0s;
-  }
-
-  &::placeholder {
-    @apply text-n-slate-9;
-  }
-
-  &:read-only {
-    @apply cursor-default;
   }
 }
 
@@ -414,16 +429,13 @@ export default {
 
 .submit-button {
   @apply h-7 w-7 flex items-center justify-center rounded-full text-white flex-shrink-0 transition-all duration-200;
-
   &:hover:not(:disabled) {
     filter: brightness(1.1);
     transform: scale(1.05);
   }
-
   &:active:not(:disabled) {
     transform: scale(0.95);
   }
-
   &:disabled {
     @apply opacity-40 cursor-default;
   }

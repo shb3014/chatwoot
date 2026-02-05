@@ -87,9 +87,11 @@ export const IFrameHelper = {
 
     addClasses(widgetHolder, holderClassName);
     widgetHolder.id = 'cw-widget-holder';
+    // Support both Turbo (modern) and Turbolinks 5.x (legacy)
     widgetHolder.dataset.turboPermanent = true;
+    widgetHolder.dataset.turbolinksPermanent = true;
     widgetHolder.appendChild(iframe);
-    
+
     if (document.body) {
       document.body.appendChild(widgetHolder);
     } else {
@@ -97,7 +99,7 @@ export const IFrameHelper = {
         document.body.appendChild(widgetHolder);
       });
     }
-    
+
     IFrameHelper.initPostMessageCommunication();
     IFrameHelper.initWindowSizeListener();
     IFrameHelper.preventDefaultScroll();
@@ -374,9 +376,13 @@ export const IFrameHelper = {
           // Avoid any container shadow bleeding
           try {
             bubbleHolder.style.boxShadow = 'none';
-          } catch (_) {}
+          } catch (_) {
+            // Ignore styling errors
+          }
         }
-      } catch (_) {}
+      } catch (_) {
+        // Ignore styling errors
+      }
       setupBubbleAnimations(bubbleAnimationsConfig);
     }
   },

@@ -94,6 +94,9 @@ By default, it renders:
       })();
     </script>
     <% end %>
+    <% if @portal.channel_web_widget.present? && !@is_plain_layout_enabled %>
+    <%= @portal.channel_web_widget.web_widget_script.html_safe %>
+    <% end %>
   </body>
   <style>
   html.dark {
@@ -159,7 +162,4 @@ By default, it renders:
       defaultLocale: '<%= @portal.default_locale %>'
     };
   </script>
-  <% if @portal.channel_web_widget.present? && !@is_plain_layout_enabled %>
-  <%= @portal.channel_web_widget.web_widget_script.html_safe %>
-  <% end %>
 </html>

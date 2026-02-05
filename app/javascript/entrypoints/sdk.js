@@ -36,11 +36,74 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     restoreWidgetInDOM(event.detail.newBody);
   });
 
-  if (window.Turbolinks) {
-    document.addEventListener('turbolinks:before-render', event => {
-      restoreWidgetInDOM(event.data.newBody);
-    });
+  // Store references to widget elements globally for Turbolinks restoration
+  // Using window to ensure persistence across any script re-execution
+  if (!window.chatwootWidgetCache) {
+    window.chatwootWidgetCache = {
+      bubbleHolder: null,
+      widgetHolder: null,
+      widgetStyles: null,
+    };
   }
+
+  // Function to cache widget elements before they might be removed
+  const cacheWidgetElements = () => {
+    const bubble = document.getElementById('cw-bubble-holder');
+    const widget = document.getElementById('cw-widget-holder');
+    const styles = document.getElementById('cw-widget-styles');
+
+    // Only cache if elements exist (don't overwrite with null)
+    if (bubble) window.chatwootWidgetCache.bubbleHolder = bubble;
+    if (widget) window.chatwootWidgetCache.widgetHolder = widget;
+    if (styles) window.chatwootWidgetCache.widgetStyles = styles;
+  };
+
+  // Function to restore widget elements to the current document body
+  const restoreWidgetElements = () => {
+    const cache = window.chatwootWidgetCache;
+
+    if (cache.bubbleHolder && !document.body.contains(cache.bubbleHolder)) {
+      document.body.appendChild(cache.bubbleHolder);
+    }
+    if (cache.widgetHolder && !document.body.contains(cache.widgetHolder)) {
+      document.body.appendChild(cache.widgetHolder);
+    }
+    if (cache.widgetStyles && !document.body.contains(cache.widgetStyles)) {
+      document.body.appendChild(cache.widgetStyles);
+    }
+  };
+
+  // Handle Turbolinks navigation (legacy Turbolinks 5.x)
+  // Cache elements before render to preserve them
+  document.addEventListener('turbolinks:before-render', event => {
+    // Cache current widget elements before Turbolinks replaces the body
+    cacheWidgetElements();
+
+    // Also try to append to new body if available (Turbolinks 5.x style)
+    const newBody = event.data?.newBody;
+    if (newBody) {
+      restoreWidgetInDOM(newBody);
+    }
+  });
+
+  // Also cache on turbolinks:before-cache (fired before page is saved to cache)
+  document.addEventListener('turbolinks:before-cache', () => {
+    cacheWidgetElements();
+  });
+
+  // Handle turbolinks:load to ensure widgets are visible after navigation
+  // This is the most reliable point - after Turbolinks has finished
+  document.addEventListener('turbolinks:load', () => {
+    // Small delay to ensure body is fully ready
+    setTimeout(() => {
+      restoreWidgetElements();
+    }, 0);
+  });
+
+  // Also handle turbolinks:render as a fallback
+  document.addEventListener('turbolinks:render', () => {
+    restoreWidgetElements();
+  });
 
   // if this is an astro app
   document.addEventListener('astro:before-swap', event =>

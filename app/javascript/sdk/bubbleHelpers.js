@@ -10,6 +10,11 @@ import { dispatchWindowEvent } from 'shared/helpers/CustomEventHelper';
 export const bubbleSVG =
   'M240.808 240.808H122.123C56.6994 240.808 3.45695 187.562 3.45695 122.122C3.45695 56.7031 56.6994 3.45697 122.124 3.45697C187.566 3.45697 240.808 56.7031 240.808 122.122V240.808Z';
 
+// Bubble animation state (declared early as it's used in onBubbleClick)
+let hasBubbleAnimations = false;
+let openAnimationUrl = '';
+let closeAnimationUrl = '';
+
 export const widgetHolder = document.createElement('div');
 
 export const bubbleHolder = document.createElement('div');
@@ -66,7 +71,9 @@ export const createBubbleHolder = hideMessageBubble => {
   }
   addClasses(bubbleHolder, 'woot--bubble-holder');
   bubbleHolder.id = 'cw-bubble-holder';
+  // Support both Turbo (modern) and Turbolinks 5.x (legacy)
   bubbleHolder.dataset.turboPermanent = true;
+  bubbleHolder.dataset.turbolinksPermanent = true;
 
   if (document.body) {
     document.body.appendChild(bubbleHolder);
@@ -96,13 +103,6 @@ export const onBubbleClick = (props = {}) => {
   const newIsOpen = toggleValue === undefined ? !isOpen : toggleValue;
   window.$chatwoot.isOpen = newIsOpen;
 
-  console.log(
-    '[BubbleAnimation] onBubbleClick - newIsOpen:',
-    newIsOpen,
-    'hasBubbleAnimations:',
-    hasBubbleAnimations
-  );
-
   // When bubble animations are enabled, only use chatBubble (no close button)
   if (hasBubbleAnimations) {
     toggleClass(widgetHolder, 'woot--hide');
@@ -131,48 +131,19 @@ export const removeUnreadClass = () => {
 };
 
 // Bubble animation helpers
-// const animationStates = new Map(); // Track animation state per bubble
-let openAnimationUrl = '';
-let closeAnimationUrl = '';
-let hasBubbleAnimations = false;
-
 const hideStaticBubbleIcon = bubble => {
   try {
     const svgIcon = bubble && bubble.querySelector('#woot-widget-bubble-icon');
     if (svgIcon) {
       svgIcon.style.opacity = '0';
     }
-  } catch (_) {}
-};
-
-const createAnimationImage = bubbleId => {
-  const existingImg = document.getElementById(
-    `woot-bubble-animation-${bubbleId}`
-  );
-  if (existingImg) return existingImg;
-
-  const animationImage = document.createElement('img');
-  animationImage.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity 0.3s ease;
-  `;
-  animationImage.id = `woot-bubble-animation-${bubbleId}`;
-
-  return animationImage;
+  } catch (_) {
+    // Ignore DOM errors
+  }
 };
 
 const playAnimation = url => {
   if (!url) return;
-
-  console.log('[BubbleAnimation] Playing animation:', url);
 
   // When animations are enabled, always use the chatBubble (single bubble for all animations)
   const bubble = document.querySelector(
@@ -181,7 +152,6 @@ const playAnimation = url => {
   const bubbleId = 'chat';
 
   if (!bubble) {
-    console.warn('[BubbleAnimation] Bubble element not found');
     return;
   }
 
@@ -211,7 +181,6 @@ const playAnimation = url => {
 
   // Preload and swap when ready
   newImg.onload = () => {
-    console.log('[BubbleAnimation] New animation loaded, swapping');
     // Remove old image if exists
     if (currentImg && currentImg.parentNode) {
       currentImg.parentNode.removeChild(currentImg);
@@ -248,32 +217,20 @@ export const setupBubbleAnimations = animationsConfig => {
   if (openAnimationUrl) {
     try {
       window.addEventListener(CHATWOOT_OPENED, () => {
-        console.log(
-          '[BubbleAnimation] CHATWOOT_OPENED event received, playing open animation'
-        );
-        // Play animation immediately when opened
         playAnimation(openAnimationUrl);
       });
-      console.log(
-        '[BubbleAnimation] Open animation listener registered for:',
-        openAnimationUrl
-      );
-    } catch (_) {}
+    } catch (_) {
+      // Ignore event listener errors
+    }
   }
 
   if (closeAnimationUrl) {
     try {
       window.addEventListener(CHATWOOT_CLOSED, () => {
-        console.log(
-          '[BubbleAnimation] CHATWOOT_CLOSED event received, playing close animation'
-        );
-        // Play animation immediately when closed
         playAnimation(closeAnimationUrl);
       });
-      console.log(
-        '[BubbleAnimation] Close animation listener registered for:',
-        closeAnimationUrl
-      );
-    } catch (_) {}
+    } catch (_) {
+      // Ignore event listener errors
+    }
   }
 };
