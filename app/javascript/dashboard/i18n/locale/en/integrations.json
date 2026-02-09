@@ -759,6 +759,89 @@
         }
       }
     },
+    "SOURCES": {
+      "HEADER": "Sources",
+      "ADD_NEW": "Add source",
+      "FORM_DESCRIPTION": "Add knowledge sources for Captain to reference when responding to customers.",
+      "SOURCE_TYPES": {
+        "ALL": "All",
+        "WEB_URL": "Web URL",
+        "PDF": "PDF",
+        "PRIVATE_ARTICLE": "Article"
+      },
+      "STATUS": {
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "ACTIVE": "Active",
+        "FAILED": "Failed"
+      },
+      "CREATE": {
+        "TITLE": "Add a source",
+        "SUCCESS_MESSAGE": "The source has been successfully created",
+        "ERROR_MESSAGE": "There was an error creating the source, please try again."
+      },
+      "UPDATE": {
+        "SUCCESS_MESSAGE": "The source has been successfully updated",
+        "ERROR_MESSAGE": "There was an error updating the source, please try again.",
+        "ERROR_LABEL": "Error:"
+      },
+      "RECRAWL": {
+        "SUCCESS_MESSAGE": "Re-crawl has been queued. The source will be updated shortly.",
+        "ERROR_MESSAGE": "There was an error re-crawling the source, please try again."
+      },
+      "FORM": {
+        "TYPE": {
+          "LABEL": "Source Type",
+          "PLACEHOLDER": "Select the source type"
+        },
+        "TITLE": {
+          "LABEL": "Title",
+          "LABEL_OPTIONAL": "Title (optional, auto-inferred)",
+          "PLACEHOLDER": "Enter a title for this source",
+          "ERROR": "Title is required"
+        },
+        "URL": {
+          "LABEL": "URL",
+          "PLACEHOLDER": "Enter the URL of the web page",
+          "ERROR": "Please provide a valid URL"
+        },
+        "CONTENT": {
+          "LABEL": "Content",
+          "CRAWLED_CONTENT_LABEL": "Crawled Content",
+          "PLACEHOLDER": "Write the article content...",
+          "ERROR": "Content is required for articles"
+        },
+        "PDF_FILE": {
+          "LABEL": "PDF File",
+          "CHOOSE_FILE": "Choose PDF file",
+          "ERROR": "Please select a PDF file",
+          "HELP_TEXT": "Maximum file size: 10MB",
+          "INVALID_TYPE": "Please select a valid PDF file",
+          "TOO_LARGE": "File size exceeds 10MB limit"
+        }
+      },
+      "DELETE": {
+        "TITLE": "Are you sure you want to delete this source?",
+        "DESCRIPTION": "This action is permanent. Deleting this source will remove it from Captain's knowledge base.",
+        "CONFIRM": "Yes, delete",
+        "SUCCESS_MESSAGE": "The source has been successfully deleted",
+        "ERROR_MESSAGE": "There was an error deleting the source, please try again."
+      },
+      "OPTIONS": {
+        "EDIT_SOURCE": "Edit Source",
+        "DELETE_SOURCE": "Delete Source",
+        "RECRAWL_SOURCE": "Re-crawl"
+      },
+      "EMPTY_STATE": {
+        "TITLE": "No sources available",
+        "SUBTITLE": "Sources provide knowledge for Captain to reference. Add web URLs, upload PDFs, or write private articles to enhance your assistant's responses.",
+        "FEATURE_SPOTLIGHT": {
+          "TITLE": "Captain Sources",
+          "NOTE": "Sources are knowledge resources that Captain uses to provide accurate responses. Add web URLs to crawl pages, upload PDF documents, or write private articles as internal knowledge. All sources are indexed and searchable via embeddings."
+        }
+      },
+      "SEARCH_PLACEHOLDER": "Search sources..."
+    },
     "CUSTOM_TOOLS": {
       "HEADER": "Tools",
       "ADD_NEW": "Create a new tool",

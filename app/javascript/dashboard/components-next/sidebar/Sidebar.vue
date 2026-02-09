@@ -223,19 +223,14 @@ const menuItems = computed(() => {
           to: accountScopedRoute('captain_assistants_index'),
         },
         {
-          name: 'Documents',
-          label: t('SIDEBAR.CAPTAIN_DOCUMENTS'),
-          to: accountScopedRoute('captain_documents_index'),
+          name: 'Sources',
+          label: t('SIDEBAR.CAPTAIN_SOURCES'),
+          to: accountScopedRoute('captain_sources_index'),
         },
         {
           name: 'Conversations',
           label: t('SIDEBAR.CAPTAIN_CONVERSATIONS'),
           to: accountScopedRoute('captain_conversations_index'),
-        },
-        {
-          name: 'Responses',
-          label: t('SIDEBAR.CAPTAIN_RESPONSES'),
-          to: accountScopedRoute('captain_responses_index'),
         },
         {
           name: 'Tools',

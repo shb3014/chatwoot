@@ -430,38 +430,52 @@ module Captain::ChatHelper
         stripped = line.strip
         next unless stripped.match?(/^\[\d+\]\s+/)
 
-        match = stripped.match(%r{^\[\d+\]\s+(?:\[(.+?)\]\((https?://\S+)\)|(.+?)\s+-\s+(https?://\S+))(?:\s+\(locale:\s*([^)]+)\))?})
+        match = stripped.match(%r{^\[\d+\]\s+(?:\[(.+?)\]\((https?://\S+)\)|(.+?)\s+-\s+(https?://\S+))(?:\s+\(locale:\s*([^)]+)\))?(?:\s+\(type:\s*([^)]+)\))?})
         next unless match
 
         title = match[1].presence || match[3].to_s
         url = match[2].presence || match[4].to_s
         locale = match[5].to_s.strip.presence
+        ref_type = match[6].to_s.strip.presence || 'article'
         references << {
           title: title.strip,
           locale: locale,
-          url: url.strip
+          url: url.strip,
+          type: ref_type
         }
       end
     end
 
-    # Fallback: parse article blocks when reference list is missing
+    # Fallback: parse article/source blocks when reference list is missing
     if references.empty?
       current_title = nil
+      current_block_type = 'article'
       text.lines.each do |line|
         stripped = line.strip
         if stripped.start_with?('Article Title:')
           current_title = stripped.sub('Article Title:', '').strip
+          current_block_type = 'article'
+        elsif stripped.start_with?('Source Title:')
+          current_title = stripped.sub('Source Title:', '').strip
+          # Will be refined when we see "Source URL:" below
+          current_block_type = 'article'
+        elsif stripped.start_with?('Source URL:')
+          url = stripped.sub('Source URL:', '').strip
+          if url.present? && current_title.present?
+            references << { title: current_title, url: url, locale: nil, type: 'web_url' }
+            current_title = nil
+          end
         elsif stripped.start_with?('Source:')
           url = stripped.split(':', 2).last&.strip
           url = url.gsub(%r{\A\[(.+?)\]\((https?://\S+)\)\z}, '\2')
           if url.present? && current_title.present?
-            references << { title: current_title, url: url, locale: nil }
+            references << { title: current_title, url: url, locale: nil, type: current_block_type }
             current_title = nil
           end
         elsif stripped.match?(%r{\A\[(.+?)\]\((https?://\S+)\)\s*\z})
           match = stripped.match(%r{\A\[(.+?)\]\((https?://\S+)\)\s*\z})
           if match
-            references << { title: match[1].strip, url: match[2].strip, locale: nil }
+            references << { title: match[1].strip, url: match[2].strip, locale: nil, type: 'article' }
             current_title = nil
           end
         end
@@ -489,8 +503,9 @@ module Captain::ChatHelper
       ref_num = index + 1
       title_escaped = CGI.escapeHTML(reference[:title].to_s)
       url_escaped = CGI.escapeHTML(reference[:url].to_s)
+      ref_type = CGI.escapeHTML(reference[:type] || 'article')
       citation_chips[ref_num] =
-        "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
+        "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"#{ref_type}\">#{ref_num}</cite>"
     end
 
     # Replace [1], [2], etc. with citation chips, or remove if no matching reference
@@ -577,7 +592,8 @@ module Captain::ChatHelper
       ref_num = index + 1
       title_escaped = CGI.escapeHTML(reference[:title].to_s)
       url_escaped = CGI.escapeHTML(reference[:url].to_s)
-      "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"article\">#{ref_num}</cite>"
+      ref_type = CGI.escapeHTML(reference[:type] || 'article')
+      "<cite class=\"citation-chip\" data-ref=\"#{ref_num}\" data-title=\"#{title_escaped}\" data-url=\"#{url_escaped}\" data-type=\"#{ref_type}\">#{ref_num}</cite>"
     end
 
     "#{processed_content.rstrip}\n\n**Sources:** #{citation_chips.join(' ')}"

@@ -8,9 +8,13 @@ import AssistantInboxesIndex from './assistants/inboxes/Index.vue';
 import AssistantGuardrailsIndex from './assistants/guardrails/Index.vue';
 import AssistantGuidelinesIndex from './assistants/guidelines/Index.vue';
 import AssistantScenariosIndex from './assistants/scenarios/Index.vue';
-import DocumentsIndex from './documents/Index.vue';
+// DocumentsIndex route hidden — data preserved in DB but UI replaced by Sources
+// import DocumentsIndex from './documents/Index.vue';
+import SourcesIndex from './sources/Index.vue';
+import SourcesEdit from './sources/Edit.vue';
 import ConversationsIndex from './conversations/Index.vue';
-import ResponsesIndex from './responses/Index.vue';
+// ResponsesIndex route hidden — replaced by Sources
+// import ResponsesIndex from './responses/Index.vue';
 import CustomToolsIndex from './tools/Index.vue';
 
 export const routes = [
@@ -101,9 +105,22 @@ export const routes = [
     },
   },
   {
-    path: frontendURL('accounts/:accountId/captain/documents'),
-    component: DocumentsIndex,
-    name: 'captain_documents_index',
+    path: frontendURL('accounts/:accountId/captain/sources'),
+    component: SourcesIndex,
+    name: 'captain_sources_index',
+    meta: {
+      permissions: ['administrator', 'agent'],
+      featureFlag: FEATURE_FLAGS.CAPTAIN,
+      installationTypes: [
+        INSTALLATION_TYPES.CLOUD,
+        INSTALLATION_TYPES.ENTERPRISE,
+      ],
+    },
+  },
+  {
+    path: frontendURL('accounts/:accountId/captain/sources/:sourceId/edit'),
+    component: SourcesEdit,
+    name: 'captain_sources_edit',
     meta: {
       permissions: ['administrator', 'agent'],
       featureFlag: FEATURE_FLAGS.CAPTAIN,
@@ -117,19 +134,6 @@ export const routes = [
     path: frontendURL('accounts/:accountId/captain/conversations'),
     component: ConversationsIndex,
     name: 'captain_conversations_index',
-    meta: {
-      permissions: ['administrator', 'agent'],
-      featureFlag: FEATURE_FLAGS.CAPTAIN,
-      installationTypes: [
-        INSTALLATION_TYPES.CLOUD,
-        INSTALLATION_TYPES.ENTERPRISE,
-      ],
-    },
-  },
-  {
-    path: frontendURL('accounts/:accountId/captain/responses'),
-    component: ResponsesIndex,
-    name: 'captain_responses_index',
     meta: {
       permissions: ['administrator', 'agent'],
       featureFlag: FEATURE_FLAGS.CAPTAIN,

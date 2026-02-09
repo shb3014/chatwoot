@@ -22,6 +22,7 @@ export default {
     typeLabel() {
       const typeMap = {
         article: 'Help Center Article',
+        web_url: 'Web Source',
         faq: 'FAQ',
         document: 'Document',
       };

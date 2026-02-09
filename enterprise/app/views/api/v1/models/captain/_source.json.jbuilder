@@ -1,0 +1,10 @@
+json.id resource.id
+json.account_id resource.account_id
+json.title resource.title
+json.source_type resource.source_type
+json.external_link resource.external_link
+json.status resource.status
+json.content resource.content
+json.metadata resource.metadata
+json.created_at resource.created_at.to_i
+json.updated_at resource.updated_at.to_i

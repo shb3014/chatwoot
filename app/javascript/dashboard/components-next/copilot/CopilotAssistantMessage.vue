@@ -63,6 +63,7 @@ const useCopilotResponse = () => {
 const citationTypeLabel = computed(() => {
   const typeMap = {
     article: 'Help Center Article',
+    web_url: 'Web Source',
     faq: 'FAQ',
     document: 'Document',
   };

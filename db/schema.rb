@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_27_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_09_110000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -404,6 +404,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_27_120000) do
     t.index ["assistant_id", "enabled"], name: "index_captain_scenarios_on_assistant_id_and_enabled"
     t.index ["assistant_id"], name: "index_captain_scenarios_on_assistant_id"
     t.index ["enabled"], name: "index_captain_scenarios_on_enabled"
+  end
+
+  create_table "captain_sources", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.integer "source_type", default: 0, null: false
+    t.string "title"
+    t.text "content"
+    t.string "external_link"
+    t.integer "status", default: 0, null: false
+    t.vector "embedding", limit: 1536
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "external_link"], name: "index_captain_sources_on_account_and_link", unique: true, where: "(external_link IS NOT NULL)"
+    t.index ["account_id"], name: "index_captain_sources_on_account_id"
+    t.index ["embedding"], name: "vector_idx_captain_sources_embedding", using: :ivfflat
+    t.index ["source_type"], name: "index_captain_sources_on_source_type"
+    t.index ["status"], name: "index_captain_sources_on_status"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -1280,6 +1298,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_27_120000) do
   add_foreign_key "captain_conversation_learnings", "accounts"
   add_foreign_key "captain_conversation_learnings", "captain_assistants", column: "assistant_id"
   add_foreign_key "captain_conversation_learnings", "conversations"
+  add_foreign_key "captain_sources", "accounts"
   add_foreign_key "inboxes", "portals"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").

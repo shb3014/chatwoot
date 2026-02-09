@@ -323,6 +323,10 @@ en:
       completed_tool_call: 'Completed %{function_name} tool call'
       invalid_tool_call: 'Invalid tool call'
       tool_not_available: 'Tool not available'
+    sources:
+      pdf_format_error: 'must be a PDF file'
+      pdf_size_error: 'must be less than 10MB'
+      process_failed: 'Failed to process source %{source_id}: %{error}'
     documents:
       limit_exceeded: 'Document limit exceeded'
       pdf_format_error: 'must be a PDF file'

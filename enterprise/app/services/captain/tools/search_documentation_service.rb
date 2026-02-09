@@ -25,24 +25,27 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     captain_logger.info "#{self.class.name}: #{query}"
 
-    # Search both responses (FAQs) and articles
+    # Search responses (FAQs), articles, and captain sources
     responses = assistant.responses.approved.search(query)
     articles = search_articles(query)
+    sources = search_sources(query)
     elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
-    captain_logger.info "#{self.class.name}: results=#{responses.size + articles.size} in #{elapsed_ms}ms"
+    captain_logger.info "#{self.class.name}: results=#{responses.size + articles.size + sources.size} in #{elapsed_ms}ms"
 
-    return 'No documentation found for the given query' if responses.empty? && articles.empty?
+    return 'No documentation found for the given query' if responses.empty? && articles.empty? && sources.empty?
 
-    # Store articles for reference list
+    # Store citable references for the reference list
     @cited_articles = articles.to_a
+    @cited_sources = sources.select(&:web_url?).to_a
 
     results = []
     results.concat(responses.map { |response| format_response(response) })
     results.concat(articles.map { |article| format_article(article) })
+    results.concat(sources.map { |source| format_source(source) })
 
-    # Add reference list at the end
+    # Add reference list at the end (articles + citable web URL sources)
     documentation = results.join
-    documentation += format_article_references if @cited_articles.any?
+    documentation += format_citable_references if @cited_articles.any? || @cited_sources.any?
 
     documentation
   end
@@ -141,6 +144,31 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     scope.text_search(query).limit(limit)
   end
 
+  def search_sources(query)
+    Captain::Source.where(account_id: assistant.account_id).search(query).first(3)
+  rescue StandardError => e
+    captain_logger.warn "Error searching captain sources: #{e.message}"
+    []
+  end
+
+  def format_source(source)
+    if source.web_url?
+      # Web URL sources are citable — include their URL for the LLM to reference
+      "
+        Source Title: #{source.title}
+        Content: #{source.content.to_s.truncate(3000)}
+        Source URL: #{source.external_link}
+        "
+    else
+      # PDF and private article sources provide context but must NOT be cited
+      "
+        [NON-CITABLE CONTEXT — do NOT use citation numbers for this content]
+        Source Title: #{source.title}
+        Content: #{source.content.to_s.truncate(3000)}
+        "
+    end
+  end
+
   def format_response(response)
     formatted_response = "
         Question: #{response.question}
@@ -175,17 +203,29 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     Captain::Logger.logger
   end
 
-  def format_article_references
-    return '' if @cited_articles.empty?
+  def format_citable_references
+    return '' if @cited_articles.empty? && @cited_sources.empty?
 
     references = "\n\n\n**Sources**\n"
-    @cited_articles.each_with_index do |article, index|
+    ref_index = 0
+
+    @cited_articles.each do |article|
+      ref_index += 1
       article_url = generate_article_url(article)
       locale_label = article.try(:locale).presence || 'unknown'
-      references += "\n[#{index + 1}] [#{article.title}](#{article_url}) (locale: #{locale_label})"
+      references += "\n[#{ref_index}] [#{article.title}](#{article_url}) (locale: #{locale_label})"
     end
+
+    @cited_sources.each do |source|
+      ref_index += 1
+      references += "\n[#{ref_index}] [#{source.title}](#{source.external_link}) (type: web_url)"
+    end
+
     references
   end
+
+  # Keep legacy method name for backward compatibility
+  alias format_article_references format_citable_references
 
   def generate_article_url(article)
     portal = article.portal
