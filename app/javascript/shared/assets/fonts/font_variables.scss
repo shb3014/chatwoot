@@ -1,0 +1,14 @@
+// =============================================================
+// Shared Font Family Variables
+// =============================================================
+// Change the font stack here to update it everywhere:
+// - Help Center (portal)
+// - Live Chat Widget
+// =============================================================
+
+// Primary font import (comment out or replace to switch fonts)
+@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+// Primary font family used across the widget and help center
+$cw-font-family: 'Barlow', system-ui, 'Segoe UI', Roboto, Helvetica, Arial,
+  sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';

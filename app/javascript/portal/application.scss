@@ -4,29 +4,21 @@
 @import 'tailwindcss/utilities';
 
 @import 'widget/assets/scss/reset';
-@import 'shared/assets/fonts/InterDisplay/inter-display';
+@import 'shared/assets/fonts/font_variables';
 
 html,
 body {
-  font-family:
-    'InterDisplay',
-    -apple-system,
-    system-ui,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Tahoma,
-    Arial,
-    sans-serif,
-    'Noto Sans',
-    'Apple Color Emoji',
-    'Segoe UI Emoji',
-    'Noto Color Emoji';
+  font-family: $cw-font-family;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   height: 100%;
   letter-spacing: 0.2px;
+}
+
+#cw-article-content,
+#cw-article-content.prose,
+#cw-article-content.ck-content {
+  font-family: $cw-font-family;
 }
 
 // Taking these utils from tailwind 3.x.x, need to remove once we upgrade
