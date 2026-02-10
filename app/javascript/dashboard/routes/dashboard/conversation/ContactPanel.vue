@@ -32,6 +32,10 @@ const props = defineProps({
     type: Number,
     default: undefined,
   },
+  showHeader: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const {
@@ -133,6 +137,7 @@ onMounted(() => {
 <template>
   <div class="w-full">
     <SidebarActionsHeader
+      v-if="showHeader"
       :title="$t('CONVERSATION.SIDEBAR.CONTACT')"
       @close="closeContactPanel"
     />

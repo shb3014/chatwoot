@@ -106,6 +106,34 @@ class Captain::Llm::SystemPromptsService
       SYSTEM_PROMPT_MESSAGE
     end
 
+    def conversation_summarization(language = 'English', labels_context = '')
+      labels_section = if labels_context.present?
+                         <<~LABELS
+
+                           ## Labels
+                           Assign matching labels only if clearly applicable.
+
+                           #{labels_context}
+                         LABELS
+                       else
+                         ''
+                       end
+
+      <<~SYSTEM_PROMPT_MESSAGE
+        Summarize this support conversation in 1-2 short sentences. Focus on: what the customer wants, and current outcome.
+
+        #{shared_guardrails(language: language)}
+
+        Rules:
+        - Maximum 1-2 sentences. Be extremely concise.
+        - Prefer human agent answers over bot answers when they conflict.
+        #{labels_section}
+        ## Output (JSON only)
+        {"summary": "...", "labels": ["..."]}
+        Return empty labels array if none match.
+      SYSTEM_PROMPT_MESSAGE
+    end
+
     def conversation_learning_summary(language = 'English')
       <<~SYSTEM_PROMPT_MESSAGE
         You are a support operations analyst summarizing a support conversation for future training.

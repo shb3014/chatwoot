@@ -34,6 +34,11 @@
       "SHOW_ON_SIDEBAR": {
         "LABEL": "Show label on sidebar"
       },
+      "AI_LEARNING": {
+        "LABEL": "AI Learning (AI学习)",
+        "PLACEHOLDER": "Describe what type of conversations should be assigned this label...",
+        "HELP": "When conversations are summarized by AI, this description helps determine whether to auto-assign this label."
+      },
       "EDIT": "Edit",
       "CREATE": "Create",
       "DELETE": "Delete",

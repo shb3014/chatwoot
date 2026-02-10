@@ -9,6 +9,8 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
     resolvable_conversations = inbox.conversations.pending.where('last_activity_at < ? ', Time.now.utc - 1.hour).limit(Limits::BULK_ACTIONS_LIMIT)
     resolvable_conversations.each do |conversation|
       create_outgoing_message(conversation, inbox)
+      # Trigger summarization alongside auto-resolution
+      Captain::ConversationSummarizationJob.perform_later(conversation)
       conversation.resolved!
     end
   ensure
@@ -22,7 +24,6 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
   end
 
   def create_outgoing_message(conversation, inbox)
-
     I18n.with_locale(inbox.account.locale) do
       base_message = inbox.captain_assistant.config['resolution_message'].presence || I18n.t('conversations.activity.auto_resolution_message')
 

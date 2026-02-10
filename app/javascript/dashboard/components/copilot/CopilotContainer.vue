@@ -8,6 +8,7 @@ import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useConfig } from 'dashboard/composables/useConfig';
 import { useWindowSize } from '@vueuse/core';
 import { vOnClickOutside } from '@vueuse/components';
+import { useRoute } from 'vue-router';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import wootConstants from 'dashboard/constants/globals';
 
@@ -17,6 +18,22 @@ defineProps({
     default: '',
   },
 });
+
+const route = useRoute();
+const CONVERSATION_ROUTES = [
+  'inbox_conversation',
+  'conversation_through_inbox',
+  'conversations_through_label',
+  'team_conversations_through_label',
+  'conversations_through_folders',
+  'conversation_through_mentions',
+  'conversation_through_unattended',
+  'conversation_through_participating',
+  'inbox_view_conversation',
+];
+const isConversationRoute = computed(() =>
+  CONVERSATION_ROUTES.includes(route.name)
+);
 
 const store = useStore();
 const { uiSettings, updateUISettings } = useUISettings();
@@ -85,6 +102,11 @@ const setAssistant = async assistant => {
 };
 
 const shouldShowCopilotPanel = computed(() => {
+  // Don't show standalone copilot panel on conversation routes
+  // (the unified sidebar handles copilot in conversations)
+  if (isConversationRoute.value) {
+    return false;
+  }
   if (!isEnterprise) {
     return false;
   }

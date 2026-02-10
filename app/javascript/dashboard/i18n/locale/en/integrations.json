@@ -354,6 +354,13 @@
       "RESET": "Reset",
       "SHOW_STEPS": "Show steps",
       "SELECT_ASSISTANT": "Select Assistant",
+      "SUMMARY": {
+        "TITLE": "Summary",
+        "GENERATING": "Generating conversation summary...",
+        "ERROR": "Failed to generate summary.",
+        "RETRY": "Retry",
+        "REGENERATE": "Regenerate summary"
+      },
       "PROMPTS": {
         "SUMMARIZE": {
           "LABEL": "Summarize this conversation",

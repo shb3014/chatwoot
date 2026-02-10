@@ -147,6 +147,7 @@ Rails.application.routes.draw do
               post :custom_attributes
               get :attachments
               get :inbox_assistant
+              post :summarize
             end
           end
 

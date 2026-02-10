@@ -274,7 +274,9 @@
     },
     "SIDEBAR": {
       "CONTACT": "Contact",
-      "COPILOT": "Copilot"
+      "COPILOT": "Copilot",
+      "EXPAND": "Expand sidebar",
+      "COLLAPSE": "Collapse sidebar"
     }
   },
   "EMAIL_TRANSCRIPT": {

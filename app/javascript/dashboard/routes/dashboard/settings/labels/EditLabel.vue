@@ -26,6 +26,7 @@ export default {
       description: '',
       showOnSidebar: true,
       color: '',
+      aiLearningDescription: '',
     };
   },
   validations,
@@ -55,6 +56,8 @@ export default {
       this.description = this.selectedResponse.description;
       this.showOnSidebar = this.selectedResponse.show_on_sidebar;
       this.color = this.selectedResponse.color;
+      this.aiLearningDescription =
+        this.selectedResponse.ai_learning_description || '';
     },
     editLabel() {
       this.$store
@@ -64,6 +67,7 @@ export default {
           description: this.description,
           title: this.title.toLowerCase(),
           show_on_sidebar: this.showOnSidebar,
+          ai_learning_description: this.aiLearningDescription,
         })
         .then(() => {
           useAlert(this.$t('LABEL_MGMT.EDIT.API.SUCCESS_MESSAGE'));
@@ -106,6 +110,20 @@ export default {
           {{ $t('LABEL_MGMT.FORM.COLOR.LABEL') }}
           <woot-color-picker v-model="color" />
         </label>
+      </div>
+      <div class="w-full">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('LABEL_MGMT.FORM.AI_LEARNING.LABEL') }}
+        </label>
+        <textarea
+          v-model="aiLearningDescription"
+          class="w-full px-3 py-2 border border-n-weak rounded-md text-sm bg-n-background text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none focus:ring-1 focus:ring-n-brand resize-y"
+          rows="3"
+          :placeholder="$t('LABEL_MGMT.FORM.AI_LEARNING.PLACEHOLDER')"
+        />
+        <p class="text-xs text-n-slate-10 mt-1">
+          {{ $t('LABEL_MGMT.FORM.AI_LEARNING.HELP') }}
+        </p>
       </div>
       <div class="flex items-center w-full gap-2">
         <input v-model="showOnSidebar" type="checkbox" :value="true" />

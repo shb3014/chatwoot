@@ -22,10 +22,6 @@ const routePromptMap = {
       prompt: 'CAPTAIN.COPILOT.PROMPTS.SUMMARIZE.CONTENT',
     },
     {
-      label: 'CAPTAIN.COPILOT.PROMPTS.SUGGEST.LABEL',
-      prompt: 'CAPTAIN.COPILOT.PROMPTS.SUGGEST.CONTENT',
-    },
-    {
       label: 'CAPTAIN.COPILOT.PROMPTS.RATE.LABEL',
       prompt: 'CAPTAIN.COPILOT.PROMPTS.RATE.CONTENT',
     },

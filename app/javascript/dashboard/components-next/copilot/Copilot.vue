@@ -31,6 +31,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  showHeader: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['sendMessage', 'reset', 'setAssistant']);
@@ -127,6 +131,7 @@ watch(
 <template>
   <div class="flex flex-col h-full text-sm leading-6 tracking-tight w-full">
     <SidebarActionsHeader
+      v-if="showHeader"
       :title="$t('CAPTAIN.COPILOT.TITLE')"
       :buttons="copilotButtons"
       @click="handleSidebarAction"

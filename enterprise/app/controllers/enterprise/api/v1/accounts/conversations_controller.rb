@@ -11,6 +11,30 @@ module Enterprise::Api::V1::Accounts::ConversationsController
     end
   end
 
+  def summarize
+    # Return existing summary if it's recent (generated within the last hour)
+    existing_summary = @conversation.captain_summary
+    if existing_summary.present? && existing_summary['generated_at'].present?
+      generated_at = begin
+        Time.parse(existing_summary['generated_at'])
+      rescue StandardError
+        nil
+      end
+      if generated_at && generated_at > 1.hour.ago
+        render json: { summary: existing_summary }
+        return
+      end
+    end
+
+    # Generate a new summary synchronously
+    result = Captain::Llm::ConversationSummarizationService.new(@conversation).generate
+    if result
+      render json: { summary: @conversation.reload.captain_summary }
+    else
+      render json: { error: 'Failed to generate summary' }, status: :unprocessable_entity
+    end
+  end
+
   def permitted_update_params
     super.merge(params.permit(:sla_policy_id))
   end

@@ -10,6 +10,7 @@
 #  captain_handed_off_at    :datetime
 #  captain_last_action_at   :datetime
 #  captain_state            :jsonb
+#  captain_summary          :jsonb
 #  contact_last_seen_at     :datetime
 #  custom_attributes        :jsonb
 #  first_reply_created_at   :datetime

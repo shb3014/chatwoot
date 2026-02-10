@@ -508,6 +508,11 @@ const actions = {
     }
   },
 
+  summarizeConversation: async (_, conversationId) => {
+    const response = await ConversationApi.summarize(conversationId);
+    return response.data;
+  },
+
   ...messageReadActions,
   ...messageTranslateActions,
 };
