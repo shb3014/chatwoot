@@ -199,6 +199,47 @@
   value: false
   locked: false
   type: boolean
+
+# -- Copilot Model (for copilot suggest-answer, copilot chat, and related tasks) --
+- name: CAPTAIN_COPILOT_API_KEY
+  display_title: 'Copilot Model - API Key (optional)'
+  description: 'API key for the Copilot model. Falls back to the main Captain API key if not set.'
+  locked: false
+  type: secret
+- name: CAPTAIN_COPILOT_MODEL
+  display_title: 'Copilot Model - Model Name (optional)'
+  description: 'Model name for Copilot tasks (suggest answer, copilot chat). Falls back to the main Captain model if not set.'
+  locked: false
+- name: CAPTAIN_COPILOT_ENDPOINT
+  display_title: 'Copilot Model - API Endpoint (optional)'
+  description: 'API endpoint for the Copilot model. Falls back to the main Captain endpoint if not set.'
+  locked: false
+- name: CAPTAIN_COPILOT_THINKING_ENABLED
+  display_title: 'Copilot Model - Enable Thinking (optional)'
+  description: 'Enable thinking mode for the Copilot model. Falls back to the main Captain thinking setting if not set.'
+  locked: false
+  type: boolean
+
+# -- Fast Model (for summarization, translation, classification, and other lightweight tasks) --
+- name: CAPTAIN_FAST_API_KEY
+  display_title: 'Fast Model - API Key (optional)'
+  description: 'API key for the Fast model. Falls back to the main Captain API key if not set.'
+  locked: false
+  type: secret
+- name: CAPTAIN_FAST_MODEL
+  display_title: 'Fast Model - Model Name (optional)'
+  description: 'Model name for lightweight tasks (summarization, translation, classification). Falls back to the main Captain model if not set.'
+  locked: false
+- name: CAPTAIN_FAST_ENDPOINT
+  display_title: 'Fast Model - API Endpoint (optional)'
+  description: 'API endpoint for the Fast model. Falls back to the main Captain endpoint if not set.'
+  locked: false
+- name: CAPTAIN_FAST_THINKING_ENABLED
+  display_title: 'Fast Model - Enable Thinking (optional)'
+  description: 'Enable thinking mode for the Fast model. Falls back to the main Captain thinking setting if not set.'
+  locked: false
+  type: boolean
+
 - name: CAPTAIN_V2_ENABLED
   display_title: 'Enable Captain v2'
   description: 'Enable the multi-agent Captain runtime. When disabled, Captain uses the direct LLM chat flow.'

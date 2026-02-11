@@ -1,6 +1,6 @@
 class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
   def initialize(conversation)
-    super()
+    super(model_type: :fast)
     @conversation = conversation
     @account = conversation.account
     @transcript = build_conversation_transcript
@@ -14,15 +14,18 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
     result = parse_response(response)
     return nil unless result
 
+    # Capture old AI-suggested labels before overwriting the summary
+    old_ai_labels = conversation.captain_summary&.dig('labels') || []
+
     persist_summary(result)
-    assign_labels(result['labels']) if result['labels'].present?
+    reassign_labels(result['labels'] || [], old_ai_labels)
 
     result
   rescue OpenAI::Error => e
-    Rails.logger.error "Captain::Llm::ConversationSummarizationService OpenAI API Error: #{e.message}"
+    captain_logger.error "[Captain::Summarization] OpenAI API Error: #{e.message}"
     nil
   rescue StandardError => e
-    Rails.logger.error "Captain::Llm::ConversationSummarizationService Error: #{e.message}"
+    captain_logger.error "[Captain::Summarization] Error: #{e.message}"
     nil
   end
 
@@ -68,17 +71,24 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
     conversation.update!(captain_summary: summary_data)
   end
 
-  def assign_labels(label_titles)
-    return if label_titles.blank?
+  def reassign_labels(new_label_titles, old_ai_labels)
+    current_labels = conversation.label_list.map(&:to_s)
 
-    # Only assign labels that actually exist in the account
-    existing_labels = account.labels.where('LOWER(title) IN (?)', label_titles.map(&:downcase))
-    return if existing_labels.empty?
+    # Remove labels that were AI-suggested previously but are no longer suggested
+    stale_labels = old_ai_labels.map(&:downcase) - new_label_titles.map(&:downcase)
+    current_labels = current_labels.reject { |l| stale_labels.include?(l.downcase) } if stale_labels.present?
 
-    existing_label_titles = existing_labels.pluck(:title)
-    conversation.add_labels(existing_label_titles)
+    # Only add labels that actually exist in the account
+    valid_new_labels = if new_label_titles.present?
+                         account.labels.where('LOWER(title) IN (?)', new_label_titles.map(&:downcase)).pluck(:title)
+                       else
+                         []
+                       end
+
+    combined_labels = (current_labels + valid_new_labels).uniq
+    conversation.update!(label_list: combined_labels)
   rescue StandardError => e
-    Rails.logger.error "Captain::Llm::ConversationSummarizationService label assignment error: #{e.message}"
+    captain_logger.error "[Captain::Summarization] Label reassignment error: #{e.message}"
   end
 
   def build_conversation_transcript

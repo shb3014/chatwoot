@@ -508,8 +508,10 @@ const actions = {
     }
   },
 
-  summarizeConversation: async (_, conversationId) => {
-    const response = await ConversationApi.summarize(conversationId);
+  summarizeConversation: async (_, { conversationId, force = false }) => {
+    const response = await ConversationApi.summarize(conversationId, {
+      force,
+    });
     return response.data;
   },
 

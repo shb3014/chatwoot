@@ -1,6 +1,6 @@
 class Llm::TranslationService < Llm::BaseOpenAiService
   def initialize(conversation)
-    super()
+    super(model_type: :fast)
     @conversation = conversation
   end
 
@@ -11,9 +11,8 @@ class Llm::TranslationService < Llm::BaseOpenAiService
     return message unless target_language
 
     response = @client.chat(parameters: translation_parameters(message, target_language))
-    translated = parse_translation_response(response, message)
+    parse_translation_response(response, message)
 
-    translated
   rescue StandardError => e
     Rails.logger.error "[TranslationService] Translation failed: #{e.message}"
     Rails.logger.error "[TranslationService] Backtrace: #{e.backtrace.first(5).join("\n")}"
@@ -32,13 +31,10 @@ class Llm::TranslationService < Llm::BaseOpenAiService
       return conversation_language
     end
 
-    if account_locale.present? && account_locale.downcase != 'english'
-      return account_locale
-    end
+    return account_locale if account_locale.present? && account_locale.downcase != 'english'
 
     # Auto-detect language from conversation history
-    detected_language = detect_language_from_conversation
-    detected_language
+    detect_language_from_conversation
   end
 
   def detect_language_from_conversation
@@ -95,4 +91,3 @@ class Llm::TranslationService < Llm::BaseOpenAiService
     response.dig('choices', 0, 'message', 'content')&.strip || original_message
   end
 end
-

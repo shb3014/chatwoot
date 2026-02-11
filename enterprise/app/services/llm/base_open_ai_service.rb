@@ -3,10 +3,15 @@ require 'net/http'
 class Llm::BaseOpenAiService
   DEFAULT_MODEL = 'gpt-4o-mini'.freeze
 
-  def initialize
+  # model_type: nil (default/assistant), :copilot, or :fast
+  # Each model type can have its own API key, model, endpoint, and thinking setting.
+  # If a model-type-specific config is not set, it falls back to the main Captain config.
+  def initialize(model_type: nil)
+    @model_type = model_type
     @main_api_key = normalize_open_ai_api_key
     setup_endpoint
     setup_model
+    setup_thinking
 
     raise 'CAPTAIN_OPEN_AI_API_KEY not configured' if @main_api_key.blank?
 
@@ -30,7 +35,7 @@ class Llm::BaseOpenAiService
   private
 
   def normalize_open_ai_api_key
-    raw_api_key = fetch_installation_config_value('CAPTAIN_OPEN_AI_API_KEY')
+    raw_api_key = fetch_config_for_model_type(:api_key)
     return raw_api_key if raw_api_key.blank? || !raw_api_key.match?(%r{\Ahttps?://})
 
     @endpoint_override_from_api_key = raw_api_key
@@ -44,8 +49,40 @@ class Llm::BaseOpenAiService
     end
   end
 
+  # Fetch a config value for the current model_type, falling back to the default Captain config.
+  # aspect: :api_key, :model, :endpoint, or :thinking
+  def fetch_config_for_model_type(aspect)
+    specific_key = model_type_config_key(aspect)
+    if specific_key
+      value = InstallationConfig.find_by(name: specific_key)&.value
+      return value if value.present?
+    end
+    fetch_installation_config_value(default_config_key(aspect))
+  end
+
+  # Returns the model-type-specific config key, or nil for default model type.
+  def model_type_config_key(aspect)
+    prefix = case @model_type
+             when :copilot then 'CAPTAIN_COPILOT'
+             when :fast then 'CAPTAIN_FAST'
+             else return nil
+             end
+    { api_key: "#{prefix}_API_KEY",
+      model: "#{prefix}_MODEL",
+      endpoint: "#{prefix}_ENDPOINT",
+      thinking: "#{prefix}_THINKING_ENABLED" }[aspect]
+  end
+
+  # Returns the default (main Captain) config key for a given aspect.
+  def default_config_key(aspect)
+    { api_key: 'CAPTAIN_OPEN_AI_API_KEY',
+      model: 'CAPTAIN_OPEN_AI_MODEL',
+      endpoint: 'CAPTAIN_OPEN_AI_ENDPOINT',
+      thinking: 'CAPTAIN_THINKING_ENABLED' }[aspect]
+  end
+
   def setup_endpoint
-    full_endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value
+    full_endpoint = fetch_config_for_model_type(:endpoint)
     if @endpoint_override_from_api_key.present? &&
        (full_endpoint.blank? || full_endpoint == 'https://api.openai.com' || full_endpoint == 'https://api.openai.com/')
       full_endpoint = @endpoint_override_from_api_key
@@ -258,8 +295,13 @@ class Llm::BaseOpenAiService
   end
 
   def setup_model
-    config_value = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
+    config_value = fetch_config_for_model_type(:model)
     @model = (config_value.presence || DEFAULT_MODEL)
+  end
+
+  def setup_thinking
+    thinking_value = fetch_config_for_model_type(:thinking)
+    @thinking_enabled = thinking_value.present? && ActiveModel::Type::Boolean.new.cast(thinking_value)
   end
 
   def captain_logger

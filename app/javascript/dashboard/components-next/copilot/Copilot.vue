@@ -8,7 +8,6 @@ import CopilotInput from './CopilotInput.vue';
 import CopilotLoader from './CopilotLoader.vue';
 import CopilotAgentMessage from './CopilotAgentMessage.vue';
 import CopilotAssistantMessage from './CopilotAssistantMessage.vue';
-import CopilotThinkingGroup from './CopilotThinkingGroup.vue';
 import ToggleCopilotAssistant from './ToggleCopilotAssistant.vue';
 import CopilotEmptyState from './CopilotEmptyState.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
@@ -56,31 +55,10 @@ const scrollToBottom = async () => {
 };
 
 const groupedMessages = computed(() => {
-  const result = [];
-  let thinkingGroup = [];
-  props.messages.forEach(message => {
-    if (message.message_type === 'assistant_thinking') {
-      thinkingGroup.push(message);
-    } else {
-      if (thinkingGroup.length > 0) {
-        result.push({
-          id: thinkingGroup[0].id,
-          message_type: 'thinking_group',
-          messages: thinkingGroup,
-        });
-        thinkingGroup = [];
-      }
-      result.push(message);
-    }
-  });
-  if (thinkingGroup.length > 0) {
-    result.push({
-      id: thinkingGroup[0].id,
-      message_type: 'thinking_group',
-      messages: thinkingGroup,
-    });
-  }
-  return result;
+  // Filter out thinking/tool-step messages — only show user and assistant messages
+  return props.messages.filter(
+    message => message.message_type !== 'assistant_thinking'
+  );
 });
 
 const isLastMessageFromAssistant = computed(() => {
@@ -152,11 +130,6 @@ watch(
             :message="item.message"
             :is-last-message="index === groupedMessages.length - 1"
             :conversation-inbox-type="conversationInboxType"
-          />
-          <CopilotThinkingGroup
-            v-else
-            :messages="item.messages"
-            :default-collapsed="isLastMessageFromAssistant"
           />
         </template>
 

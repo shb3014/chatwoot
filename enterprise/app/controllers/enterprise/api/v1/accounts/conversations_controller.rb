@@ -12,17 +12,19 @@ module Enterprise::Api::V1::Accounts::ConversationsController
   end
 
   def summarize
-    # Return existing summary if it's recent (generated within the last hour)
-    existing_summary = @conversation.captain_summary
-    if existing_summary.present? && existing_summary['generated_at'].present?
-      generated_at = begin
-        Time.parse(existing_summary['generated_at'])
-      rescue StandardError
-        nil
-      end
-      if generated_at && generated_at > 1.hour.ago
-        render json: { summary: existing_summary }
-        return
+    # Return existing summary if it's recent (generated within the last hour), unless force-regenerating
+    unless ActiveModel::Type::Boolean.new.cast(params[:force])
+      existing_summary = @conversation.captain_summary
+      if existing_summary.present? && existing_summary['generated_at'].present?
+        generated_at = begin
+          Time.parse(existing_summary['generated_at'])
+        rescue StandardError
+          nil
+        end
+        if generated_at && generated_at > 1.hour.ago
+          render json: { summary: existing_summary }
+          return
+        end
       end
     end
 

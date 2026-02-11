@@ -138,8 +138,8 @@ class ConversationApi extends ApiClient {
     return axios.get(`${this.url}/${conversationId}/inbox_assistant`);
   }
 
-  summarize(conversationId) {
-    return axios.post(`${this.url}/${conversationId}/summarize`);
+  summarize(conversationId, { force = false } = {}) {
+    return axios.post(`${this.url}/${conversationId}/summarize`, { force });
   }
 
   delete(conversationId) {

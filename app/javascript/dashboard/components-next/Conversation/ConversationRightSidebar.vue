@@ -1,10 +1,9 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useAlert } from 'dashboard/composables';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useConfig } from 'dashboard/composables/useConfig';
-import { useI18n } from 'vue-i18n';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
@@ -20,13 +19,22 @@ const props = defineProps({
 });
 
 const store = useStore();
-const { t } = useI18n();
 const { uiSettings, updateUISettings } = useUISettings();
 const { isEnterprise } = useConfig();
+
+// --- Constants ---
+const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 560;
+const SIDEBAR_DEFAULT_WIDTH = 320;
+const SIDEBAR_FOLDED_WIDTH = 48;
 
 // --- State ---
 const activeTab = ref('copilot');
 const isFolded = ref(uiSettings.value.is_sidebar_folded || false);
+const sidebarWidth = ref(
+  uiSettings.value.sidebar_custom_width || SIDEBAR_DEFAULT_WIDTH
+);
+const isResizing = ref(false);
 
 // Copilot thread state (per conversation)
 const conversationThreadMap = ref({});
@@ -119,6 +127,40 @@ const unfoldToTab = tab => {
   updateUISettings({ is_sidebar_folded: false });
 };
 
+// --- Resize handlers ---
+const onResizeMove = event => {
+  if (!isResizing.value) return;
+  // Sidebar is on the right: width = viewport width - mouse X position
+  const newWidth = window.innerWidth - event.clientX;
+  sidebarWidth.value = Math.min(
+    SIDEBAR_MAX_WIDTH,
+    Math.max(SIDEBAR_MIN_WIDTH, newWidth)
+  );
+};
+
+const onResizeEnd = () => {
+  if (!isResizing.value) return;
+  isResizing.value = false;
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', onResizeEnd);
+  updateUISettings({ sidebar_custom_width: sidebarWidth.value });
+};
+
+const onResizeStart = () => {
+  isResizing.value = true;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  document.addEventListener('mousemove', onResizeMove);
+  document.addEventListener('mouseup', onResizeEnd);
+};
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', onResizeEnd);
+});
+
 const setAssistant = async assistant => {
   await updateUISettings({ preferred_captain_assistant_id: assistant.id });
 };
@@ -169,7 +211,11 @@ const suggestAnswer = () => {
     isFolded.value = false;
     updateUISettings({ is_sidebar_folded: false });
   }
-  const suggestPrompt = t('CAPTAIN.COPILOT.PROMPTS.SUGGEST.CONTENT');
+
+  // Simple English prompt — the LLM has access to the full conversation via tools.
+  // Language detection and reply language are handled by the system prompt rules.
+  const suggestPrompt =
+    'Based on the full conversation, draft a reply to the customer. Be clear, concise, and helpful.';
   sendMessage(suggestPrompt);
 };
 
@@ -189,15 +235,17 @@ const fetchSummary = async (conversationId, force = false) => {
   };
 
   try {
-    const result = await store.dispatch(
-      'summarizeConversation',
-      conversationId
-    );
+    const result = await store.dispatch('summarizeConversation', {
+      conversationId,
+      force,
+    });
     if (result?.summary) {
       summaryMap.value = {
         ...summaryMap.value,
         [conversationId]: result.summary,
       };
+      // Refresh conversation data to pick up reassigned labels
+      store.dispatch('getConversation', conversationId);
     }
   } catch (error) {
     summaryErrorMap.value = {
@@ -259,9 +307,30 @@ onMounted(() => {
 
 <template>
   <aside
-    class="bg-n-background h-full flex flex-col ltr:border-l rtl:border-r border-n-weak transition-all duration-200 ease-in-out flex-shrink-0"
-    :class="isFolded ? 'w-12' : 'w-[320px] 2xl:w-[360px]'"
+    class="bg-n-background h-full flex flex-col ltr:border-l rtl:border-r border-n-weak flex-shrink-0 relative"
+    :class="{ 'transition-all duration-200 ease-in-out': !isResizing }"
+    :style="{
+      width: isFolded ? `${SIDEBAR_FOLDED_WIDTH}px` : `${sidebarWidth}px`,
+    }"
   >
+    <!-- Resize handle (left edge for LTR, right edge for RTL) -->
+    <div
+      v-if="!isFolded"
+      class="absolute top-0 bottom-0 w-1 cursor-col-resize z-10 ltr:left-0 rtl:right-0 group hover:bg-n-iris-6 transition-colors"
+      :class="isResizing ? 'bg-n-iris-6' : 'bg-transparent'"
+      @mousedown.prevent="onResizeStart"
+      @dblclick.prevent="
+        () => {
+          sidebarWidth = SIDEBAR_DEFAULT_WIDTH;
+          updateUISettings({ sidebar_custom_width: SIDEBAR_DEFAULT_WIDTH });
+        }
+      "
+    >
+      <div
+        class="absolute top-1/2 -translate-y-1/2 ltr:-right-0.5 rtl:-left-0.5 w-1 h-8 rounded-full bg-n-slate-8 opacity-0 group-hover:opacity-100 transition-opacity"
+        :class="{ 'opacity-100': isResizing }"
+      />
+    </div>
     <!-- ==================== Folded State ==================== -->
     <div v-if="isFolded" class="flex flex-col items-center py-3 gap-1 h-full">
       <button
@@ -353,7 +422,7 @@ onMounted(() => {
       <div
         v-if="showCopilotTab"
         v-show="activeTab === 'copilot'"
-        class="flex flex-col flex-1 overflow-hidden"
+        class="flex flex-col flex-1 min-h-0 overflow-hidden"
       >
         <!-- Conversation Summary -->
         <CopilotSummary
@@ -375,16 +444,18 @@ onMounted(() => {
         </div>
 
         <!-- Copilot Chat -->
-        <Copilot
-          :messages="messages"
-          :show-header="false"
-          :conversation-inbox-type="conversationInboxType"
-          :assistants="assistants"
-          :active-assistant="activeAssistant"
-          @set-assistant="setAssistant"
-          @send-message="sendMessage"
-          @reset="handleReset"
-        />
+        <div class="flex-1 min-h-0 overflow-hidden">
+          <Copilot
+            :messages="messages"
+            :show-header="false"
+            :conversation-inbox-type="conversationInboxType"
+            :assistants="assistants"
+            :active-assistant="activeAssistant"
+            @set-assistant="setAssistant"
+            @send-message="sendMessage"
+            @reset="handleReset"
+          />
+        </div>
       </div>
 
       <!-- Contact Tab Content -->

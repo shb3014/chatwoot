@@ -32,6 +32,11 @@ let citationHideTimeout = null;
 
 const hasEmptyMessageContent = computed(() => !props.message?.content);
 
+// Translation comes as a separate field from the backend (second LLM call)
+const hasTranslation = computed(() => !!props.message?.translation);
+
+const showTranslation = ref(true);
+
 const showUseButton = computed(() => {
   return (
     !hasEmptyMessageContent.value &&
@@ -41,7 +46,13 @@ const showUseButton = computed(() => {
 });
 
 const messageContent = computed(() => {
-  const formatter = new MessageFormatter(props.message.content);
+  const formatter = new MessageFormatter(props.message.content || '');
+  return formatter.formattedMessage;
+});
+
+const translationFormattedContent = computed(() => {
+  if (!props.message?.translation) return '';
+  const formatter = new MessageFormatter(props.message.translation);
   return formatter.formattedMessage;
 });
 
@@ -52,10 +63,12 @@ const insertIntoRichEditor = computed(() => {
 });
 
 const useCopilotResponse = () => {
+  // Insert the primary content (in the customer's language)
+  const content = props.message?.content || '';
   if (insertIntoRichEditor.value) {
-    emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, props.message?.content);
+    emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, content);
   } else {
-    emitter.emit(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, props.message?.content);
+    emitter.emit(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, content);
   }
   useTrack(COPILOT_EVENTS.USE_CAPTAIN_RESPONSE);
 };
@@ -141,12 +154,40 @@ onUpdated(() => {
     <span v-if="hasEmptyMessageContent" class="text-n-ruby-11">
       {{ $t('CAPTAIN.COPILOT.EMPTY_MESSAGE') }}
     </span>
-    <div
-      v-else
-      ref="messageContentRef"
-      v-dompurify-html="messageContent"
-      class="prose-sm break-words"
-    />
+    <template v-else>
+      <!-- Customer-language response (primary) -->
+      <div
+        ref="messageContentRef"
+        v-dompurify-html="messageContent"
+        class="prose-sm break-words"
+      />
+      <!-- Agent-language translation (secondary, from separate LLM call) -->
+      <div v-if="hasTranslation" class="mt-2">
+        <button
+          class="flex items-center gap-1 text-xs text-n-slate-10 hover:text-n-slate-12 transition-colors"
+          @click="showTranslation = !showTranslation"
+        >
+          <span
+            class="text-[10px] block transition-transform"
+            :class="
+              showTranslation
+                ? 'i-lucide-chevron-down'
+                : 'i-lucide-chevron-right'
+            "
+          />
+          {{ $t('CAPTAIN.COPILOT.AGENT_TRANSLATION') }}
+        </button>
+        <div
+          v-if="showTranslation"
+          class="mt-1.5 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2"
+        >
+          <div
+            v-dompurify-html="translationFormattedContent"
+            class="prose-sm break-words text-n-slate-11 text-xs leading-relaxed"
+          />
+        </div>
+      </div>
+    </template>
     <div class="flex flex-row mt-1">
       <Button
         v-if="showUseButton"

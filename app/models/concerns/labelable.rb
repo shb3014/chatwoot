@@ -12,8 +12,9 @@ module Labelable
   def add_labels(new_labels = nil)
     return if new_labels.blank?
 
-    new_labels = Array(new_labels) # Make sure new_labels is an array
-    combined_labels = labels + new_labels
+    new_labels = Array(new_labels).map(&:to_s)
+    current_labels = label_list.map(&:to_s)
+    combined_labels = (current_labels + new_labels).uniq
     update!(label_list: combined_labels)
   end
 end

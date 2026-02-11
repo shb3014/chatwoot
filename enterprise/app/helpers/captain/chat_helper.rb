@@ -38,9 +38,8 @@ module Captain::ChatHelper
       end
     end
 
-    # Check if thinking mode is enabled (for models like DeepSeek-v3.2)
-    thinking_config = InstallationConfig.find_by(name: 'CAPTAIN_THINKING_ENABLED')
-    thinking_enabled = thinking_config&.value.present? && ActiveModel::Type::Boolean.new.cast(thinking_config.value)
+    # Use the thinking setting resolved by BaseOpenAiService (model-type-aware with fallback)
+    thinking_enabled = @thinking_enabled || false
 
     tools = @tool_registry&.registered_tools || []
     has_tools = tools.any?
@@ -859,13 +858,17 @@ module Captain::ChatHelper
   end
 
   # Determine which model to use for classification
-  # Use the cheapest/fastest available model, or fall back to main model
+  # Priority: classification-specific config > fast model config > current model
   def classification_model
     # Check for classification-specific model config
     classification_model_config = InstallationConfig.find_by(name: 'CAPTAIN_CLASSIFICATION_MODEL')
     return classification_model_config.value if classification_model_config&.value.present?
 
-    # Fall back to main model (though ideally use something lighter/cheaper)
+    # Fall back to fast model if configured (classification is a lightweight task)
+    fast_model = InstallationConfig.find_by(name: 'CAPTAIN_FAST_MODEL')&.value
+    return fast_model if fast_model.present?
+
+    # Fall back to current model
     @model
   end
 

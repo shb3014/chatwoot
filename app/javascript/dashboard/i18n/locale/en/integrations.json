@@ -351,6 +351,7 @@
       "LOADER": "Captain is thinking",
       "YOU": "You",
       "USE": "Use this",
+      "AGENT_TRANSLATION": "Translation for agent reference",
       "RESET": "Reset",
       "SHOW_STEPS": "Show steps",
       "SELECT_ASSISTANT": "Select Assistant",

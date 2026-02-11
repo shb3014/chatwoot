@@ -6,14 +6,16 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
   attr_reader :assistant, :account, :user, :copilot_thread, :previous_history, :messages
 
   def initialize(assistant, config)
-    super()
+    super(model_type: :copilot)
 
     @assistant = assistant
     @account = assistant.account
     @user = nil
     @copilot_thread = nil
     @previous_history = []
+    @conversation = nil
     setup_user(config)
+    setup_conversation(config)
     setup_message_history(config)
     register_tools
     @messages = build_messages(config)
@@ -21,7 +23,29 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
 
   def generate_response(input)
     @messages << { role: 'user', content: input } if input.present?
+
+    captain_logger.info "[Copilot] Account locale: #{account_locale_code}, language: #{@account.locale_english_name}"
+    captain_logger.info "[Copilot] Detected customer language: #{@detected_customer_language}"
+    captain_logger.info "[Copilot] User input: #{input&.truncate(200)}"
+
     response = request_chat_completion
+
+    # For reply suggestions, translate into the account language if customer uses a different language
+    if response.is_a?(Hash) && response['reply_suggestion'] && response['content'].present?
+      captain_logger.info "[Copilot] reply_suggestion detected — detected_customer_lang=#{@detected_customer_language}, account_locale=#{account_locale_code}"
+      captain_logger.info "[Copilot] Content preview: #{response['content'].truncate(300)}"
+
+      if @detected_customer_language == account_locale_code
+        captain_logger.info '[Copilot] Same language — skipping translation'
+      else
+        captain_logger.info "[Copilot] Languages differ — translating to #{@account.locale_english_name}..."
+        translation = translate_to_account_language(response['content'])
+        response['translation'] = translation if translation.present?
+      end
+    end
+
+    # Now flush the buffered assistant message (with translation if added) — this persists + broadcasts
+    flush_assistant_message
 
     Rails.logger.debug { "#{self.class.name} Assistant: #{@assistant.id}, Received response #{response}" }
     Rails.logger.info(
@@ -38,11 +62,18 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     @user = @account.users.find_by(id: config[:user_id]) if config[:user_id].present?
   end
 
-  def build_messages(config)
+  def setup_conversation(config)
+    return unless config[:conversation_id].present?
+
+    @conversation = @account.conversations.find_by(display_id: config[:conversation_id])
+    @detected_customer_language = detect_customer_language
+  end
+
+  def build_messages(_config)
     messages= [system_message]
     messages << account_id_context
     messages += @previous_history if @previous_history.present?
-    messages += current_viewing_history(config[:conversation_id]) if config[:conversation_id].present?
+    messages += current_viewing_history if @conversation.present?
     messages
   end
 
@@ -89,28 +120,144 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     }
   end
 
-  def current_viewing_history(conversation_id)
-    conversation = @account.conversations.find_by(display_id: conversation_id)
-    return [] unless conversation
+  def current_viewing_history
+    conversation_id = @conversation.display_id
+    contact_id = @conversation.contact_id
 
     Rails.logger.info("#{self.class.name} Assistant: #{@assistant.id}, Setting viewing history for conversation_id=#{conversation_id}")
-    contact_id = conversation.contact_id
+
+    # Include recent conversation messages so the LLM has full context
+    recent_messages = @conversation.messages
+                                   .where(message_type: [:incoming, :outgoing])
+                                   .where(private: false)
+                                   .order(created_at: :desc)
+                                   .limit(20)
+                                   .reverse
+    transcript = recent_messages.map do |m|
+      sender = m.message_type == 'incoming' ? 'Customer' : 'Agent'
+      "#{sender}: #{m.content&.truncate(500)}"
+    end.join("\n")
+
+    captain_logger.info "[Copilot] Conversation transcript (#{recent_messages.size} messages):\n#{transcript}"
+
+    # Tell the LLM explicitly what language the customer writes in
+    language_note = "The customer is writing in #{language_name(@detected_customer_language)}. " \
+                    'When drafting a reply to the customer, you MUST write in this language.'
+
     [{
       role: 'system',
       content: <<~HISTORY.strip
         You are currently viewing the conversation with the following details:
         Conversation ID: #{conversation_id}
         Contact ID: #{contact_id}
+
+        #{language_note}
+
+        Recent conversation messages:
+        #{transcript}
       HISTORY
     }]
   end
 
+  # Returns the ISO 639-1 code for the account locale (e.g. "en", "zh", "de")
+  def account_locale_code
+    @account.locale&.split('_')&.first&.downcase || 'en'
+  end
+
+  # Detect the customer's language from their messages using Unicode script analysis.
+  # Returns an ISO 639-1 code (e.g. "en", "zh", "ja", "ko", "ar", "ru").
+  def detect_customer_language
+    return account_locale_code unless @conversation
+
+    # Get substantial customer messages (skip very short ones)
+    customer_texts = @conversation.messages
+                                  .where(message_type: :incoming)
+                                  .pluck(:content)
+                                  .compact
+                                  .select { |t| t.length > 5 }
+                                  .join(' ')
+
+    return account_locale_code if customer_texts.blank?
+
+    # Count characters by script
+    cjk    = customer_texts.scan(/[\u4e00-\u9fff\u3400-\u4dbf]/).length
+    kana   = customer_texts.scan(/[\u3040-\u309f\u30a0-\u30ff]/).length
+    hangul = customer_texts.scan(/[\uac00-\ud7af]/).length
+    arabic = customer_texts.scan(/[\u0600-\u06ff]/).length
+    cyrillic = customer_texts.scan(/[\u0400-\u04ff]/).length
+    latin  = customer_texts.scan(/[a-zA-Z]/).length
+
+    scores = {
+      'ja' => kana > 0 ? kana + cjk : 0, # Japanese uses kana + kanji
+      'zh' => kana > 0 ? 0 : cjk,         # Chinese = CJK without kana
+      'ko' => hangul,
+      'ar' => arabic,
+      'ru' => cyrillic,
+      'en' => latin
+    }
+
+    detected = scores.max_by { |_, v| v }&.first || 'en'
+    detected = 'en' if scores.values.all?(&:zero?)
+    detected
+  end
+
+  # Convert an ISO 639-1 code to a human-readable language name
+  def language_name(code)
+    {
+      'en' => 'English', 'zh' => 'Chinese', 'ja' => 'Japanese',
+      'ko' => 'Korean', 'ar' => 'Arabic', 'ru' => 'Russian',
+      'de' => 'German', 'fr' => 'French', 'es' => 'Spanish',
+      'pt' => 'Portuguese', 'it' => 'Italian', 'nl' => 'Dutch'
+    }[code] || code
+  end
+
+  def translate_to_account_language(content)
+    account_language = @account.locale_english_name
+    captain_logger.info "[Copilot] Translating reply to #{account_language}..."
+
+    translate_messages = [
+      {
+        role: 'system',
+        content: "You are a translator. Translate the following text to #{account_language}. " \
+                 'Output ONLY the translated text, nothing else. Preserve all formatting (markdown, bold, lists, etc.).'
+      },
+      { role: 'user', content: content }
+    ]
+
+    raw = @client.chat(parameters: { model: @model, messages: translate_messages })
+    translated = raw.dig('choices', 0, 'message', 'content')&.strip
+
+    captain_logger.info "[Copilot] Translation result: #{translated&.truncate(200)}"
+    translated
+  rescue StandardError => e
+    captain_logger.error "[Copilot] Translation error: #{e.message}"
+    nil
+  end
+
+  # Override persist_message from ChatHelper.
+  # Buffer the final assistant message so we can add translation before persisting + broadcasting.
+  # Non-assistant messages (thinking, user) are persisted immediately.
   def persist_message(message, message_type = 'assistant')
     return if @copilot_thread.blank?
 
+    if message_type == 'assistant'
+      @buffered_assistant_message = { message: message, message_type: message_type }
+    else
+      @copilot_thread.copilot_messages.create!(
+        message: message,
+        message_type: message_type
+      )
+    end
+  end
+
+  # Persist and broadcast the buffered assistant message (now includes translation if added).
+  def flush_assistant_message
+    return unless @buffered_assistant_message && @copilot_thread.present?
+
     @copilot_thread.copilot_messages.create!(
-      message: message,
-      message_type: message_type
+      message: @buffered_assistant_message[:message],
+      message_type: @buffered_assistant_message[:message_type]
     )
+    @buffered_assistant_message = nil
   end
 end
