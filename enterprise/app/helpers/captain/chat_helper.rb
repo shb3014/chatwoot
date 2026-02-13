@@ -136,38 +136,37 @@ module Captain::ChatHelper
     message_role = nil
     finish_reason = nil
 
-    @client.chat(
-      parameters: parameters,
-      stream: proc do |chunk|
-        choice = chunk.dig('choices', 0) || {}
-        delta = choice['delta'] || {}
-        message_role ||= delta['role']
+    stream_proc = proc do |chunk|
+      choice = chunk.dig('choices', 0) || {}
+      delta = choice['delta'] || {}
+      message_role ||= delta['role']
 
-        if delta['content'].present?
-          content << delta['content']
-          @streaming_callback&.call(content, delta['content'])
-        end
+      if delta['content'].present?
+        content << delta['content']
+        @streaming_callback&.call(content, delta['content'])
+      end
 
-        if delta['tool_calls'].present?
-          delta['tool_calls'].each do |tool_delta|
-            index = tool_delta['index'] || 0
-            entry = tool_calls[index] ||= {
-              'id' => tool_delta['id'],
-              'type' => tool_delta['type'] || 'function',
-              'function' => { 'name' => nil, 'arguments' => '' }
-            }
-            entry['id'] ||= tool_delta['id']
-            entry['type'] ||= tool_delta['type']
-            if tool_delta['function']
-              entry['function']['name'] ||= tool_delta['function']['name']
-              entry['function']['arguments'] << tool_delta['function']['arguments'].to_s
-            end
+      if delta['tool_calls'].present?
+        delta['tool_calls'].each do |tool_delta|
+          index = tool_delta['index'] || 0
+          entry = tool_calls[index] ||= {
+            'id' => tool_delta['id'],
+            'type' => tool_delta['type'] || 'function',
+            'function' => { 'name' => nil, 'arguments' => '' }
+          }
+          entry['id'] ||= tool_delta['id']
+          entry['type'] ||= tool_delta['type']
+          if tool_delta['function']
+            entry['function']['name'] ||= tool_delta['function']['name']
+            entry['function']['arguments'] << tool_delta['function']['arguments'].to_s
           end
         end
-
-        finish_reason = choice['finish_reason'] if choice['finish_reason'].present?
       end
-    )
+
+      finish_reason = choice['finish_reason'] if choice['finish_reason'].present?
+    end
+
+    @client.chat(parameters: parameters.merge(stream: stream_proc))
 
     tool_calls_array = tool_calls.keys.sort.map { |index| tool_calls[index] }
     {
