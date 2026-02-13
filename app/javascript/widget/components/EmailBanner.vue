@@ -38,6 +38,8 @@ export default {
       isAtTop: true,
       showAtTopTemporarily: false,
       atTopTimer: null,
+      isHighlighted: false,
+      highlightTimer: null,
     };
   },
   computed: {
@@ -72,6 +74,10 @@ export default {
             boxShadow: `0 0 0 2px ${this.widgetColor}30`,
           }
         : {};
+    },
+    highlightStyle() {
+      if (!this.isHighlighted) return {};
+      return { '--highlight-color': this.widgetColor };
     },
     shouldShowBanner() {
       return this.enableEmailCollect && !this.isCollapsed;
@@ -122,6 +128,7 @@ export default {
     this.scrollContainer?.removeEventListener('scroll', this.handleScroll);
     clearTimeout(this.scrollDebounceTimer);
     clearTimeout(this.atTopTimer);
+    clearTimeout(this.highlightTimer);
     emitter.off(ON_CONVERSATION_HANDOFF, this.onConversationHandoff);
   },
   methods: {
@@ -214,10 +221,18 @@ export default {
     },
     onConversationHandoff() {
       this.expandBanner();
+      this.highlightBanner();
       // Also show temporarily if email is already saved
       if (this.hasEmail && !this.isEditing) {
         this.showBannerTemporarily();
       }
+    },
+    highlightBanner() {
+      clearTimeout(this.highlightTimer);
+      this.isHighlighted = true;
+      this.highlightTimer = setTimeout(() => {
+        this.isHighlighted = false;
+      }, 4000);
     },
     onInputFocus() {
       this.isFocused = true;
@@ -260,7 +275,12 @@ export default {
     </div>
 
     <!-- Expanded state -->
-    <div v-else-if="shouldShowBanner" class="email-banner">
+    <div
+      v-else-if="shouldShowBanner"
+      class="email-banner"
+      :class="{ 'email-banner--highlighted': isHighlighted }"
+      :style="highlightStyle"
+    >
       <form
         class="email-input-form"
         :class="{ 'is-saved': hasEmail && !isEditing }"
@@ -375,6 +395,36 @@ export default {
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.1),
     0 2px 4px rgba(0, 0, 0, 0.06);
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+
+  &--highlighted {
+    animation: email-banner-pulse 1.5s ease-in-out 2;
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 0 0 3px var(--highlight-color, #1f93ff);
+  }
+}
+
+@keyframes email-banner-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 0 0 3px var(--highlight-color, #1f93ff);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow:
+      0 6px 20px rgba(0, 0, 0, 0.15),
+      0 2px 6px rgba(0, 0, 0, 0.08),
+      0 0 0 5px var(--highlight-color, #1f93ff),
+      0 0 16px var(--highlight-color, #1f93ff);
+  }
 }
 
 .email-banner-collapsed {
