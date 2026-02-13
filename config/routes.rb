@@ -68,6 +68,7 @@ Rails.application.routes.draw do
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
             end
+            resource :translation, only: [:create]
             resources :custom_tools
             resources :documents, only: [:index, :show, :create, :destroy]
             resources :sources do

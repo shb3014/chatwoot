@@ -34,6 +34,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'conversation.updated': this.onConversationUpdated,
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
+      'copilot.message.streaming': this.onCopilotMessageStreaming,
     };
   }
 
@@ -192,6 +193,17 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onCopilotMessageCreated = data => {
     this.app.$store.dispatch('copilotMessages/upsert', data);
+  };
+
+  onCopilotMessageStreaming = data => {
+    const threadId = data.copilot_thread_id;
+    const content = data.content;
+    if (threadId && content) {
+      this.app.$store.dispatch('copilotMessages/setStreamingContent', {
+        threadId,
+        content,
+      });
+    }
   };
 
   onCacheInvalidate = data => {

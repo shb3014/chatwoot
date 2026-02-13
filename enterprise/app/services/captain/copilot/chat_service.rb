@@ -28,24 +28,44 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     captain_logger.info "[Copilot] Detected customer language: #{@detected_customer_language}"
     captain_logger.info "[Copilot] User input: #{input&.truncate(200)}"
 
+    # Enable streaming so copilot responses are delivered in real time via ActionCable
+    setup_streaming_callback
+
     response = request_chat_completion
 
-    # For reply suggestions, translate into the account language if customer uses a different language
-    if response.is_a?(Hash) && response['reply_suggestion'] && response['content'].present?
+    # Send the final streaming content to ensure completeness before the real message arrives
+    broadcast_final_streaming_content(response)
+
+    is_reply_suggestion = response.is_a?(Hash) && response['reply_suggestion'] && response['content'].present?
+
+    if is_reply_suggestion
       captain_logger.info "[Copilot] reply_suggestion detected — detected_customer_lang=#{@detected_customer_language}, account_locale=#{account_locale_code}"
       captain_logger.info "[Copilot] Content preview: #{response['content'].truncate(300)}"
 
-      if @detected_customer_language == account_locale_code
-        captain_logger.info '[Copilot] Same language — skipping translation'
-      else
+      source_count = response['sources']&.length || 0
+      captain_logger.info "[Copilot] LLM cited #{source_count} sources" if source_count.positive?
+
+      # PHASE 1: Persist immediately WITH content + sources but WITHOUT translation.
+      # This broadcasts to the frontend so the agent sees the response right away.
+      persisted_message = flush_assistant_message
+
+      # PHASE 2: Translate in background, then UPDATE the persisted message.
+      # The update triggers after_update_commit which broadcasts the updated message.
+      if @detected_customer_language != account_locale_code && persisted_message
         captain_logger.info "[Copilot] Languages differ — translating to #{@account.locale_english_name}..."
         translation = translate_to_account_language(response['content'])
-        response['translation'] = translation if translation.present?
+        if translation.present?
+          captain_logger.info "[Copilot] Translation complete, updating message #{persisted_message.id}"
+          persisted_message.update!(message: persisted_message.message.merge('translation' => translation))
+          response['translation'] = translation
+        end
+      else
+        captain_logger.info '[Copilot] Same language — skipping translation'
       end
+    else
+      # Non-reply-suggestion: just persist
+      flush_assistant_message
     end
-
-    # Now flush the buffered assistant message (with translation if added) — this persists + broadcasts
-    flush_assistant_message
 
     Rails.logger.debug { "#{self.class.name} Assistant: #{@assistant.id}, Received response #{response}" }
     Rails.logger.info(
@@ -234,6 +254,66 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     nil
   end
 
+  # Send the complete response content as a final streaming broadcast.
+  # This ensures the UI shows the full text even if throttling skipped the last few tokens.
+  def broadcast_final_streaming_content(response)
+    return unless @user && @copilot_thread && @streaming_callback
+    return unless response.is_a?(Hash) && response['content'].present?
+
+    ActionCable.server.broadcast(
+      @user.pubsub_token,
+      {
+        event: 'copilot.message.streaming',
+        data: {
+          account_id: @account.id,
+          copilot_thread_id: @copilot_thread.id,
+          content: response['content']
+        }
+      }
+    )
+  end
+
+  # Set up ActionCable streaming callback so copilot responses stream to the frontend in real time.
+  # Throttled to broadcast at most every 100ms to avoid flooding WebSocket with per-token updates.
+  def setup_streaming_callback
+    unless @user && @copilot_thread
+      captain_logger.info '[Copilot][Streaming] Skipped — user or copilot_thread missing'
+      return
+    end
+
+    thread_id = @copilot_thread.id
+    user_token = @user.pubsub_token
+    acct_id = @account.id
+    last_broadcast_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    broadcast_count = 0
+
+    captain_logger.info "[Copilot][Streaming] Enabled for thread=#{thread_id} user=#{@user.id}"
+
+    @streaming_callback = proc do |accumulated_content, _delta|
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      elapsed = now - last_broadcast_at
+
+      # Broadcast immediately for the first ~50 chars, then throttle to every 100ms
+      if elapsed >= 0.1 || accumulated_content.length <= 50
+        broadcast_count += 1
+        captain_logger.info "[Copilot][Streaming] Broadcast ##{broadcast_count} len=#{accumulated_content.length}" if broadcast_count <= 3
+
+        ActionCable.server.broadcast(
+          user_token,
+          {
+            event: 'copilot.message.streaming',
+            data: {
+              account_id: acct_id,
+              copilot_thread_id: thread_id,
+              content: accumulated_content
+            }
+          }
+        )
+        last_broadcast_at = now
+      end
+    end
+  end
+
   # Override persist_message from ChatHelper.
   # Buffer the final assistant message so we can add translation before persisting + broadcasting.
   # Non-assistant messages (thinking, user) are persisted immediately.
@@ -250,14 +330,16 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     end
   end
 
-  # Persist and broadcast the buffered assistant message (now includes translation if added).
+  # Persist and broadcast the buffered assistant message.
+  # Returns the persisted CopilotMessage record (so callers can update it later, e.g. with translation).
   def flush_assistant_message
-    return unless @buffered_assistant_message && @copilot_thread.present?
+    return nil unless @buffered_assistant_message && @copilot_thread.present?
 
-    @copilot_thread.copilot_messages.create!(
+    record = @copilot_thread.copilot_messages.create!(
       message: @buffered_assistant_message[:message],
       message_type: @buffered_assistant_message[:message_type]
     )
     @buffered_assistant_message = nil
+    record
   end
 end

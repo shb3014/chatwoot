@@ -3,6 +3,7 @@ import { nextTick, ref, watch, computed } from 'vue';
 import { useTrack } from 'dashboard/composables';
 import { COPILOT_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import MessageFormatter from 'shared/helpers/MessageFormatter.js';
 
 import CopilotInput from './CopilotInput.vue';
 import CopilotLoader from './CopilotLoader.vue';
@@ -34,6 +35,14 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  streamingContent: {
+    type: String,
+    default: '',
+  },
+  isWaiting: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['sendMessage', 'reset', 'setAssistant']);
@@ -54,18 +63,29 @@ const scrollToBottom = async () => {
   }
 };
 
+// The hardcoded suggest prompt — used to filter it from the message list
+const SUGGEST_PROMPT =
+  'Based on the full conversation, draft a reply to the customer.';
+
 const groupedMessages = computed(() => {
-  // Filter out thinking/tool-step messages — only show user and assistant messages
-  return props.messages.filter(
-    message => message.message_type !== 'assistant_thinking'
-  );
+  // Filter out thinking/tool-step messages and the suggest prompt
+  return props.messages.filter(message => {
+    if (message.message_type === 'assistant_thinking') return false;
+    // Hide the hardcoded suggest prompt sent by the "Suggest an answer" button
+    if (
+      message.message_type === 'user' &&
+      message.message?.content === SUGGEST_PROMPT
+    ) {
+      return false;
+    }
+    return true;
+  });
 });
 
 const isLastMessageFromAssistant = computed(() => {
-  return (
-    groupedMessages.value[groupedMessages.value.length - 1].message_type ===
-    'assistant'
-  );
+  const messages = groupedMessages.value;
+  if (messages.length === 0) return false;
+  return messages[messages.length - 1].message_type === 'assistant';
 });
 
 const { updateUISettings } = useUISettings();
@@ -83,6 +103,12 @@ const handleSidebarAction = action => {
   }
 };
 
+const formattedStreamingContent = computed(() => {
+  if (!props.streamingContent) return '';
+  const formatter = new MessageFormatter(props.streamingContent);
+  return formatter.formattedMessage;
+});
+
 const hasAssistants = computed(() => props.assistants.length > 0);
 const hasMessages = computed(() => props.messages.length > 0);
 const copilotButtons = computed(() => {
@@ -98,7 +124,7 @@ const copilotButtons = computed(() => {
   return [];
 });
 watch(
-  [() => props.messages],
+  [() => props.messages, () => props.streamingContent],
   () => {
     scrollToBottom();
   },
@@ -107,7 +133,9 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col h-full text-sm leading-6 tracking-tight w-full">
+  <div
+    class="flex flex-col h-full text-[13px] leading-relaxed tracking-tight w-full"
+  >
     <SidebarActionsHeader
       v-if="showHeader"
       :title="$t('CAPTAIN.COPILOT.TITLE')"
@@ -133,7 +161,22 @@ watch(
           />
         </template>
 
-        <CopilotLoader v-if="!isLastMessageFromAssistant" />
+        <!-- Waiting for response: show streaming content or loader -->
+        <div
+          v-if="!isLastMessageFromAssistant"
+          class="flex flex-col gap-1 text-n-slate-12"
+        >
+          <div
+            v-if="streamingContent"
+            v-dompurify-html="formattedStreamingContent"
+            class="copilot-prose break-words"
+          />
+          <CopilotLoader />
+        </div>
+      </div>
+      <!-- Waiting for suggest answer: show loader before messages arrive -->
+      <div v-else-if="isWaiting" class="flex-1 flex items-start px-4 py-4">
+        <CopilotLoader />
       </div>
       <CopilotEmptyState
         v-else
@@ -160,3 +203,10 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+.copilot-prose {
+  font-size: 0.8125rem;
+  line-height: 1.625;
+}
+</style>

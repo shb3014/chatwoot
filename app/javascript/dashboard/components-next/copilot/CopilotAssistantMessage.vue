@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUpdated, nextTick } from 'vue';
 import { emitter } from 'shared/helpers/mitt';
 import { useTrack } from 'dashboard/composables';
+import { useI18n } from 'vue-i18n';
 
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -25,26 +26,46 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
 const messageContentRef = ref(null);
+const translationContentRef = ref(null);
 const activeCitation = ref(null);
 const citationPosition = ref({ x: 0, y: 0 });
 let citationHideTimeout = null;
 
 const hasEmptyMessageContent = computed(() => !props.message?.content);
 
-// Translation comes as a separate field from the backend (second LLM call)
+// ==================== Language Helpers ====================
+const LANGUAGE_NAMES = {
+  en: 'English',
+  zh: 'Chinese',
+  ja: 'Japanese',
+  ko: 'Korean',
+  ar: 'Arabic',
+  ru: 'Russian',
+  de: 'German',
+  fr: 'French',
+  es: 'Spanish',
+  pt: 'Portuguese',
+  it: 'Italian',
+  nl: 'Dutch',
+};
+
+const customerLanguageCode = computed(
+  () => props.message?.customer_language || 'en'
+);
+const customerLanguageName = computed(
+  () => LANGUAGE_NAMES[customerLanguageCode.value] || customerLanguageCode.value
+);
+
+// No need for systemLanguageName — the translation tab just says "Translation"
+
+// ==================== Tabs ====================
 const hasTranslation = computed(() => !!props.message?.translation);
+// Default to translation tab when available
+const activeTab = ref('translation');
 
-const showTranslation = ref(true);
-
-const showUseButton = computed(() => {
-  return (
-    !hasEmptyMessageContent.value &&
-    props.message.reply_suggestion &&
-    props.isLastMessage
-  );
-});
-
+// ==================== Content Formatting ====================
 const messageContent = computed(() => {
   const formatter = new MessageFormatter(props.message.content || '');
   return formatter.formattedMessage;
@@ -56,31 +77,104 @@ const translationFormattedContent = computed(() => {
   return formatter.formattedMessage;
 });
 
+// ==================== Sources ====================
+const sources = computed(() => props.message?.sources || []);
+const hasSources = computed(() => sources.value.length > 0);
+
+const sourceTypeLabel = type => {
+  const typeMap = {
+    article: t('CAPTAIN.COPILOT.SOURCE_TYPE.ARTICLE'),
+    web_url: t('CAPTAIN.COPILOT.SOURCE_TYPE.WEB_URL'),
+    faq: t('CAPTAIN.COPILOT.SOURCE_TYPE.FAQ'),
+    document: t('CAPTAIN.COPILOT.SOURCE_TYPE.DOCUMENT'),
+  };
+  return typeMap[type] || t('CAPTAIN.COPILOT.SOURCE_TYPE.DEFAULT');
+};
+
+const sourceTypeIcon = type => {
+  const iconMap = {
+    article: 'i-lucide-book-open',
+    web_url: 'i-lucide-globe',
+    faq: 'i-lucide-help-circle',
+    document: 'i-lucide-file-text',
+  };
+  return iconMap[type] || 'i-lucide-file-text';
+};
+
+// ==================== Buttons ====================
+const isReplySuggestion = computed(
+  () => props.message?.reply_suggestion && !hasEmptyMessageContent.value
+);
+
+const showActionButtons = computed(
+  () => isReplySuggestion.value && props.isLastMessage
+);
+
 const insertIntoRichEditor = computed(() => {
   return [INBOX_TYPES.WEB, INBOX_TYPES.EMAIL].includes(
     props.conversationInboxType
   );
 });
 
-const useCopilotResponse = () => {
-  // Insert the primary content (in the customer's language)
+// "Use XX" — inserts the customer-language content (ready to send)
+const useCustomerLanguage = () => {
   const content = props.message?.content || '';
   if (insertIntoRichEditor.value) {
     emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, content);
   } else {
     emitter.emit(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, content);
   }
+  // Tell the editor what language the customer uses (for translate button)
+  emitter.emit(BUS_EVENTS.SET_EDITOR_TRANSLATE_LANGUAGE, {
+    language: customerLanguageCode.value,
+    languageName: customerLanguageName.value,
+  });
   useTrack(COPILOT_EVENTS.USE_CAPTAIN_RESPONSE);
 };
 
+// "Edit XX" — inserts the system-language translation (agent can edit then translate)
+const editSystemLanguage = () => {
+  const content = props.message?.translation || props.message?.content || '';
+  if (insertIntoRichEditor.value) {
+    emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, content);
+  } else {
+    emitter.emit(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, content);
+  }
+  // Tell the editor what language the customer uses (for translate button)
+  emitter.emit(BUS_EVENTS.SET_EDITOR_TRANSLATE_LANGUAGE, {
+    language: customerLanguageCode.value,
+    languageName: customerLanguageName.value,
+  });
+  useTrack(COPILOT_EVENTS.USE_CAPTAIN_RESPONSE);
+};
+
+// "Add to reply" — appends a source reference at the bottom of the editor
+const addSourceToReply = source => {
+  const linkText = `\n\n[${source.title}](${source.url})`;
+  if (insertIntoRichEditor.value) {
+    emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, linkText);
+  } else {
+    emitter.emit(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, linkText);
+  }
+};
+
+// Open a source URL in a new tab
+const openSource = url => {
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+// ==================== Citation Popup ====================
 const citationTypeLabel = computed(() => {
   const typeMap = {
-    article: 'Help Center Article',
-    web_url: 'Web Source',
-    faq: 'FAQ',
-    document: 'Document',
+    article: t('CAPTAIN.COPILOT.SOURCE_TYPE.ARTICLE'),
+    web_url: t('CAPTAIN.COPILOT.SOURCE_TYPE.WEB_URL'),
+    faq: t('CAPTAIN.COPILOT.SOURCE_TYPE.FAQ'),
+    document: t('CAPTAIN.COPILOT.SOURCE_TYPE.DOCUMENT'),
   };
-  return typeMap[activeCitation.value?.type] || 'Source';
+  return (
+    typeMap[activeCitation.value?.type] ||
+    t('CAPTAIN.COPILOT.SOURCE_TYPE.DEFAULT')
+  );
 });
 
 const popupStyle = computed(() => ({
@@ -89,7 +183,6 @@ const popupStyle = computed(() => ({
 }));
 
 const handleCitationEnter = event => {
-  // Clear any pending hide timeout
   if (citationHideTimeout) {
     clearTimeout(citationHideTimeout);
     citationHideTimeout = null;
@@ -109,14 +202,12 @@ const handleCitationEnter = event => {
 };
 
 const handleCitationLeave = () => {
-  // Delay hiding to allow mouse to move to popup
   citationHideTimeout = setTimeout(() => {
     activeCitation.value = null;
   }, 100);
 };
 
 const handlePopupEnter = () => {
-  // Cancel hide when mouse enters popup
   if (citationHideTimeout) {
     clearTimeout(citationHideTimeout);
     citationHideTimeout = null;
@@ -124,18 +215,19 @@ const handlePopupEnter = () => {
 };
 
 const handlePopupLeave = () => {
-  // Hide popup when mouse leaves it
   activeCitation.value = null;
 };
 
 const setupCitationListeners = () => {
-  if (!messageContentRef.value) return;
-  const citations = messageContentRef.value.querySelectorAll('.citation-chip');
-  citations.forEach(chip => {
-    chip.removeEventListener('mouseenter', handleCitationEnter);
-    chip.removeEventListener('mouseleave', handleCitationLeave);
-    chip.addEventListener('mouseenter', handleCitationEnter);
-    chip.addEventListener('mouseleave', handleCitationLeave);
+  [messageContentRef.value, translationContentRef.value].forEach(el => {
+    if (!el) return;
+    const citations = el.querySelectorAll('.citation-chip');
+    citations.forEach(chip => {
+      chip.removeEventListener('mouseenter', handleCitationEnter);
+      chip.removeEventListener('mouseleave', handleCitationLeave);
+      chip.addEventListener('mouseenter', handleCitationEnter);
+      chip.addEventListener('mouseleave', handleCitationLeave);
+    });
   });
 };
 
@@ -150,55 +242,151 @@ onUpdated(() => {
 
 <template>
   <div class="flex flex-col gap-1 text-n-slate-12">
-    <div class="font-medium">{{ $t('CAPTAIN.NAME') }}</div>
     <span v-if="hasEmptyMessageContent" class="text-n-ruby-11">
       {{ $t('CAPTAIN.COPILOT.EMPTY_MESSAGE') }}
     </span>
     <template v-else>
-      <!-- Customer-language response (primary) -->
+      <!-- ==================== Tabs (only for reply suggestions with translation) ==================== -->
       <div
+        v-if="hasTranslation && isReplySuggestion"
+        class="flex border-b border-n-weak mb-2"
+      >
+        <button
+          class="flex-1 pb-1.5 text-xs font-medium border-b-2 transition-colors text-center"
+          :class="
+            activeTab === 'translation'
+              ? 'text-n-iris-9 border-n-iris-9'
+              : 'text-n-slate-10 border-transparent hover:text-n-slate-12'
+          "
+          @click="activeTab = 'translation'"
+        >
+          {{ $t('CAPTAIN.COPILOT.TAB_TRANSLATION') }}
+        </button>
+        <button
+          class="flex-1 pb-1.5 text-xs font-medium border-b-2 transition-colors text-center"
+          :class="
+            activeTab === 'reply'
+              ? 'text-n-iris-9 border-n-iris-9'
+              : 'text-n-slate-10 border-transparent hover:text-n-slate-12'
+          "
+          @click="activeTab = 'reply'"
+        >
+          {{ $t('CAPTAIN.COPILOT.TAB_REPLY', { lang: customerLanguageName }) }}
+        </button>
+      </div>
+
+      <!-- ==================== Tab Content ==================== -->
+      <!-- Translation tab (system language) — default tab -->
+      <div
+        v-if="
+          hasTranslation && isReplySuggestion && activeTab === 'translation'
+        "
+        ref="translationContentRef"
+        v-dompurify-html="translationFormattedContent"
+        class="copilot-prose break-words"
+      />
+
+      <!-- Reply tab (customer language) -->
+      <div
+        v-if="!hasTranslation || !isReplySuggestion || activeTab === 'reply'"
         ref="messageContentRef"
         v-dompurify-html="messageContent"
-        class="prose-sm break-words"
+        class="copilot-prose break-words"
       />
-      <!-- Agent-language translation (secondary, from separate LLM call) -->
-      <div v-if="hasTranslation" class="mt-2">
-        <button
-          class="flex items-center gap-1 text-xs text-n-slate-10 hover:text-n-slate-12 transition-colors"
-          @click="showTranslation = !showTranslation"
-        >
-          <span
-            class="text-[10px] block transition-transform"
-            :class="
-              showTranslation
-                ? 'i-lucide-chevron-down'
-                : 'i-lucide-chevron-right'
-            "
-          />
-          {{ $t('CAPTAIN.COPILOT.AGENT_TRANSLATION') }}
-        </button>
+
+      <!-- ==================== Action Buttons ==================== -->
+      <div v-if="showActionButtons" class="flex flex-row gap-2 mt-2">
+        <Button
+          :label="
+            $t('CAPTAIN.COPILOT.USE_LANG', { lang: customerLanguageName })
+          "
+          faded
+          sm
+          slate
+          icon="i-lucide-send"
+          @click="useCustomerLanguage"
+        />
+        <Button
+          v-if="hasTranslation"
+          :label="
+            $t('CAPTAIN.COPILOT.EDIT_LANG', {
+              lang: $t('CAPTAIN.COPILOT.TAB_TRANSLATION'),
+            })
+          "
+          faded
+          sm
+          slate
+          icon="i-lucide-pencil"
+          @click="editSystemLanguage"
+        />
+      </div>
+
+      <!-- ==================== Sources Section ==================== -->
+      <div
+        v-if="hasSources && isReplySuggestion"
+        class="mt-3 pt-3 border-t border-n-weak"
+      >
         <div
-          v-if="showTranslation"
-          class="mt-1.5 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2"
+          class="flex items-center gap-1.5 text-xs font-medium text-n-slate-10 mb-2"
         >
+          <span class="i-lucide-library text-sm" />
+          {{ $t('CAPTAIN.COPILOT.SOURCES_TITLE') }}
+        </div>
+        <div class="flex flex-col gap-1.5">
           <div
-            v-dompurify-html="translationFormattedContent"
-            class="prose-sm break-words text-n-slate-11 text-xs leading-relaxed"
-          />
+            v-for="(source, index) in sources"
+            :key="index"
+            class="flex items-center gap-2 rounded-md border border-n-weak bg-n-alpha-1 px-2.5 py-2 group hover:bg-n-alpha-2 transition-colors"
+          >
+            <span
+              :class="sourceTypeIcon(source.type)"
+              class="text-n-slate-9 text-sm flex-shrink-0"
+            />
+            <div class="flex-1 min-w-0">
+              <a
+                v-if="source.url"
+                :href="source.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs font-medium text-n-slate-12 hover:underline truncate block"
+              >
+                {{ source.title || source.url }}
+              </a>
+              <span
+                v-else
+                class="text-xs font-medium text-n-slate-12 truncate block"
+              >
+                {{ source.title }}
+              </span>
+              <span class="text-[10px] text-n-slate-9">
+                {{ sourceTypeLabel(source.type) }}
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <button
+                v-if="source.url"
+                v-tooltip="$t('CAPTAIN.COPILOT.VIEW_SOURCE')"
+                class="p-1 rounded text-n-slate-9 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
+                @click.stop="openSource(source.url)"
+              >
+                <span class="i-lucide-external-link text-xs block" />
+              </button>
+              <button
+                v-tooltip="$t('CAPTAIN.COPILOT.ADD_TO_REPLY')"
+                class="p-1 rounded text-n-slate-9 hover:text-n-iris-11 hover:bg-n-iris-3 transition-colors"
+                @click.stop="addSourceToReply(source)"
+              >
+                <span class="i-lucide-plus text-xs block" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </template>
-    <div class="flex flex-row mt-1">
-      <Button
-        v-if="showUseButton"
-        :label="$t('CAPTAIN.COPILOT.USE')"
-        faded
-        sm
-        slate
-        @click="useCopilotResponse"
-      />
-    </div>
-    <!-- Citation Popup -->
+
+    <!-- ==================== Citation Popup ==================== -->
     <Teleport to="body">
       <div
         v-if="activeCitation"
@@ -236,7 +424,10 @@ onUpdated(() => {
 </template>
 
 <style scoped lang="scss">
-.prose-sm {
+.copilot-prose {
+  font-size: 0.8125rem; /* 13px — slightly smaller than default 14px */
+  line-height: 1.625;
+
   :deep(a) {
     color: inherit;
     text-decoration: underline;

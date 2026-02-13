@@ -1,5 +1,5 @@
 class Llm::TranslationService < Llm::BaseOpenAiService
-  def initialize(conversation)
+  def initialize(conversation = nil)
     super(model_type: :fast)
     @conversation = conversation
   end

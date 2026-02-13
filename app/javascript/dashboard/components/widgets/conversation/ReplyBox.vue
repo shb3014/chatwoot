@@ -52,6 +52,7 @@ import {
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { emitter } from 'shared/helpers/mitt';
+import CaptainTranslationAPI from 'dashboard/api/captain/translation';
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
 );
@@ -134,6 +135,15 @@ export default {
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
+      // Translate button state (set via copilot suggest answer)
+      translateLanguage: null,
+      translateLanguageName: '',
+      isTranslating: false,
+      // Editor resize state
+      editorCustomHeight: null,
+      isEditorResizing: false,
+      editorResizeStartY: 0,
+      editorResizeStartHeight: 0,
     };
   },
   computed: {
@@ -523,12 +533,23 @@ export default {
       this.onNewConversationModalActive
     );
     emitter.on(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
+    emitter.on(
+      BUS_EVENTS.SET_EDITOR_TRANSLATE_LANGUAGE,
+      this.setTranslateLanguage
+    );
   },
   unmounted() {
     document.removeEventListener('paste', this.onPaste);
     document.removeEventListener('keydown', this.handleKeyEvents);
     emitter.off(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.fetchAndSetReplyTo);
     emitter.off(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
+    emitter.off(
+      BUS_EVENTS.SET_EDITOR_TRANSLATE_LANGUAGE,
+      this.setTranslateLanguage
+    );
+    // Clean up resize listeners
+    document.removeEventListener('mousemove', this.onEditorResizeMove);
+    document.removeEventListener('mouseup', this.onEditorResizeEnd);
     emitter.off(
       BUS_EVENTS.NEW_CONVERSATION_MODAL,
       this.onNewConversationModalActive
@@ -881,6 +902,55 @@ export default {
         message.slice(selectionEnd, message.length);
       this.message = newMessage;
     },
+    // --- Translate button ---
+    setTranslateLanguage({ language, languageName }) {
+      this.translateLanguage = language;
+      this.translateLanguageName = languageName;
+    },
+    async translateContent() {
+      if (!this.translateLanguageName || !this.message) return;
+      this.isTranslating = true;
+      try {
+        const response = await CaptainTranslationAPI.translate({
+          content: this.message,
+          targetLanguage: this.translateLanguageName,
+        });
+        if (response.data?.translation) {
+          this.message = response.data.translation;
+        }
+      } catch {
+        useAlert(this.$t('CONVERSATION.REPLYBOX.TRANSLATE_ERROR'));
+      } finally {
+        this.isTranslating = false;
+      }
+    },
+    // --- Editor resize ---
+    onEditorResizeStart(event) {
+      this.isEditorResizing = true;
+      this.editorResizeStartY = event.clientY;
+      this.editorResizeStartHeight =
+        this.$refs.replyEditor?.offsetHeight || 200;
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', this.onEditorResizeMove);
+      document.addEventListener('mouseup', this.onEditorResizeEnd);
+    },
+    onEditorResizeMove(event) {
+      if (!this.isEditorResizing) return;
+      const delta = this.editorResizeStartY - event.clientY;
+      const newHeight = Math.max(
+        120,
+        Math.min(600, this.editorResizeStartHeight + delta)
+      );
+      this.editorCustomHeight = newHeight;
+    },
+    onEditorResizeEnd() {
+      this.isEditorResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', this.onEditorResizeMove);
+      document.removeEventListener('mouseup', this.onEditorResizeEnd);
+    },
     addIntoEditor(content) {
       if (this.showRichContentEditor) {
         this.updateEditorSelectionWith = content;
@@ -1161,7 +1231,21 @@ export default {
 
 <template>
   <ReplyBoxBanner :message="message" :is-on-private-note="isOnPrivateNote" />
-  <div ref="replyEditor" class="reply-box" :class="replyBoxClass">
+  <div
+    ref="replyEditor"
+    class="reply-box"
+    :class="[replyBoxClass, { 'is-resizing': isEditorResizing }]"
+    :style="editorCustomHeight ? { height: editorCustomHeight + 'px' } : {}"
+  >
+    <!-- Resize handle at top of editor -->
+    <div
+      class="absolute top-0 left-0 right-0 h-1.5 cursor-row-resize z-10 group"
+      @mousedown.prevent="onEditorResizeStart"
+    >
+      <div
+        class="absolute top-0.5 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-n-slate-8 opacity-0 group-hover:opacity-60 transition-opacity"
+      />
+    </div>
     <ReplyTopPanel
       :mode="replyType"
       :is-reply-restricted="isReplyRestricted"
@@ -1177,6 +1261,30 @@ export default {
       @insert="handleInsert"
       @close="onSearchPopoverClose"
     />
+    <!-- Translate to customer language button (shown after copilot suggest answer) -->
+    <div
+      v-if="translateLanguage"
+      class="flex items-center px-3 py-1.5 border-b border-n-weak/50"
+    >
+      <button
+        class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-n-iris-3 text-n-iris-11 hover:bg-n-iris-4 border border-n-iris-6 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="isTranslating || !message"
+        @click="translateContent"
+      >
+        <span
+          v-if="isTranslating"
+          class="i-lucide-loader-2 animate-spin text-sm"
+        />
+        <span v-else class="i-lucide-languages text-sm" />
+        {{
+          isTranslating
+            ? $t('CAPTAIN.COPILOT.TRANSLATING')
+            : $t('CAPTAIN.COPILOT.TRANSLATE_TO', {
+                lang: translateLanguageName,
+              })
+        }}
+      </button>
+    </div>
     <div class="reply-box__top">
       <ReplyToMessage
         v-if="shouldShowReplyToMessage"
@@ -1343,10 +1451,14 @@ export default {
 .reply-box {
   transition: height 2s cubic-bezier(0.37, 0, 0.63, 1);
 
-  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1;
+  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1 flex flex-col overflow-hidden;
 
   &.is-private {
     @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;
+  }
+
+  &.is-resizing {
+    transition: none;
   }
 }
 

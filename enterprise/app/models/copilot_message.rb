@@ -26,10 +26,12 @@ class CopilotMessage < ApplicationRecord
   before_validation :ensure_account
   validate :validate_message_attributes
   after_create_commit :broadcast_message
+  after_update_commit :broadcast_message
 
   def push_event_data
     {
       id: id,
+      account_id: account_id,
       message: message,
       message_type: message_type,
       created_at: created_at.to_i,
@@ -60,7 +62,7 @@ class CopilotMessage < ApplicationRecord
   def validate_message_attributes
     return if message.blank?
 
-    allowed_keys = %w[content reasoning function_name reply_suggestion customer_language translation]
+    allowed_keys = %w[content function_name reply_suggestion customer_language translation sources]
     invalid_keys = message.keys - allowed_keys
 
     errors.add(:message, "contains invalid attributes: #{invalid_keys.join(', ')}") if invalid_keys.any?

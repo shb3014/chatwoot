@@ -44,6 +44,9 @@ const summaryMap = ref({});
 const summaryLoadingMap = ref({});
 const summaryErrorMap = ref({});
 
+// Suggest answer loading state — shows loader before messages arrive
+const isWaitingForSuggest = ref(false);
+
 // --- Getters ---
 const assistants = useMapGetter('captainAssistants/getRecords');
 const inboxAssistant = useMapGetter('getCopilotAssistant');
@@ -96,6 +99,12 @@ const selectedCopilotThreadId = computed(() => {
 
 const messages = computed(() =>
   store.getters['copilotMessages/getMessagesByThreadId'](
+    selectedCopilotThreadId.value
+  )
+);
+
+const streamingContent = computed(() =>
+  store.getters['copilotMessages/getStreamingContent'](
     selectedCopilotThreadId.value
   )
 );
@@ -211,11 +220,12 @@ const suggestAnswer = () => {
     isFolded.value = false;
     updateUISettings({ is_sidebar_folded: false });
   }
+  isWaitingForSuggest.value = true;
 
   // Simple English prompt — the LLM has access to the full conversation via tools.
   // Language detection and reply language are handled by the system prompt rules.
   const suggestPrompt =
-    'Based on the full conversation, draft a reply to the customer. Be clear, concise, and helpful.';
+    'Based on the full conversation, draft a reply to the customer.';
   sendMessage(suggestPrompt);
 };
 
@@ -274,6 +284,7 @@ watch(
   (newId, oldId) => {
     if (newId && newId !== oldId) {
       activeTab.value = 'copilot';
+      isWaitingForSuggest.value = false;
       // Fetch inbox assistant for this conversation
       store.dispatch('getInboxCaptainAssistantById', newId);
       // Fetch or generate summary for this conversation
@@ -284,6 +295,13 @@ watch(
   },
   { immediate: true }
 );
+
+// Clear waiting state when messages or streaming content arrive
+watch([messages, streamingContent], ([msgs, sc]) => {
+  if (isWaitingForSuggest.value && (msgs.length > 0 || sc)) {
+    isWaitingForSuggest.value = false;
+  }
+});
 
 // Also fetch summary when copilot becomes available (feature flag loads async)
 watch(showCopilotTab, show => {
@@ -451,6 +469,8 @@ onMounted(() => {
             :conversation-inbox-type="conversationInboxType"
             :assistants="assistants"
             :active-assistant="activeAssistant"
+            :streaming-content="streamingContent || ''"
+            :is-waiting="isWaitingForSuggest"
             @set-assistant="setAssistant"
             @send-message="sendMessage"
             @reset="handleReset"

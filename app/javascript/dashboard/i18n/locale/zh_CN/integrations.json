@@ -354,9 +354,34 @@
       "LOADER": "Captain 正在思考",
       "YOU": "您",
       "USE": "使用此",
+      "USE_LANG": "使用{lang}",
+      "EDIT_LANG": "编辑{lang}",
+      "TAB_REPLY": "回复（{lang}）",
+      "TAB_TRANSLATION": "翻译",
+      "AGENT_TRANSLATION": "供客服参考的翻译",
+      "SOURCES_TITLE": "相关来源",
+      "ADD_TO_REPLY": "添加到回复",
+      "VIEW_SOURCE": "查看",
+      "TRANSLATE_TO": "翻译为{lang}",
+      "TRANSLATING": "正在翻译...",
+      "STREAMING": "正在生成回复...",
+      "SOURCE_TYPE": {
+        "ARTICLE": "帮助中心文章",
+        "WEB_URL": "网页来源",
+        "FAQ": "常见问题",
+        "DOCUMENT": "文档",
+        "DEFAULT": "来源"
+      },
       "RESET": "重置",
       "SHOW_STEPS": "显示步骤",
       "SELECT_ASSISTANT": "选择助手",
+      "SUMMARY": {
+        "TITLE": "摘要",
+        "GENERATING": "正在生成对话摘要...",
+        "ERROR": "生成摘要失败。",
+        "RETRY": "重试",
+        "REGENERATE": "重新生成摘要"
+      },
       "PROMPTS": {
         "SUMMARIZE": {
           "LABEL": "总结此对话",
