@@ -48,7 +48,7 @@ class Captain::Source < ApplicationRecord
   before_validation :infer_title_if_blank
 
   after_create_commit :enqueue_processing_job, unless: :private_article?
-  after_create_commit :enqueue_embedding_job, if: :private_article?
+  after_create_commit :enqueue_initial_embedding_job, if: :private_article?
   after_update_commit :enqueue_embedding_job, if: :should_update_embedding?
 
   scope :ordered, -> { order(created_at: :desc) }
@@ -93,6 +93,10 @@ class Captain::Source < ApplicationRecord
 
   def enqueue_processing_job
     Captain::Sources::ProcessJob.perform_later(self)
+  end
+
+  def enqueue_initial_embedding_job
+    Captain::Llm::UpdateEmbeddingJob.perform_later(self, embedding_content)
   end
 
   def enqueue_embedding_job
