@@ -25,7 +25,6 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     captain_logger.info "#{self.class.name}: #{query}"
 
-    # Search responses (FAQs), articles, and captain sources
     responses = assistant.responses.approved.search(query)
     articles = search_articles(query)
     sources = search_sources(query)
@@ -34,18 +33,22 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
     return 'No documentation found for the given query' if responses.empty? && articles.empty? && sources.empty?
 
-    # Store citable references for the reference list
-    @cited_articles = articles.to_a
-    @cited_sources = sources.select(&:web_url?).to_a
+    private_sources = sources.reject(&:web_url?)
+    web_url_sources = sources.select(&:web_url?)
 
+    @cited_private_sources = private_sources.to_a
+    @cited_articles = articles.to_a
+    @cited_sources = web_url_sources.to_a
+
+    # Order: FAQs → private articles (internal knowledge) → Help Center articles → web URL sources
     results = []
     results.concat(responses.map { |response| format_response(response) })
+    results.concat(private_sources.map { |source| format_source(source) })
     results.concat(articles.map { |article| format_article(article) })
-    results.concat(sources.map { |source| format_source(source) })
+    results.concat(web_url_sources.map { |source| format_source(source) })
 
-    # Add reference list at the end (articles + citable web URL sources)
     documentation = results.join
-    documentation += format_citable_references if @cited_articles.any? || @cited_sources.any?
+    documentation += format_citable_references if @cited_private_sources.any? || @cited_articles.any? || @cited_sources.any?
 
     documentation
   end
@@ -153,18 +156,16 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
 
   def format_source(source)
     if source.web_url?
-      # Web URL sources are citable — include their URL for the LLM to reference
       "
         Source Title: #{source.title}
         Content: #{source.content.to_s.truncate(3000)}
         Source URL: #{source.external_link}
         "
     else
-      # PDF and private article sources provide context but must NOT be cited
       "
-        [NON-CITABLE CONTEXT — do NOT use citation numbers for this content]
-        Source Title: #{source.title}
+        VERIFIED COMPANY POLICY — #{source.title}
         Content: #{source.content.to_s.truncate(3000)}
+        IMPORTANT: This is official company policy. You MUST use this information when answering related questions.
         "
     end
   end
@@ -204,10 +205,15 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
   end
 
   def format_citable_references
-    return '' if @cited_articles.empty? && @cited_sources.empty?
+    return '' if @cited_private_sources.empty? && @cited_articles.empty? && @cited_sources.empty?
 
     references = "\n\n\n**Sources**\n"
     ref_index = 0
+
+    @cited_private_sources.each do |source|
+      ref_index += 1
+      references += "\n[#{ref_index}] #{source.title} (type: internal)"
+    end
 
     @cited_articles.each do |article|
       ref_index += 1
@@ -230,7 +236,6 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
   def generate_article_url(article)
     portal = article.portal
 
-    # 生成基础 URL
     base_url = if portal.custom_domain.present?
                  "https://#{portal.custom_domain}"
                else
@@ -238,13 +243,6 @@ class Captain::Tools::SearchDocumentationService < Captain::Tools::BaseService
                  "#{frontend_url}/hc/#{portal.slug}"
                end
 
-    # 生成文章路径
-    article_path = if portal.custom_domain.present?
-                     "/articles/#{article.slug}"
-                   else
-                     "/articles/#{article.slug}"
-                   end
-
-    "#{base_url}#{article_path}"
+    "#{base_url}/articles/#{article.slug}"
   end
 end

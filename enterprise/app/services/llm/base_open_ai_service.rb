@@ -160,6 +160,9 @@ class Llm::BaseOpenAiService
     # Monkey-patch the client instance to override the chat endpoint (only if custom chat endpoint is set)
     if custom_chat_path.present?
       @client.define_singleton_method(:chat) do |parameters:, stream: nil|
+        # Support stream passed either as keyword arg or inside parameters hash
+        stream = parameters.delete(:stream) if stream.nil? && parameters[:stream].is_a?(Proc)
+
         # Make direct HTTP request to custom endpoint instead of using gem's path
         headers = {
           'Content-Type' => 'application/json',
