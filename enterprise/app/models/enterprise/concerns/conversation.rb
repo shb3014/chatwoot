@@ -9,6 +9,7 @@ module Enterprise::Concerns::Conversation
     has_one :captain_conversation_learning, class_name: 'Captain::ConversationLearning', dependent: :destroy_async
     before_validation :validate_sla_policy, if: -> { sla_policy_id_changed? }
     around_save :ensure_applied_sla_is_created, if: -> { sla_policy_id_changed? }
+    after_create_commit :schedule_deferred_summarization
   end
 
   def captain_learning_eligible?
@@ -16,6 +17,10 @@ module Enterprise::Concerns::Conversation
   end
 
   private
+
+  def schedule_deferred_summarization
+    Captain::ConversationSummarizationJob.set(wait: 1.hour).perform_later(self)
+  end
 
   def captain_messages
     messages.where(sender_type: ['AgentBot', 'Captain::Assistant'])
