@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "שלי",
       "unassigned": "לא הוקצתה",
-      "all": "הכל"
+      "all": "הכל",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

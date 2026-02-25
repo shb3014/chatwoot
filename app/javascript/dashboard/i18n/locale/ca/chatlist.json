@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Meves",
       "unassigned": "Sense assignar",
-      "all": "Totes"
+      "all": "Totes",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

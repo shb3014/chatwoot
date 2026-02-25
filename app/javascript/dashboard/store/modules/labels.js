@@ -1,11 +1,13 @@
 import * as MutationHelpers from 'shared/helpers/vuex/mutationHelpers';
 import types from '../mutation-types';
 import LabelsAPI from '../../api/labels';
+import ConversationApi from '../../api/inbox/conversation';
 import AnalyticsHelper from '../../helper/AnalyticsHelper';
 import { LABEL_EVENTS } from '../../helper/AnalyticsHelper/events';
 
 export const state = {
   records: [],
+  unreadCounts: {},
   uiFlags: {
     isFetching: false,
     isFetchingItem: false,
@@ -28,6 +30,9 @@ export const getters = {
   },
   getLabelById: _state => id => {
     return _state.records.find(record => record.id === Number(id));
+  },
+  getLabelUnreadCounts(_state) {
+    return _state.unreadCounts;
   },
 };
 
@@ -86,6 +91,15 @@ export const actions = {
     }
   },
 
+  fetchUnreadCounts: async function fetchUnreadCounts({ commit }) {
+    try {
+      const response = await ConversationApi.labelUnreadCounts();
+      commit(types.SET_LABEL_UNREAD_COUNTS, response.data);
+    } catch (error) {
+      // Ignore error
+    }
+  },
+
   delete: async function deleteLabels({ commit }, id) {
     commit(types.SET_LABEL_UI_FLAG, { isDeleting: true });
     try {
@@ -112,6 +126,9 @@ export const mutations = {
   [types.ADD_LABEL]: MutationHelpers.create,
   [types.EDIT_LABEL]: MutationHelpers.update,
   [types.DELETE_LABEL]: MutationHelpers.destroy,
+  [types.SET_LABEL_UNREAD_COUNTS](_state, counts) {
+    _state.unreadCounts = counts;
+  },
 };
 
 export default {

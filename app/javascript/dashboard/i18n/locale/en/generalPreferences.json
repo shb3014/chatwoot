@@ -1,0 +1,14 @@
+{
+  "GENERAL_PREFERENCES": {
+    "TITLE": "General Preferences",
+    "DESCRIPTION": "Customize your personal preferences for conversations and interface behavior.",
+    "CONVERSATION": {
+      "TITLE": "Conversations",
+      "DESCRIPTION": "Configure how conversations are loaded and displayed.",
+      "PER_PAGE": {
+        "TITLE": "Conversations per page",
+        "NOTE": "Set the number of conversations loaded per page (10-50)."
+      }
+    }
+  }
+}

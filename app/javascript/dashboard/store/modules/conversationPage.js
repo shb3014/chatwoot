@@ -4,6 +4,7 @@ const state = {
   currentPage: {
     me: 0,
     unassigned: 0,
+    unread: 0,
     all: 0,
     unresolved: 0,
     appliedFilters: 0,
@@ -11,6 +12,7 @@ const state = {
   hasEndReached: {
     me: false,
     unassigned: false,
+    unread: false,
     all: false,
     unresolved: false,
     appliedFilters: false,
@@ -65,6 +67,7 @@ export const mutations = {
     $state.currentPage = {
       me: 0,
       unassigned: 0,
+      unread: 0,
       all: 0,
       unresolved: 0,
       appliedFilters: 0,
@@ -73,6 +76,7 @@ export const mutations = {
     $state.hasEndReached = {
       me: false,
       unassigned: false,
+      unread: false,
       all: false,
       unresolved: false,
       appliedFilters: false,

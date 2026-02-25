@@ -46,7 +46,7 @@ const count = computed(() =>
       />
     </div>
     <div class="flex items-center gap-1.5 flex-grow min-w-0">
-      <span class="text-sm font-medium leading-5 truncate">
+      <span class="text-[13px] font-medium leading-5 truncate">
         {{ label }}
       </span>
       <span

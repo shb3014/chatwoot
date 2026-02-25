@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Enyém",
       "unassigned": "Gazdátlan",
-      "all": "Mind"
+      "all": "Mind",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

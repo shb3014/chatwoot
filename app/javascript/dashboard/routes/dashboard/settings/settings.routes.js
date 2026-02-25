@@ -22,6 +22,7 @@ import store from '../../../store';
 import sla from './sla/sla.routes';
 import teams from './teams/teams.routes';
 import customRoles from './customRoles/customRole.routes';
+import general from './general/general.routes';
 import profile from './profile/profile.routes';
 import security from './security/security.routes';
 
@@ -44,6 +45,7 @@ export default {
         return { name: 'canned_list', params: to.params };
       },
     },
+    ...general.routes,
     ...account.routes,
     ...agent.routes,
     ...assignmentPolicy.routes,

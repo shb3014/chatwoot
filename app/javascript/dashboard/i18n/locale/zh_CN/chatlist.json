@@ -18,7 +18,8 @@
       "unresolved": "未解决",
       "me": "我的",
       "unassigned": "未分配的",
-      "all": "所有的"
+      "all": "所有的",
+      "unread": "未读"
     },
     "HEADER": {
       "MORE_ACTIONS": "更多操作",
@@ -26,9 +27,25 @@
         "RESOLVE_READ": "解决已读"
       }
     },
+    "BATCH_EDIT": {
+      "TOGGLE": "批量编辑",
+      "MARK_READ": "设为已读",
+      "MARK_UNREAD": "设为未读",
+      "MARK_RESOLVED": "设为已解决",
+      "MARK_UNRESOLVED": "设为未解决",
+      "REMOVE_PRIORITY": "移除优先级",
+      "DELETE": "删除",
+      "DELETE_CONFIRM_TITLE": "删除 {count} 个对话",
+      "DELETE_CONFIRM_DESC": "确定要删除选中的 {count} 个对话吗？此操作无法撤销。",
+      "DELETE_CONFIRM_BUTTON": "确认删除",
+      "SUCCESS": "批量操作成功",
+      "FAILED": "批量操作失败",
+      "DELETE_SUCCESS": "对话删除成功",
+      "DELETE_FAILED": "对话删除失败"
+    },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {
-        "TEXT": "打开"
+        "TEXT": "未解决"
       },
       "resolved": {
         "TEXT": "已解决"

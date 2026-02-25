@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "나에게 할당",
       "unassigned": "지정되지 않음",
-      "all": "모두"
+      "all": "모두",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

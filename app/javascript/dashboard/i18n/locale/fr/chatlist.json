@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Les miens",
       "unassigned": "Non assigné",
-      "all": "Tous"
+      "all": "Tous",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mitt",
       "unassigned": "Óúthlutað",
-      "all": "Allt"
+      "all": "Allt",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

@@ -57,6 +57,16 @@ export default {
       }`;
     },
     labelStyle() {
+      if (
+        (this.variant === 'smooth' || this.variant === 'dashed') &&
+        this.color
+      ) {
+        return {
+          backgroundColor: `${this.color}25`,
+          color: this.color,
+          borderColor: `${this.color}30`,
+        };
+      }
       if (this.bgColor) {
         return {
           background: this.bgColor,
@@ -91,11 +101,6 @@ export default {
     <span v-if="icon" class="label-action--button">
       <fluent-icon :icon="icon" size="12" class="label--icon cursor-pointer" />
     </span>
-    <span
-      v-if="['smooth', 'dashed'].includes(variant) && title && !icon"
-      :style="{ background: color }"
-      class="label-color-dot flex-shrink-0"
-    />
     <span v-if="!href" class="whitespace-nowrap text-ellipsis overflow-hidden">
       {{ title }}
     </span>
@@ -184,7 +189,7 @@ export default {
   }
 
   &.smooth {
-    @apply bg-transparent text-n-slate-11 dark:text-n-slate-12 border border-solid border-n-strong;
+    @apply border border-solid rounded-full font-medium text-[11px] leading-[1.15] px-2 py-[2px] h-auto inline-flex items-center;
   }
 
   &.dashed {
@@ -205,9 +210,9 @@ export default {
 }
 
 .label-color-dot {
-  @apply inline-block w-3 h-3 rounded-sm shadow-sm;
+  @apply inline-block w-2 h-2 rounded-full flex-shrink-0;
 }
 .label.small .label-color-dot {
-  @apply w-2 h-2 rounded-sm shadow-sm;
+  @apply w-1.5 h-1.5 rounded-full;
 }
 </style>

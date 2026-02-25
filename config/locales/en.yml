@@ -375,6 +375,7 @@ en:
     header:
       go_to_homepage: Website
       visit_website: Visit website
+      search: Search
       appearance:
         system: System
         light: Light

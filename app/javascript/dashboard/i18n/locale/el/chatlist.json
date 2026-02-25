@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Δικές μου",
       "unassigned": "Χωρίς Αντιστοίχιση",
-      "all": "Όλες"
+      "all": "Όλες",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

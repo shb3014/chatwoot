@@ -3,7 +3,7 @@ export default {
   ASSIGNEE_TYPE: {
     UNRESOLVED: 'unresolved',
     ME: 'me',
-    UNASSIGNED: 'unassigned',
+    UNREAD: 'unread',
     ALL: 'all',
   },
   STATUS_TYPE: {

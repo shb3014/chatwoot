@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -49,6 +49,8 @@ const router = useRouter();
 const store = useStore();
 const { t } = useI18n();
 
+const isBatchEditMode = inject('isBatchEditMode', ref(false));
+
 const hovered = ref(false);
 const showContextMenu = ref(false);
 const contextMenu = ref({
@@ -86,7 +88,7 @@ const statusText = computed(() => {
 const statusClass = computed(() => {
   switch (status.value) {
     case 'open':
-      return 'bg-n-teal-2 text-n-teal-9';
+      return 'bg-n-amber-2 text-n-amber-11';
     case 'resolved':
       return 'bg-n-slate-3 text-n-slate-11';
     case 'pending':
@@ -139,6 +141,14 @@ const showMetaSection = computed(() => {
 });
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+
+// Background tint by read status only (unread = light blue, read = no tint)
+const readResolveClass = computed(() => {
+  if (hasUnread.value) {
+    return 'bg-n-blue-3 dark:bg-n-blue-3/30';
+  }
+  return '';
+});
 
 const showLabelsSection = computed(() => {
   return props.chat.labels?.length > 0 || hasSlaPolicyId.value;
@@ -219,9 +229,9 @@ const closeContextMenu = () => {
   contextMenu.value.y = null;
 };
 
-const onUpdateConversation = (status, snoozedUntil) => {
+const onUpdateConversation = (newStatus, snoozedUntil) => {
   closeContextMenu();
-  emit('updateConversationStatus', props.chat.id, status, snoozedUntil);
+  emit('updateConversationStatus', props.chat.id, newStatus, snoozedUntil);
 };
 
 const onAssignAgent = agent => {
@@ -262,14 +272,17 @@ const deleteConversation = () => {
 
 <template>
   <div
-    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full py-0 border-t-0 border-b-0 border-l-0 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
-    :class="{
-      'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3 border-n-weak':
-        isActiveChat,
-      'bg-n-slate-2 dark:bg-n-slate-3': selected,
-      'px-0': compact,
-      'px-3': !compact,
-    }"
+    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full py-0 border-t-0 border-b-0 border-l-0 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-blue-4 dark:hover:bg-n-blue-4/30 group"
+    :class="[
+      {
+        'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3 border-n-weak':
+          isActiveChat,
+        'bg-n-slate-2 dark:bg-n-slate-3': selected,
+        'px-0': compact,
+        'px-3': !compact,
+      },
+      !isActiveChat && !selected ? readResolveClass : '',
+    ]"
     @click="onCardClick"
     @contextmenu="openContextMenu($event)"
   >
@@ -289,8 +302,9 @@ const deleteConversation = () => {
         rounded-full
       >
         <template #overlay="{ size }">
+          <!-- In batch edit mode: always show checkbox; otherwise: show on hover/selected -->
           <label
-            v-if="hovered || selected"
+            v-if="isBatchEditMode || hovered || selected"
             class="flex items-center justify-center rounded-full cursor-pointer absolute inset-0 z-10 backdrop-blur-[2px]"
             :style="{ width: `${size}px`, height: `${size}px` }"
             @click.stop
@@ -307,7 +321,7 @@ const deleteConversation = () => {
       </Avatar>
     </div>
     <div
-      class="px-0 py-3 border-b group-hover:border-transparent flex-1 border-n-slate-3 min-w-0"
+      class="px-0 py-2 border-b group-hover:border-transparent flex-1 border-n-slate-3 min-w-0"
     >
       <div
         v-if="showMetaSection"
@@ -344,7 +358,7 @@ const deleteConversation = () => {
         </div>
       </div>
       <h4
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
+        class="conversation--user text-xs my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
         {{ currentContact.name }}
@@ -352,11 +366,11 @@ const deleteConversation = () => {
       <div
         v-if="callStatus"
         key="voice-status-row"
-        class="my-0 mx-2 leading-6 h-6 flex-1 min-w-0 text-sm overflow-hidden text-ellipsis whitespace-nowrap"
+        class="my-0 mx-2 leading-5 h-5 flex-1 min-w-0 text-xs overflow-hidden text-ellipsis whitespace-nowrap"
         :class="messagePreviewClass"
       >
         <span
-          class="inline-block -mt-0.5 align-middle text-[16px] i-ph-phone-incoming"
+          class="inline-block -mt-0.5 align-middle text-[14px] i-ph-phone-incoming"
           :class="[voiceIconColor]"
         />
         <span class="mx-1">
@@ -367,13 +381,13 @@ const deleteConversation = () => {
         v-else-if="lastMessageInChat"
         key="message-preview"
         :message="lastMessageInChat"
-        class="my-0 mx-2 leading-6 h-6 flex-1 min-w-0 text-sm"
+        class="my-0 mx-2 leading-5 h-5 flex-1 min-w-0 text-xs"
         :class="messagePreviewClass"
       />
       <p
         v-else
         key="no-messages"
-        class="text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+        class="text-n-slate-11 text-xs my-0 mx-2 leading-5 h-5 flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
         :class="messagePreviewClass"
       >
         <fluent-icon
@@ -387,7 +401,7 @@ const deleteConversation = () => {
       </p>
       <div
         class="absolute flex flex-col ltr:right-3 rtl:left-3"
-        :class="showMetaSection ? 'top-8' : 'top-4'"
+        :class="showMetaSection ? 'top-6' : 'top-3'"
       >
         <span class="ml-auto font-normal leading-4 text-xxs">
           <TimeAgo

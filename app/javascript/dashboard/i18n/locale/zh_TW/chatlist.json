@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "我的",
       "unassigned": "未指派的",
-      "all": "所有的"
+      "all": "所有的",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

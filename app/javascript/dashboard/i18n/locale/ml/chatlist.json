@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "എന്റേത്",
       "unassigned": "നിയുക്തമാക്കാത്തത്",
-      "all": "എല്ലാം"
+      "all": "എല്ലാം",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

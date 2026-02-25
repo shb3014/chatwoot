@@ -16,6 +16,7 @@ class ConversationApi extends ApiClient {
     conversationType,
     sortBy,
     updatedWithin,
+    perPage,
   }) {
     return axios.get(this.url, {
       params: {
@@ -28,6 +29,7 @@ class ConversationApi extends ApiClient {
         conversation_type: conversationType,
         sort_by: sortBy,
         updated_within: updatedWithin,
+        per_page: perPage,
       },
     });
   }
@@ -140,6 +142,10 @@ class ConversationApi extends ApiClient {
 
   summarize(conversationId, { force = false } = {}) {
     return axios.post(`${this.url}/${conversationId}/summarize`, { force });
+  }
+
+  labelUnreadCounts() {
+    return axios.get(`${this.url}/label_unread_counts`);
   }
 
   delete(conversationId) {

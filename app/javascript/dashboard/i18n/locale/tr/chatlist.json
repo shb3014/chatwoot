@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Benim",
       "unassigned": "Atanmamış",
-      "all": "Hepsi"
+      "all": "Hepsi",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

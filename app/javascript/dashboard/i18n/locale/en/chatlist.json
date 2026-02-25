@@ -17,7 +17,7 @@
     "ASSIGNEE_TYPE_TABS": {
       "unresolved": "Unresolved",
       "me": "Mine",
-      "unassigned": "Unassigned",
+      "unread": "Unread",
       "all": "All"
     },
     "HEADER": {
@@ -25,6 +25,22 @@
       "ACTIONS": {
         "RESOLVE_READ": "Resolve read"
       }
+    },
+    "BATCH_EDIT": {
+      "TOGGLE": "Batch Edit",
+      "MARK_READ": "Mark as Read",
+      "MARK_UNREAD": "Mark as Unread",
+      "MARK_RESOLVED": "Mark as Resolved",
+      "MARK_UNRESOLVED": "Reopen",
+      "REMOVE_PRIORITY": "Remove Priority",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM_TITLE": "Delete {count} conversation(s)",
+      "DELETE_CONFIRM_DESC": "Are you sure you want to delete the selected {count} conversation(s)? This action cannot be undone.",
+      "DELETE_CONFIRM_BUTTON": "Yes, Delete",
+      "SUCCESS": "Batch operation completed successfully",
+      "FAILED": "Batch operation failed",
+      "DELETE_SUCCESS": "Conversations deleted successfully",
+      "DELETE_FAILED": "Failed to delete conversations"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

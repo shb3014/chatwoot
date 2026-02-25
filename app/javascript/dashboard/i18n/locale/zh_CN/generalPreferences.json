@@ -1,0 +1,14 @@
+{
+  "GENERAL_PREFERENCES": {
+    "TITLE": "通用设置",
+    "DESCRIPTION": "自定义您的个人偏好，包括对话显示和界面行为。",
+    "CONVERSATION": {
+      "TITLE": "对话",
+      "DESCRIPTION": "配置对话的加载和显示方式。",
+      "PER_PAGE": {
+        "TITLE": "每页对话数量",
+        "NOTE": "设置每页加载的对话数量（10-50）。"
+      }
+    }
+  }
+}

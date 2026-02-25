@@ -124,13 +124,6 @@ By default, it renders:
     background-color: var(--dynamic-hover-bg-color);
   }
 
-  /* Header section */
-  #header-action-button:hover,
-  #toggle-appearance:hover,
-  #toggle-theme-button:hover {
-    color: var(--dynamic-hover-color);
-    stroke: var(--dynamic-hover-color);
-  }
   #category-block:hover {
     border-color: var(--dynamic-hover-color);
   }
@@ -152,6 +145,7 @@ By default, it renders:
         emptyPlaceholder: '<%= I18n.t('public_portal.search.empty_placeholder') %>',
         loadingPlaceholder: '<%= I18n.t('public_portal.search.loading_placeholder') %>',
         resultsTitle: '<%= I18n.t('public_portal.search.results_title') %>',
+        searchButtonLabel: '<%= I18n.t('public_portal.header.search') %>',
       },
       isPlainLayoutEnabled: '<%= @is_plain_layout_enabled %>',
       tocHeader: '<%= I18n.t('public_portal.toc_header') %>',

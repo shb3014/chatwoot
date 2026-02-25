@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "میرا",
       "unassigned": "نا مقرر کیا ہوا",
-      "all": "تمام"
+      "all": "تمام",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

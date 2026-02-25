@@ -19,6 +19,8 @@ module Enterprise::Concerns::Conversation
   private
 
   def schedule_deferred_summarization
+    return if resolved?
+
     Captain::ConversationSummarizationJob.set(wait: 1.hour).perform_later(self)
   end
 

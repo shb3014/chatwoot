@@ -14,6 +14,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
+import LabelLeaf from './LabelLeaf.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
@@ -66,6 +67,7 @@ provideSidebarContext({
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
+const labelUnreadCounts = useMapGetter('labels/getLabelUnreadCounts');
 const teams = useMapGetter('teams/getMyTeams');
 const contactCustomViews = useMapGetter('customViews/getContactCustomViews');
 const conversationCustomViews = useMapGetter(
@@ -74,6 +76,7 @@ const conversationCustomViews = useMapGetter(
 
 onMounted(() => {
   store.dispatch('labels/get');
+  store.dispatch('labels/fetchUnreadCounts');
   store.dispatch('inboxes/get');
   store.dispatch('notifications/unReadCount');
   store.dispatch('teams/get');
@@ -201,13 +204,19 @@ const menuItems = computed(() => {
           children: labels.value.map(label => ({
             name: `${label.title}-${label.id}`,
             label: label.title,
-            icon: h('span', {
-              class: `size-[12px] ring-1 ring-n-alpha-1 dark:ring-white/20 ring-inset rounded-sm`,
-              style: { backgroundColor: label.color },
-            }),
-            to: accountScopedRoute('label_conversations', {
-              label: label.title,
-            }),
+            to: accountScopedRoute(
+              'label_conversations',
+              { label: label.title },
+              labelUnreadCounts.value?.[label.title]
+                ? { assignee_type: 'unread' }
+                : {}
+            ),
+            component: leafProps =>
+              h(LabelLeaf, {
+                label: leafProps.label,
+                active: leafProps.active,
+                labelData: label,
+              }),
           })),
         },
       ],
@@ -410,6 +419,12 @@ const menuItems = computed(() => {
       icon: 'i-lucide-bolt',
       children: [
         {
+          name: 'Settings General Preferences',
+          label: t('SIDEBAR.GENERAL_PREFERENCES'),
+          icon: 'i-lucide-sliders-horizontal',
+          to: accountScopedRoute('general_preferences_index'),
+        },
+        {
           name: 'Settings Account Settings',
           label: t('SIDEBAR.ACCOUNT_SETTINGS'),
           icon: 'i-lucide-briefcase',
@@ -523,7 +538,7 @@ const menuItems = computed(() => {
       closeMobileSidebar,
       { ignore: ['#mobile-sidebar-launcher'] },
     ]"
-    class="bg-n-solid-2 rtl:border-l ltr:border-r border-n-weak flex flex-col text-sm pb-1 fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 transition-transform duration-200 ease-in-out md:static w-[200px] basis-[200px] md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:-translate-x-0"
+    class="bg-n-solid-2 rtl:border-l ltr:border-r border-n-weak flex flex-col text-[13px] pb-1 fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 transition-transform duration-200 ease-in-out md:static w-[200px] basis-[200px] md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:-translate-x-0"
     :class="[
       {
         'shadow-lg md:shadow-none': isMobileSidebarOpen,

@@ -8,6 +8,7 @@ import {
   computed,
   watch,
   onMounted,
+  onBeforeUnmount,
   defineEmits,
 } from 'vue';
 import { useStore } from 'vuex';
@@ -81,7 +82,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['conversationLoad']);
-const { uiSettings } = useUISettings();
+const { uiSettings, updateUISettings } = useUISettings();
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
@@ -89,6 +90,51 @@ const store = useStore();
 
 const conversationListRef = ref(null);
 const conversationDynamicScroller = ref(null);
+
+// --- Resizable sidebar width ---
+const CHATLIST_MIN_WIDTH = 280;
+const CHATLIST_MAX_WIDTH = 560;
+const CHATLIST_DEFAULT_WIDTH = 340;
+
+const chatListWidth = ref(
+  uiSettings.value.chatlist_custom_width || CHATLIST_DEFAULT_WIDTH
+);
+const isResizing = ref(false);
+
+const onResizeMove = event => {
+  if (!isResizing.value) return;
+  const container = document.querySelector('.conversations-list-wrap');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const newWidth = event.clientX - rect.left;
+  chatListWidth.value = Math.min(
+    CHATLIST_MAX_WIDTH,
+    Math.max(CHATLIST_MIN_WIDTH, newWidth)
+  );
+};
+
+const onResizeEnd = () => {
+  if (!isResizing.value) return;
+  isResizing.value = false;
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', onResizeEnd);
+  updateUISettings({ chatlist_custom_width: chatListWidth.value });
+};
+
+const onResizeStart = () => {
+  isResizing.value = true;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  document.addEventListener('mousemove', onResizeMove);
+  document.addEventListener('mouseup', onResizeEnd);
+};
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', onResizeEnd);
+});
 
 provide('contextMenuElementTarget', conversationDynamicScroller);
 
@@ -115,7 +161,7 @@ const currentUser = useMapGetter('getCurrentUser');
 const chatLists = useMapGetter('getFilteredConversations');
 const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
-const unAssignedChatsList = useMapGetter('getUnAssignedChats');
+const unreadChatsList = useMapGetter('getUnreadChats');
 const unresolvedChatsList = useMapGetter('getUnresolvedChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
@@ -145,6 +191,16 @@ const {
   onAssignTeamsForBulk,
   onUpdateConversations,
 } = useBulkActions();
+
+// --- Batch edit mode ---
+const isBatchEditMode = ref(false);
+
+function toggleBatchEditMode() {
+  isBatchEditMode.value = !isBatchEditMode.value;
+  if (!isBatchEditMode.value) {
+    resetBulkActions();
+  }
+}
 
 const {
   initializeStatusAndAssigneeFilterToModal,
@@ -214,7 +270,8 @@ const showAssigneeInConversationCard = computed(() => {
   return (
     hasAppliedFiltersOrActiveFolders.value ||
     activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL ||
-    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNRESOLVED
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNRESOLVED ||
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNREAD
   );
 });
 
@@ -250,8 +307,12 @@ const activeAssigneeTabCount = computed(() => {
   return tab ? tab.count : 0;
 });
 
+const conversationsPerPage = computed(() => {
+  return uiSettings.value.conversations_per_page || 25;
+});
+
 const conversationListPagination = computed(() => {
-  const conversationsPerPage = 25;
+  const perPage = conversationsPerPage.value;
   const hasChatsOnView =
     chatsOnView.value &&
     Array.isArray(chatsOnView.value) &&
@@ -259,8 +320,8 @@ const conversationListPagination = computed(() => {
   const isNoFiltersOrFoldersAndChatListNotEmpty =
     !hasAppliedFiltersOrActiveFolders.value && hasChatsOnView;
   const isUnderPerPage =
-    chatsOnView.value.length < conversationsPerPage &&
-    activeAssigneeTabCount.value < conversationsPerPage &&
+    chatsOnView.value.length < perPage &&
+    activeAssigneeTabCount.value < perPage &&
     activeAssigneeTabCount.value > chatsOnView.value.length;
 
   if (isNoFiltersOrFoldersAndChatListNotEmpty && isUnderPerPage) {
@@ -281,9 +342,13 @@ const conversationFilters = computed(() => {
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
+    perPage: conversationsPerPage.value,
   };
 
-  if (activeAssigneeTab.value === 'unresolved') {
+  if (
+    activeAssigneeTab.value === 'unresolved' ||
+    activeAssigneeTab.value === 'unread'
+  ) {
     filters.status = 'all';
   }
 
@@ -332,8 +397,8 @@ const conversationList = computed(() => {
     const filters = conversationFilters.value;
     if (activeAssigneeTab.value === 'me') {
       localConversationList = [...mineChatsList.value(filters)];
-    } else if (activeAssigneeTab.value === 'unassigned') {
-      localConversationList = [...unAssignedChatsList.value(filters)];
+    } else if (activeAssigneeTab.value === 'unread') {
+      localConversationList = [...unreadChatsList.value(filters)];
     } else if (activeAssigneeTab.value === 'unresolved') {
       localConversationList = [...unresolvedChatsList.value(filters)];
     } else {
@@ -372,6 +437,13 @@ const showEndOfListMessage = computed(() => {
     hasCurrentPageEndReached.value &&
     !chatListLoading.value
   );
+});
+
+// Show a full-area loading spinner when fetching data for an unvisited tab/view.
+// currentPage is 0 when the tab has never been loaded (no cache),
+// preventing stale cross-tab data from appearing during the fetch.
+const showConversationLoader = computed(() => {
+  return chatListLoading.value && !currentPage.value;
 });
 
 const allConversationsSelected = computed(() => {
@@ -446,7 +518,6 @@ function onApplyFilter(payload) {
   resetBulkActions();
   foldersQuery.value = filterQueryGenerator(payload);
   store.dispatch('conversationPage/reset');
-  store.dispatch('emptyAllConversations');
   fetchFilteredConversations(payload);
 }
 
@@ -599,7 +670,6 @@ function resetAndFetchData() {
   appliedFilter.value = [];
   resetBulkActions();
   store.dispatch('conversationPage/reset');
-  store.dispatch('emptyAllConversations');
   store.dispatch('clearConversationFilters');
   if (hasActiveFolders.value) {
     const payload = activeFolder.value.query;
@@ -839,6 +909,105 @@ const handleDelete = conversationId => {
   deleteConversationDialogRef.value.open();
 };
 
+// --- Batch operations for edit mode ---
+const batchDeleteDialogRef = ref(null);
+
+async function batchMarkRead() {
+  const ids = selectedConversations.value;
+  if (!ids.length) return;
+  try {
+    await Promise.all(
+      ids.map(id => store.dispatch('markMessagesRead', { id }))
+    );
+    useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
+    resetBulkActions();
+  } catch {
+    useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
+  }
+}
+
+async function batchMarkUnread() {
+  const ids = selectedConversations.value;
+  if (!ids.length) return;
+  try {
+    await Promise.all(
+      ids.map(id => store.dispatch('markMessagesUnread', { id }))
+    );
+    useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
+    resetBulkActions();
+  } catch {
+    useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
+  }
+}
+
+async function batchMarkResolved() {
+  const ids = selectedConversations.value;
+  if (!ids.length) return;
+  try {
+    await store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids,
+      fields: { status: 'resolved' },
+    });
+    useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
+    resetBulkActions();
+    resetAndFetchData();
+  } catch {
+    useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
+  }
+}
+
+async function batchMarkUnresolved() {
+  const ids = selectedConversations.value;
+  if (!ids.length) return;
+  try {
+    await store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids,
+      fields: { status: 'open' },
+    });
+    useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
+    resetBulkActions();
+    resetAndFetchData();
+  } catch {
+    useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
+  }
+}
+
+async function batchRemovePriority() {
+  const ids = selectedConversations.value;
+  if (!ids.length) return;
+  try {
+    await Promise.all(
+      ids.map(id =>
+        store.dispatch('assignPriority', { conversationId: id, priority: null })
+      )
+    );
+    useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
+    resetBulkActions();
+  } catch {
+    useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
+  }
+}
+
+function batchDeleteInit() {
+  if (!selectedConversations.value.length) return;
+  batchDeleteDialogRef.value.open();
+}
+
+async function batchDeleteConversations() {
+  const ids = [...selectedConversations.value];
+  try {
+    await Promise.all(ids.map(id => store.dispatch('deleteConversation', id)));
+    useAlert(t('CHAT_LIST.BATCH_EDIT.DELETE_SUCCESS'));
+    resetBulkActions();
+    batchDeleteDialogRef.value.close();
+    redirectToConversationList();
+  } catch {
+    useAlert(t('CHAT_LIST.BATCH_EDIT.DELETE_FAILED'));
+  }
+}
+
 provide('selectConversation', selectConversation);
 provide('deSelectConversation', deSelectConversation);
 provide('assignAgent', onAssignAgent);
@@ -851,6 +1020,7 @@ provide('markAsRead', markAsRead);
 provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
+provide('isBatchEditMode', isBatchEditMode);
 
 watch(activeTeam, () => resetAndFetchData());
 
@@ -860,7 +1030,15 @@ watch(
 );
 watch(
   computed(() => props.label),
-  () => resetAndFetchData()
+  () => {
+    if (
+      props.label &&
+      route.query.assignee_type === wootConstants.ASSIGNEE_TYPE.UNREAD
+    ) {
+      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.UNREAD;
+    }
+    resetAndFetchData();
+  }
 );
 watch(
   computed(() => props.conversationType),
@@ -883,15 +1061,23 @@ watch(conversationFilters, (newVal, oldVal) => {
     store.dispatch('updateChatListFilters', newVal);
   }
 });
+
+// Re-fetch when per-page setting changes (e.g. user updates it from settings page)
+watch(conversationsPerPage, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    resetAndFetchData();
+  }
+});
 </script>
 
 <template>
   <div
-    class="flex flex-col flex-shrink-0 bg-n-solid-1 conversations-list-wrap"
+    class="flex flex-col flex-shrink-0 bg-n-solid-1 conversations-list-wrap relative"
     :class="[
       { hidden: !showConversationList },
-      isOnExpandedLayout ? 'basis-full' : 'w-[340px] 2xl:w-[412px]',
+      isOnExpandedLayout ? 'basis-full' : '',
     ]"
+    :style="isOnExpandedLayout ? {} : { width: `${chatListWidth}px` }"
   >
     <slot />
     <ChatListHeader
@@ -903,12 +1089,14 @@ watch(conversationFilters, (newVal, oldVal) => {
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
       :has-read-conversations-to-resolve="hasReadConversationsToResolve"
+      :is-batch-edit-mode="isBatchEditMode"
       @add-folders="onClickOpenAddFoldersModal"
       @delete-folders="onClickOpenDeleteFoldersModal"
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetAndFetchData"
       @basic-filter-change="onBasicFilterChange"
       @resolve-read-conversations="resolveReadConversations"
+      @toggle-batch-edit="toggleBatchEditMode"
     />
 
     <TeleportWithDirection
@@ -941,11 +1129,19 @@ watch(conversationFilters, (newVal, oldVal) => {
     />
 
     <p
-      v-if="!chatListLoading && !conversationList.length"
+      v-if="
+        !chatListLoading && !conversationList.length && !showConversationLoader
+      "
       class="flex items-center justify-center p-4 overflow-auto"
     >
       {{ $t('CHAT_LIST.LIST.404') }}
     </p>
+    <div
+      v-if="showConversationLoader"
+      class="flex items-center justify-center flex-1 p-4"
+    >
+      <Spinner class="text-n-brand" />
+    </div>
     <ConversationBulkActions
       v-if="selectedConversations.length"
       :conversations="selectedConversations"
@@ -959,8 +1155,15 @@ watch(conversationFilters, (newVal, oldVal) => {
       @update-conversations="onUpdateConversations"
       @assign-labels="onAssignLabels"
       @assign-team="onAssignTeamsForBulk"
+      @batch-mark-read="batchMarkRead"
+      @batch-mark-unread="batchMarkUnread"
+      @batch-mark-resolved="batchMarkResolved"
+      @batch-mark-unresolved="batchMarkUnresolved"
+      @batch-remove-priority="batchRemovePriority"
+      @batch-delete="batchDeleteInit"
     />
     <div
+      v-show="!showConversationLoader"
       ref="conversationListRef"
       class="flex-1 overflow-hidden conversations-list hover:overflow-y-auto"
       :class="{ 'overflow-hidden': isContextMenuOpen }"
@@ -1031,6 +1234,22 @@ watch(conversationFilters, (newVal, oldVal) => {
       @confirm="deleteConversation"
       @close="selectedConversationId = null"
     />
+    <Dialog
+      ref="batchDeleteDialogRef"
+      type="alert"
+      :title="
+        $t('CHAT_LIST.BATCH_EDIT.DELETE_CONFIRM_TITLE', {
+          count: selectedConversations.length,
+        })
+      "
+      :description="
+        $t('CHAT_LIST.BATCH_EDIT.DELETE_CONFIRM_DESC', {
+          count: selectedConversations.length,
+        })
+      "
+      :confirm-button-label="$t('CHAT_LIST.BATCH_EDIT.DELETE_CONFIRM_BUTTON')"
+      @confirm="batchDeleteConversations"
+    />
     <TeleportWithDirection
       v-if="showAdvancedFilters"
       to="#conversationFilterTeleportTarget"
@@ -1044,5 +1263,23 @@ watch(conversationFilters, (newVal, oldVal) => {
         @close="closeAdvanceFiltersModal"
       />
     </TeleportWithDirection>
+    <!-- Resize handle (right edge) -->
+    <div
+      v-if="!isOnExpandedLayout"
+      class="absolute top-0 bottom-0 w-1 cursor-col-resize z-10 ltr:right-0 rtl:left-0 group hover:bg-n-iris-6 transition-colors"
+      :class="isResizing ? 'bg-n-iris-6' : 'bg-transparent'"
+      @mousedown.prevent="onResizeStart"
+      @dblclick.prevent="
+        () => {
+          chatListWidth = CHATLIST_DEFAULT_WIDTH;
+          updateUISettings({ chatlist_custom_width: CHATLIST_DEFAULT_WIDTH });
+        }
+      "
+    >
+      <div
+        class="absolute top-1/2 -translate-y-1/2 ltr:-left-0.5 rtl:-right-0.5 w-1 h-8 rounded-full bg-n-slate-8 opacity-0 group-hover:opacity-100 transition-opacity"
+        :class="{ 'opacity-100': isResizing }"
+      />
+    </div>
   </div>
 </template>

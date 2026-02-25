@@ -17,6 +17,7 @@ import customRole from './customRole.json';
 import datePicker from './datePicker.json';
 import emoji from './emoji.json';
 import general from './general.json';
+import generalPreferences from './generalPreferences.json';
 import generalSettings from './generalSettings.json';
 import helpCenter from './helpCenter.json';
 import inbox from './inbox.json';
@@ -56,6 +57,7 @@ export default {
   ...datePicker,
   ...emoji,
   ...general,
+  ...generalPreferences,
   ...generalSettings,
   ...helpCenter,
   ...inbox,

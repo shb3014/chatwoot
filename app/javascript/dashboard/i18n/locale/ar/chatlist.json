@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "محادثاتي",
       "unassigned": "غير معيّن",
-      "all": "الكل"
+      "all": "الكل",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

@@ -10,19 +10,19 @@ import {
 } from 'dashboard/helper/commandbar/events';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import AgentSelector from './AgentSelector.vue';
-import UpdateActions from './UpdateActions.vue';
 import LabelActions from './LabelActions.vue';
 import TeamActions from './TeamActions.vue';
 import CustomSnoozeModal from 'dashboard/components/CustomSnoozeModal.vue';
 export default {
   components: {
     AgentSelector,
-    UpdateActions,
     LabelActions,
     TeamActions,
     CustomSnoozeModal,
     NextButton,
+    DropdownMenu,
   },
   props: {
     conversations: {
@@ -37,18 +37,6 @@ export default {
       type: Array,
       default: () => [],
     },
-    showOpenAction: {
-      type: Boolean,
-      default: false,
-    },
-    showResolvedAction: {
-      type: Boolean,
-      default: false,
-    },
-    showSnoozedAction: {
-      type: Boolean,
-      default: false,
-    },
   },
   emits: [
     'selectAllConversations',
@@ -57,6 +45,19 @@ export default {
     'assignLabels',
     'assignTeam',
     'resolveConversations',
+    // Dynamically emitted via handleBatchAction
+    // eslint-disable-next-line vue/no-unused-emit-declarations
+    'batchMarkRead',
+    // eslint-disable-next-line vue/no-unused-emit-declarations
+    'batchMarkUnread',
+    // eslint-disable-next-line vue/no-unused-emit-declarations
+    'batchMarkResolved',
+    // eslint-disable-next-line vue/no-unused-emit-declarations
+    'batchMarkUnresolved',
+    // eslint-disable-next-line vue/no-unused-emit-declarations
+    'batchRemovePriority',
+    // eslint-disable-next-line vue/no-unused-emit-declarations
+    'batchDelete',
   ],
   data() {
     return {
@@ -64,9 +65,52 @@ export default {
       showUpdateActions: false,
       showLabelActions: false,
       showTeamsList: false,
+      showBatchActionsMenu: false,
       popoverPositions: {},
       showCustomTimeSnoozeModal: false,
     };
+  },
+  computed: {
+    batchActionMenuItems() {
+      return [
+        {
+          label: this.$t('CHAT_LIST.BATCH_EDIT.MARK_READ'),
+          action: 'batchMarkRead',
+          value: 'batchMarkRead',
+          icon: 'i-lucide-mail-open',
+        },
+        {
+          label: this.$t('CHAT_LIST.BATCH_EDIT.MARK_UNREAD'),
+          action: 'batchMarkUnread',
+          value: 'batchMarkUnread',
+          icon: 'i-lucide-mail',
+        },
+        {
+          label: this.$t('CHAT_LIST.BATCH_EDIT.MARK_RESOLVED'),
+          action: 'batchMarkResolved',
+          value: 'batchMarkResolved',
+          icon: 'i-lucide-check-circle',
+        },
+        {
+          label: this.$t('CHAT_LIST.BATCH_EDIT.MARK_UNRESOLVED'),
+          action: 'batchMarkUnresolved',
+          value: 'batchMarkUnresolved',
+          icon: 'i-lucide-rotate-ccw',
+        },
+        {
+          label: this.$t('CHAT_LIST.BATCH_EDIT.REMOVE_PRIORITY'),
+          action: 'batchRemovePriority',
+          value: 'batchRemovePriority',
+          icon: 'i-lucide-flag-off',
+        },
+        {
+          label: this.$t('CHAT_LIST.BATCH_EDIT.DELETE'),
+          action: 'delete',
+          value: 'batchDelete',
+          icon: 'i-lucide-trash-2',
+        },
+      ];
+    },
   },
   mounted() {
     emitter.on(
@@ -137,8 +181,12 @@ export default {
     resolveConversations() {
       this.$emit('resolveConversations');
     },
-    toggleUpdateActions() {
-      this.showUpdateActions = !this.showUpdateActions;
+    toggleBatchActionsMenu() {
+      this.showBatchActionsMenu = !this.showBatchActionsMenu;
+    },
+    handleBatchAction({ value }) {
+      this.showBatchActionsMenu = false;
+      this.$emit(value);
     },
     toggleLabelActions() {
       this.showLabelActions = !this.showLabelActions;
@@ -173,6 +221,26 @@ export default {
         </span>
       </label>
       <div class="flex items-center gap-1 bulk-action__actions">
+        <div
+          v-on-clickaway="() => (showBatchActionsMenu = false)"
+          class="relative"
+        >
+          <NextButton
+            v-tooltip="$t('CHAT_LIST.BATCH_EDIT.TOGGLE')"
+            icon="i-lucide-list-todo"
+            slate
+            xs
+            faded
+            :class="showBatchActionsMenu ? 'bg-n-alpha-2' : ''"
+            @click="toggleBatchActionsMenu"
+          />
+          <DropdownMenu
+            v-if="showBatchActionsMenu"
+            :menu-items="batchActionMenuItems"
+            class="ltr:right-0 rtl:left-0 mt-1 w-48 top-full"
+            @action="handleBatchAction($event)"
+          />
+        </div>
         <NextButton
           v-tooltip="$t('BULK_ACTION.LABELS.ASSIGN_LABELS')"
           icon="i-lucide-tags"
@@ -180,14 +248,6 @@ export default {
           xs
           faded
           @click="toggleLabelActions"
-        />
-        <NextButton
-          v-tooltip="$t('BULK_ACTION.UPDATE.CHANGE_STATUS')"
-          icon="i-lucide-repeat"
-          slate
-          xs
-          faded
-          @click="toggleUpdateActions"
         />
         <NextButton
           v-tooltip="$t('BULK_ACTION.ASSIGN_AGENT_TOOLTIP')"
@@ -212,19 +272,6 @@ export default {
           class="label-actions-box"
           @assign="assignLabels"
           @close="showLabelActions = false"
-        />
-      </transition>
-      <transition name="popover-animation">
-        <UpdateActions
-          v-if="showUpdateActions"
-          class="update-actions-box"
-          :selected-inboxes="selectedInboxes"
-          :conversation-count="conversations.length"
-          :show-resolve="!showResolvedAction"
-          :show-reopen="!showOpenAction"
-          :show-snooze="!showSnoozedAction"
-          @update="updateConversations"
-          @close="showUpdateActions = false"
         />
       </transition>
       <transition name="popover-animation">

@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Moje",
       "unassigned": "Nepřiřazeno",
-      "all": "Vše"
+      "all": "Vše",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

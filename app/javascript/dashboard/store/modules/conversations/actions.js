@@ -235,9 +235,22 @@ const actions = {
   },
 
   toggleStatus: async (
-    { commit },
+    { commit, state },
     { conversationId, status, snoozedUntil = null }
   ) => {
+    const conversation = state.allConversations.find(
+      c => c.id === conversationId
+    );
+    const previousStatus = conversation?.status;
+    const previousSnoozedUntil = conversation?.snoozed_until;
+
+    // Optimistic update: reflect the change in UI immediately
+    commit(types.CHANGE_CONVERSATION_STATUS, {
+      conversationId,
+      status,
+      snoozedUntil,
+    });
+
     try {
       const {
         data: {
@@ -251,13 +264,19 @@ const actions = {
         status,
         snoozedUntil,
       });
+      // Reconcile with server-confirmed values
       commit(types.CHANGE_CONVERSATION_STATUS, {
         conversationId,
         status: updatedStatus,
         snoozedUntil: updatedSnoozedUntil,
       });
     } catch (error) {
-      // Handle error
+      // Revert to previous state on failure
+      commit(types.CHANGE_CONVERSATION_STATUS, {
+        conversationId,
+        status: previousStatus,
+        snoozedUntil: previousSnoozedUntil,
+      });
     }
   },
 

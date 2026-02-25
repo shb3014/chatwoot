@@ -17,7 +17,8 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mano",
       "unassigned": "Ne priskirtas",
-      "all": "Visi"
+      "all": "Visi",
+      "unread": "Unread"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

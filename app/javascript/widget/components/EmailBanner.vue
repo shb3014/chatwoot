@@ -375,7 +375,7 @@ export default {
   top: 52px;
   left: 0;
   width: 100%;
-  z-index: 9999;
+  z-index: 40;
   opacity: 0;
   visibility: hidden;
   transition:

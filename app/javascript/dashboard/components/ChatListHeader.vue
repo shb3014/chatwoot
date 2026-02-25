@@ -19,6 +19,7 @@ const props = defineProps({
   conversationStats: { type: Object, required: true },
   isListLoading: { type: Boolean, required: true },
   hasReadConversationsToResolve: { type: Boolean, default: false },
+  isBatchEditMode: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -28,6 +29,7 @@ const emit = defineEmits([
   'basicFilterChange',
   'filtersModal',
   'resolveReadConversations',
+  'toggleBatchEdit',
 ]);
 
 const { uiSettings, updateUISettings } = useUISettings();
@@ -111,6 +113,16 @@ const handleMoreAction = ({ action }) => {
       </span>
     </div>
     <div class="flex items-center gap-1">
+      <!-- Batch Edit toggle (always first position) -->
+      <NextButton
+        v-tooltip.top-end="t('CHAT_LIST.BATCH_EDIT.TOGGLE')"
+        icon="i-lucide-pencil"
+        xs
+        faded
+        :slate="!isBatchEditMode"
+        :class="isBatchEditMode ? 'bg-n-brand text-white hover:bg-n-brand' : ''"
+        @click="emit('toggleBatchEdit')"
+      />
       <template v-if="hasAppliedFilters && !hasActiveFolders">
         <div class="relative">
           <NextButton

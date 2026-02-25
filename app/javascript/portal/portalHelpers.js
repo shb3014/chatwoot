@@ -6,6 +6,7 @@ import { isSameHost } from '@chatwoot/utils';
 
 import slugifyWithCounter from '@sindresorhus/slugify';
 import PublicArticleSearch from './components/PublicArticleSearch.vue';
+import HeaderArticleSearch from './components/HeaderArticleSearch.vue';
 import TableOfContents from './components/TableOfContents.vue';
 import { initializeTheme } from './portalThemeHelper.js';
 import { getLanguageDirection } from 'dashboard/components/widgets/conversation/advancedFilterItems/languages.js';
@@ -61,7 +62,7 @@ export const InitializationHelpers = {
   navigateToLocalePage: () => {
     const toggle = document.getElementById('toggle-locale');
     const dropdown = document.getElementById('locale-dropdown');
-    
+
     // Desktop locale dropdown handler
     if (toggle && dropdown) {
       // Toggle locale dropdown
@@ -92,22 +93,30 @@ export const InitializationHelpers = {
 
       if (localeBtn && menu) {
         const selectedLocale = localeBtn.dataset.locale;
-        const { portalSlug, customDomain, articleTranslations, currentArticleSlug, defaultLocale } = window.portalConfig || {};
+        const {
+          portalSlug,
+          customDomain,
+          articleTranslations,
+          currentArticleSlug,
+          defaultLocale,
+        } = window.portalConfig || {};
 
         // Save locale preference in cookie (expires in 1 year)
         // Set on parent domain so all subdomains (help.*, chat.*, etc.) can access it
-        const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+        const expires = new Date(
+          Date.now() + 365 * 24 * 60 * 60 * 1000
+        ).toUTCString();
         const pastDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
         const hostname = window.location.hostname;
         const domain = hostname.split('.').slice(-2).join('.'); // e.g., plantsio.com
-        
+
         // Delete any existing cookies (subdomain-specific and parent domain)
         document.cookie = `help_center_locale=; expires=${pastDate}; path=/`;
         document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=${hostname}`;
         document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=.${hostname}`;
         document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=${domain}`;
         document.cookie = `help_center_locale=; expires=${pastDate}; path=/; domain=.${domain}`;
-        
+
         // Now set the new cookie on parent domain
         document.cookie = `help_center_locale=${selectedLocale}; expires=${expires}; path=/; domain=.${domain}; SameSite=None; Secure`;
 
@@ -125,10 +134,14 @@ export const InitializationHelpers = {
         }
 
         // Check if we're on an article page and have translations available
-        if (articleTranslations && currentArticleSlug && articleTranslations[selectedLocale]) {
+        if (
+          articleTranslations &&
+          currentArticleSlug &&
+          articleTranslations[selectedLocale]
+        ) {
           const translatedSlug = articleTranslations[selectedLocale];
           const includeLocale = selectedLocale !== defaultLocale;
-          
+
           // Navigate to translated article
           if (customDomain) {
             if (includeLocale) {
@@ -136,20 +149,15 @@ export const InitializationHelpers = {
             } else {
               window.location.href = `/articles/${encodeURIComponent(translatedSlug)}`;
             }
+          } else if (includeLocale) {
+            window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/articles/${encodeURIComponent(translatedSlug)}`;
           } else {
-            if (includeLocale) {
-              window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/articles/${encodeURIComponent(translatedSlug)}`;
-            } else {
-              window.location.href = `/hc/${encodeURIComponent(portalSlug)}/articles/${encodeURIComponent(translatedSlug)}`;
-            }
+            window.location.href = `/hc/${encodeURIComponent(portalSlug)}/articles/${encodeURIComponent(translatedSlug)}`;
           }
+        } else if (customDomain) {
+          window.location.href = `/${encodeURIComponent(selectedLocale)}/`;
         } else {
-          // No translation available or not on article page, go to index
-          if (customDomain) {
-            window.location.href = `/${encodeURIComponent(selectedLocale)}/`;
-          } else {
-            window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/`;
-          }
+          window.location.href = `/hc/${encodeURIComponent(portalSlug)}/${encodeURIComponent(selectedLocale)}/`;
         }
       }
     });
@@ -168,6 +176,24 @@ export const InitializationHelpers = {
       app.directive('on-clickaway', onClickaway);
       app.mount('#search-wrap');
     }
+  },
+
+  initializeHeaderSearch: () => {
+    // Mount header search on both desktop and mobile mount points
+    const mountPoints = ['#header-search-wrap', '#mobile-header-search-wrap'];
+    mountPoints.forEach(selector => {
+      const container = document.querySelector(selector);
+      if (container) {
+        // eslint-disable-next-line vue/one-component-per-file
+        const app = createApp({
+          components: { HeaderArticleSearch },
+          template: '<HeaderArticleSearch />',
+        });
+        app.use(VueDOMPurifyHTML, domPurifyConfig);
+        app.directive('on-clickaway', onClickaway);
+        app.mount(selector);
+      }
+    });
   },
 
   initializeTableOfContents: () => {
@@ -219,6 +245,7 @@ export const InitializationHelpers = {
     } else {
       InitializationHelpers.initializeThemesInPortal();
       InitializationHelpers.navigateToLocalePage();
+      InitializationHelpers.initializeHeaderSearch();
       InitializationHelpers.initializeSearch();
       InitializationHelpers.initializeTableOfContents();
     }

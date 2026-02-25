@@ -135,7 +135,7 @@ onMounted(async () => {
     :permissions="resolvePermissions(to)"
     :feature-flag="resolveFeatureFlag(to)"
     as="li"
-    class="grid gap-1 text-sm cursor-pointer select-none"
+    class="grid gap-1 text-[13px] cursor-pointer select-none"
   >
     <SidebarGroupHeader
       :icon
