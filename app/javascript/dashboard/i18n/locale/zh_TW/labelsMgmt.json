@@ -34,6 +34,15 @@
       "SHOW_ON_SIDEBAR": {
         "LABEL": "在側邊欄顯示標籤"
       },
+      "AI_LEARNING": {
+        "LABEL": "AI 學習",
+        "PLACEHOLDER": "描述哪類對話應被分配此標籤……",
+        "HELP": "當 AI 為對話產生摘要時，此描述用於判斷是否自動分配該標籤。"
+      },
+      "EXCLUSIVE": {
+        "LABEL": "排他標籤",
+        "HELP": "啟用後，一旦此標籤被分配到對話，該對話將不能再新增其他標籤。"
+      },
       "EDIT": "編輯",
       "CREATE": "建立",
       "DELETE": "刪除",

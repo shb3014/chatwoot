@@ -72,6 +72,9 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
   end
 
   def reassign_labels(new_label_titles, old_ai_labels)
+    # Skip all label changes when the conversation already carries an exclusive label.
+    return if conversation.has_exclusive_label?
+
     current_labels = conversation.label_list.map(&:to_s)
 
     # Remove labels that were AI-suggested previously but are no longer suggested
@@ -86,6 +89,13 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
                        end
 
     combined_labels = (current_labels + valid_new_labels).uniq
+
+    # If any of the resulting labels is exclusive, keep only that label (first match wins).
+    exclusive_label = account.labels.where(exclusive: true)
+                             .where('LOWER(title) IN (?)', combined_labels.map(&:downcase))
+                             .pick(:title)
+    combined_labels = [exclusive_label] if exclusive_label.present?
+
     conversation.update!(label_list: combined_labels)
   rescue StandardError => e
     captain_logger.error "[Captain::Summarization] Label reassignment error: #{e.message}"

@@ -35,9 +35,13 @@
         "LABEL": "Show label on sidebar"
       },
       "AI_LEARNING": {
-        "LABEL": "AI Learning (AI学习)",
+        "LABEL": "AI Learning",
         "PLACEHOLDER": "Describe what type of conversations should be assigned this label...",
         "HELP": "When conversations are summarized by AI, this description helps determine whether to auto-assign this label."
+      },
+      "EXCLUSIVE": {
+        "LABEL": "Exclusive label",
+        "HELP": "When enabled, once this label is assigned to a conversation, no other labels can be added to it."
       },
       "EDIT": "Edit",
       "CREATE": "Create",

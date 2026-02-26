@@ -43,6 +43,7 @@ const conversationThreadMap = ref({});
 const summaryMap = ref({});
 const summaryLoadingMap = ref({});
 const summaryErrorMap = ref({});
+const summaryFetchedMap = ref({});
 
 // Suggest answer loading state — shows loader before messages arrive
 const isWaitingForSuggest = ref(false);
@@ -89,6 +90,9 @@ const isSummaryLoading = computed(
 );
 const hasSummaryError = computed(
   () => summaryErrorMap.value[currentConvId.value] || false
+);
+const isSummaryFetched = computed(
+  () => summaryFetchedMap.value[currentConvId.value] || false
 );
 
 // --- Copilot thread management ---
@@ -266,6 +270,10 @@ const fetchSummary = async (conversationId, force = false) => {
     summaryLoadingMap.value = {
       ...summaryLoadingMap.value,
       [conversationId]: false,
+    };
+    summaryFetchedMap.value = {
+      ...summaryFetchedMap.value,
+      [conversationId]: true,
     };
   }
 };
@@ -447,6 +455,7 @@ onMounted(() => {
           :summary="currentSummary"
           :is-loading="isSummaryLoading"
           :has-error="hasSummaryError"
+          :is-fetched="isSummaryFetched"
           @regenerate="regenerateSummary"
         />
 

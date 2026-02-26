@@ -12,8 +12,15 @@ module Enterprise::Api::V1::Accounts::ConversationsController
   end
 
   def summarize
-    # Return existing summary if it's recent (generated within the last hour), unless force-regenerating
-    unless ActiveModel::Type::Boolean.new.cast(params[:force])
+    force = ActiveModel::Type::Boolean.new.cast(params[:force])
+
+    unless force
+      # Conversations with an exclusive label are fully classified; return existing summary (if any) without regenerating.
+      if @conversation.has_exclusive_label?
+        render json: { summary: @conversation.captain_summary }
+        return
+      end
+
       existing_summary = @conversation.captain_summary
       if existing_summary.present? && existing_summary['generated_at'].present?
         generated_at = begin

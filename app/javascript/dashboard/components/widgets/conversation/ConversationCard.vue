@@ -35,6 +35,7 @@ const emit = defineEmits([
   'contextMenuToggle',
   'assignAgent',
   'assignLabel',
+  'removeAllLabels',
   'assignTeam',
   'markAsUnread',
   'markAsRead',
@@ -244,6 +245,11 @@ const onAssignLabel = label => {
   closeContextMenu();
 };
 
+const onRemoveAllLabels = () => {
+  emit('removeAllLabels', props.chat.id);
+  closeContextMenu();
+};
+
 const onAssignTeam = team => {
   emit('assignTeam', team, props.chat.id);
   closeContextMenu();
@@ -444,6 +450,7 @@ const deleteConversation = () => {
         @update-conversation="onUpdateConversation"
         @assign-agent="onAssignAgent"
         @assign-label="onAssignLabel"
+        @remove-all-labels="onRemoveAllLabels"
         @assign-team="onAssignTeam"
         @mark-as-unread="markAsUnread"
         @mark-as-read="markAsRead"

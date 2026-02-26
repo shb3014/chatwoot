@@ -1008,11 +1008,24 @@ async function batchDeleteConversations() {
   }
 }
 
+async function removeAllLabels(conversationId) {
+  try {
+    await store.dispatch('conversationLabels/update', {
+      conversationId,
+      labels: [],
+    });
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.REMOVE_ALL_LABELS_SUCCESS'));
+  } catch {
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.REMOVE_ALL_LABELS_FAILED'));
+  }
+}
+
 provide('selectConversation', selectConversation);
 provide('deSelectConversation', deSelectConversation);
 provide('assignAgent', onAssignAgent);
 provide('assignTeam', onAssignTeam);
 provide('assignLabels', onAssignLabels);
+provide('removeAllLabels', removeAllLabels);
 provide('updateConversationStatus', toggleConversationStatus);
 provide('toggleContextMenu', onContextMenuToggle);
 provide('markAsUnread', markAsUnread);

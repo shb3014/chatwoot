@@ -27,6 +27,7 @@ export default {
       showOnSidebar: true,
       color: '',
       aiLearningDescription: '',
+      exclusive: false,
     };
   },
   validations,
@@ -58,6 +59,7 @@ export default {
       this.color = this.selectedResponse.color;
       this.aiLearningDescription =
         this.selectedResponse.ai_learning_description || '';
+      this.exclusive = this.selectedResponse.exclusive || false;
     },
     editLabel() {
       this.$store
@@ -68,6 +70,7 @@ export default {
           title: this.title.toLowerCase(),
           show_on_sidebar: this.showOnSidebar,
           ai_learning_description: this.aiLearningDescription,
+          exclusive: this.exclusive,
         })
         .then(() => {
           useAlert(this.$t('LABEL_MGMT.EDIT.API.SUCCESS_MESSAGE'));
@@ -125,9 +128,20 @@ export default {
           {{ $t('LABEL_MGMT.FORM.AI_LEARNING.HELP') }}
         </p>
       </div>
+      <div class="flex flex-col w-full gap-2">
+        <div class="flex items-center gap-2">
+          <input v-model="exclusive" type="checkbox" :value="true" />
+          <label>
+            {{ $t('LABEL_MGMT.FORM.EXCLUSIVE.LABEL') }}
+          </label>
+        </div>
+        <p class="text-xs text-n-slate-10 mt-0 mb-1">
+          {{ $t('LABEL_MGMT.FORM.EXCLUSIVE.HELP') }}
+        </p>
+      </div>
       <div class="flex items-center w-full gap-2">
         <input v-model="showOnSidebar" type="checkbox" :value="true" />
-        <label for="conversation_creation">
+        <label>
           {{ $t('LABEL_MGMT.FORM.SHOW_ON_SIDEBAR.LABEL') }}
         </label>
       </div>

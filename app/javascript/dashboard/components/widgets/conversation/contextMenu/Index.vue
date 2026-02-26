@@ -21,6 +21,7 @@ const MENU = {
   AGENT: 'agent',
   TEAM: 'team',
   LABEL: 'label',
+  REMOVE_ALL_LABELS: 'remove-all-labels',
   DELETE: 'delete',
   OPEN_NEW_TAB: 'open-new-tab',
   COPY_LINK: 'copy-link',
@@ -70,6 +71,7 @@ export default {
     'assignAgent',
     'assignTeam',
     'assignLabel',
+    'removeAllLabels',
     'deleteConversation',
     'close',
   ],
@@ -154,6 +156,11 @@ export default {
         key: MENU.TEAM,
         icon: 'people-team-add',
         label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.ASSIGN_TEAM'),
+      },
+      removeAllLabelsOption: {
+        key: MENU.REMOVE_ALL_LABELS,
+        icon: 'dismiss',
+        label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.REMOVE_ALL_LABELS'),
       },
       deleteOption: {
         key: MENU.DELETE,
@@ -366,6 +373,12 @@ export default {
           @click.stop="$emit('assignTeam', team)"
         />
       </MenuItemWithSubmenu>
+      <MenuItem
+        v-if="isAllowed([MENU.REMOVE_ALL_LABELS])"
+        :option="removeAllLabelsOption"
+        variant="icon"
+        @click.stop="$emit('removeAllLabels')"
+      />
       <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
     </template>
     <template v-if="isAllowed([MENU.OPEN_NEW_TAB, MENU.COPY_LINK])">

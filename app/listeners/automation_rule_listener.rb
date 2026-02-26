@@ -15,6 +15,10 @@ class AutomationRuleListener < BaseListener
     process_conversation_event(event, 'conversation_resolved')
   end
 
+  def conversation_label_updated(event)
+    process_conversation_event(event, 'conversation_label_updated')
+  end
+
   def message_created(event)
     message = event.data[:message]
 

@@ -1,15 +1,12 @@
 <script>
 import { ref, provide } from 'vue';
 // composable
-import { useConfig } from 'dashboard/composables/useConfig';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
-import { useAI } from 'dashboard/composables/useAI';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 
 // components
 import ReplyBox from './ReplyBox.vue';
 import MessageList from 'next/message/MessageList.vue';
-import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 
@@ -23,7 +20,6 @@ import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 import { emitter } from 'shared/helpers/mitt';
 import { getTypingUsersText } from '../../../helper/commons';
 import { calculateScrollTop } from './helpers/scrollTopCalculationHelper';
-import { LocalStorage } from 'shared/helpers/localStorage';
 import {
   filterDuplicateSourceMessages,
   getReadMessages,
@@ -33,8 +29,6 @@ import {
 // constants
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { REPLY_POLICY } from 'shared/constants/links';
-import wootConstants from 'dashboard/constants/globals';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
 export default {
@@ -42,15 +36,12 @@ export default {
     MessageList,
     ReplyBox,
     Banner,
-    ConversationLabelSuggestion,
     Spinner,
   },
   mixins: [inboxMixin],
   setup() {
     const isPopOutReplyBox = ref(false);
     const conversationPanelRef = ref(null);
-    const { isEnterprise } = useConfig();
-
     const keyboardEvents = {
       Escape: {
         action: () => {
@@ -61,22 +52,10 @@ export default {
 
     useKeyboardEvents(keyboardEvents);
 
-    const {
-      isAIIntegrationEnabled,
-      isLabelSuggestionFeatureEnabled,
-      fetchIntegrationsIfRequired,
-      fetchLabelSuggestions,
-    } = useAI();
-
     provide('contextMenuElementTarget', conversationPanelRef);
 
     return {
-      isEnterprise,
       isPopOutReplyBox,
-      isAIIntegrationEnabled,
-      isLabelSuggestionFeatureEnabled,
-      fetchIntegrationsIfRequired,
-      fetchLabelSuggestions,
       conversationPanelRef,
     };
   },
@@ -87,8 +66,6 @@ export default {
       conversationPanel: null,
       hasUserScrolled: false,
       isProgrammaticScroll: false,
-      messageSentSinceOpened: false,
-      labelSuggestions: [],
     };
   },
 
@@ -97,19 +74,7 @@ export default {
       currentChat: 'getSelectedChat',
       currentUserId: 'getCurrentUserID',
       listLoadingStatus: 'getAllMessagesLoaded',
-      currentAccountId: 'getCurrentAccountId',
     }),
-    isOpen() {
-      return this.currentChat?.status === wootConstants.STATUS_TYPE.OPEN;
-    },
-    shouldShowLabelSuggestions() {
-      return (
-        this.isOpen &&
-        this.isEnterprise &&
-        this.isAIIntegrationEnabled &&
-        !this.messageSentSinceOpened
-      );
-    },
     inboxId() {
       return this.currentChat.inbox_id;
     },
@@ -251,26 +216,16 @@ export default {
         return;
       }
       this.fetchAllAttachmentsFromCurrentChat();
-      this.fetchSuggestions();
-      this.messageSentSinceOpened = false;
     },
   },
 
   created() {
     emitter.on(BUS_EVENTS.SCROLL_TO_MESSAGE, this.onScrollToMessage);
-    // when a new message comes in, we refetch the label suggestions
-    emitter.on(BUS_EVENTS.FETCH_LABEL_SUGGESTIONS, this.fetchSuggestions);
-    // when a message is sent we set the flag to true this hides the label suggestions,
-    // until the chat is changed and the flag is reset in the watch for currentChat
-    emitter.on(BUS_EVENTS.MESSAGE_SENT, () => {
-      this.messageSentSinceOpened = true;
-    });
   },
 
   mounted() {
     this.addScrollListener();
     this.fetchAllAttachmentsFromCurrentChat();
-    this.fetchSuggestions();
   },
 
   unmounted() {
@@ -279,52 +234,6 @@ export default {
   },
 
   methods: {
-    async fetchSuggestions() {
-      // start empty, this ensures that the label suggestions are not shown
-      this.labelSuggestions = [];
-
-      if (this.isLabelSuggestionDismissed()) {
-        return;
-      }
-
-      if (!this.isEnterprise) {
-        return;
-      }
-
-      // method available in mixin, need to ensure that integrations are present
-      await this.fetchIntegrationsIfRequired();
-
-      if (!this.isLabelSuggestionFeatureEnabled) {
-        return;
-      }
-
-      this.labelSuggestions = await this.fetchLabelSuggestions({
-        conversationId: this.currentChat.id,
-      });
-
-      // once the labels are fetched, we need to scroll to bottom
-      // but we need to wait for the DOM to be updated
-      // so we use the nextTick method
-      this.$nextTick(() => {
-        // this param is added to route, telling the UI to navigate to the message
-        // it is triggered by the SCROLL_TO_MESSAGE method
-        // see setActiveChat on ConversationView.vue for more info
-        const { messageId } = this.$route.query;
-
-        // only trigger the scroll to bottom if the user has not scrolled
-        // and there's no active messageId that is selected in view
-        if (!messageId && !this.hasUserScrolled) {
-          this.scrollToBottom();
-        }
-      });
-    },
-    isLabelSuggestionDismissed() {
-      return LocalStorage.getFlag(
-        LOCAL_STORAGE_KEYS.DISMISSED_LABEL_SUGGESTIONS,
-        this.currentAccountId,
-        this.currentChat.id
-      );
-    },
     fetchAllAttachmentsFromCurrentChat() {
       this.$store.dispatch('fetchAllAttachments', this.currentChat.id);
     },
@@ -358,24 +267,10 @@ export default {
       this.isProgrammaticScroll = true;
       let relevantMessages = [];
 
-      // label suggestions are not part of the messages list
-      // so we need to handle them separately
-      let labelSuggestions =
-        this.conversationPanel.querySelector('.label-suggestion');
-
-      // if there are unread messages, scroll to the first unread message
       if (this.unreadMessageCount > 0) {
-        // capturing only the unread messages
         relevantMessages =
           this.conversationPanel.querySelectorAll('.message--unread');
-      } else if (labelSuggestions) {
-        // when scrolling to the bottom, the label suggestions is below the last message
-        // so we scroll there if there are no unread messages
-        // Unread messages always take the highest priority
-        relevantMessages = [labelSuggestions];
       } else {
-        // if there are no unread messages or label suggestion, scroll to the last message
-        // capturing last message from the messages list
         relevantMessages = Array.from(
           this.conversationPanel.querySelectorAll('.message--read')
         ).slice(-1);
@@ -495,14 +390,7 @@ export default {
           </span>
         </li>
       </template>
-      <template #after>
-        <ConversationLabelSuggestion
-          v-if="shouldShowLabelSuggestions"
-          :suggested-labels="labelSuggestions"
-          :chat-labels="currentChat.labels"
-          :conversation-id="currentChat.id"
-        />
-      </template>
+      <template #after />
     </MessageList>
     <div
       class="flex relative flex-col"

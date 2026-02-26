@@ -31,6 +31,15 @@
       "SHOW_ON_SIDEBAR": {
         "LABEL": "Show label on sidebar"
       },
+      "AI_LEARNING": {
+        "LABEL": "AI 学习",
+        "PLACEHOLDER": "描述哪类对话应被分配此标签……",
+        "HELP": "当 AI 为对话生成摘要时，此描述用于判断是否自动分配该标签。"
+      },
+      "EXCLUSIVE": {
+        "LABEL": "排他标签",
+        "HELP": "启用后，一旦此标签被分配到对话，该对话将不能再添加其他标签。"
+      },
       "EDIT": "Edit",
       "CREATE": "Create",
       "DELETE": "Delete",

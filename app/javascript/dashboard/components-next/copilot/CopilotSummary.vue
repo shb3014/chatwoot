@@ -13,6 +13,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // When true, the summary area has been fetched but no content exists yet.
+  isFetched: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['regenerate']);
@@ -87,6 +92,31 @@ const hasSummary = computed(
           {{ label }}
         </span>
       </div>
+    </div>
+
+    <!-- Empty state: fetched but no summary available (e.g. exclusive label skipped auto-summarization) -->
+    <div
+      v-else-if="isFetched"
+      class="rounded-lg border border-n-weak bg-n-slate-2 p-3 space-y-2"
+    >
+      <div class="flex items-center justify-between">
+        <div
+          class="flex items-center gap-1.5 text-xs font-medium text-n-slate-10 uppercase tracking-wider"
+        >
+          <span class="i-lucide-file-text text-sm" />
+          {{ $t('CAPTAIN.COPILOT.SUMMARY.TITLE') }}
+        </div>
+        <button
+          v-tooltip.top="$t('CAPTAIN.COPILOT.SUMMARY.GENERATE')"
+          class="p-1 rounded text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-1 transition-colors"
+          @click="emit('regenerate')"
+        >
+          <span class="i-lucide-refresh-ccw text-xs block" />
+        </button>
+      </div>
+      <p class="text-sm text-n-slate-10 italic">
+        {{ $t('CAPTAIN.COPILOT.SUMMARY.EMPTY') }}
+      </p>
     </div>
   </div>
 </template>

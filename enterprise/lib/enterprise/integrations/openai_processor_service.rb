@@ -3,19 +3,10 @@ module Enterprise::Integrations::OpenaiProcessorService
                            make_friendly make_formal simplify].freeze
   CACHEABLE_EVENTS = %w[label_suggestion].freeze
 
+  # Deprecated: label suggestions are now handled by Captain summarization.
+  # Kept as a no-op to avoid breaking existing API callers.
   def label_suggestion_message
-    payload = label_suggestion_body
-    return nil if payload.blank?
-
-    response = make_api_call(label_suggestion_body)
-
-    return response if response[:error].present?
-
-    # LLMs are not deterministic, so this is bandaid solution
-    # To what you ask? Sometimes, the response includes
-    # "Labels:" in it's response in some format. This is a hacky way to remove it
-    # TODO: Fix with with a better prompt
-    { message: response[:message] ? response[:message].gsub(/^(label|labels):/i, '') : '' }
+    nil
   end
 
   private

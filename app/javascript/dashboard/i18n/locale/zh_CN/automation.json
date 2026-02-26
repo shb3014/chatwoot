@@ -132,7 +132,8 @@
       "CONVERSATION_UPDATED": "对话已更新",
       "MESSAGE_CREATED": "消息已创建",
       "CONVERSATION_RESOLVED": "Conversation Resolved",
-      "CONVERSATION_OPENED": "对话已打开"
+      "CONVERSATION_OPENED": "对话已打开",
+      "CONVERSATION_LABEL_UPDATED": "对话标签变更"
     },
     "ACTIONS": {
       "ASSIGN_AGENT": "分配客服",

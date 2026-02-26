@@ -380,7 +380,9 @@
         "GENERATING": "正在生成对话摘要...",
         "ERROR": "生成摘要失败。",
         "RETRY": "重试",
-        "REGENERATE": "重新生成摘要"
+        "REGENERATE": "重新生成摘要",
+        "GENERATE": "生成摘要",
+        "EMPTY": "暂无摘要。点击刷新按钮手动生成。"
       },
       "PROMPTS": {
         "SUMMARIZE": {

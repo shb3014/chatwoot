@@ -377,7 +377,9 @@
         "GENERATING": "Generating conversation summary...",
         "ERROR": "Failed to generate summary.",
         "RETRY": "Retry",
-        "REGENERATE": "Regenerate summary"
+        "REGENERATE": "Regenerate summary",
+        "GENERATE": "Generate summary",
+        "EMPTY": "No summary yet. Click the refresh button to generate one."
       },
       "PROMPTS": {
         "SUMMARIZE": {

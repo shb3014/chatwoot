@@ -357,6 +357,15 @@
       "RESET": "Reset",
       "SHOW_STEPS": "Show steps",
       "SELECT_ASSISTANT": "Select Assistant",
+      "SUMMARY": {
+        "TITLE": "摘要",
+        "GENERATING": "正在產生對話摘要...",
+        "ERROR": "產生摘要失敗。",
+        "RETRY": "重試",
+        "REGENERATE": "重新產生摘要",
+        "GENERATE": "產生摘要",
+        "EMPTY": "暫無摘要。點擊重新整理按鈕手動產生。"
+      },
       "PROMPTS": {
         "SUMMARIZE": {
           "LABEL": "Summarize this conversation",

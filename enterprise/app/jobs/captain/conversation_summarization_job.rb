@@ -1,10 +1,14 @@
 class Captain::ConversationSummarizationJob < ApplicationJob
   queue_as :low
 
-  # @param force [Boolean] when true, skip the freshness check (used for email channels
-  #   where each incoming message should refresh the summary immediately)
+  # @param force [Boolean] when true, skip freshness and exclusive-label checks
+  #   (used for manual re-summarize and email channel refreshes)
   def perform(conversation, force: false)
     unless force
+      # Conversations carrying an exclusive label are considered fully classified;
+      # skip auto-summarization to avoid overriding that classification.
+      return if conversation.has_exclusive_label?
+
       existing_summary = conversation.captain_summary
       if existing_summary.present? && existing_summary['generated_at'].present?
         generated_at = begin

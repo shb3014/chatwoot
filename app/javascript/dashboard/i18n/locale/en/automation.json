@@ -132,7 +132,8 @@
       "CONVERSATION_UPDATED": "Conversation Updated",
       "MESSAGE_CREATED": "Message Created",
       "CONVERSATION_RESOLVED": "Conversation Resolved",
-      "CONVERSATION_OPENED": "Conversation Opened"
+      "CONVERSATION_OPENED": "Conversation Opened",
+      "CONVERSATION_LABEL_UPDATED": "Conversation Label Updated"
     },
     "ACTIONS": {
       "ASSIGN_AGENT": "Assign to Agent",

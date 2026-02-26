@@ -12,6 +12,11 @@ class Captain::Tools::AddLabelToConversationTool < Captain::Tools::BasePublicToo
     label = find_label(label_name)
     return 'Label not found' unless label
 
+    # Respect exclusive labels: reject additions when the conversation is locked by one.
+    if conversation.has_exclusive_label?
+      return "Cannot add label '#{label_name}' — conversation ##{conversation.display_id} has an exclusive label assigned"
+    end
+
     add_label_to_conversation(conversation, label_name)
 
     log_tool_usage('added_label', conversation_id: conversation.id, label: label_name)

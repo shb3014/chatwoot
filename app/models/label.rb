@@ -6,6 +6,7 @@
 #  ai_learning_description :text
 #  color                   :string           default("#1f93ff"), not null
 #  description             :text
+#  exclusive               :boolean          default(FALSE), not null
 #  show_on_sidebar         :boolean
 #  title                   :string
 #  created_at              :datetime         not null

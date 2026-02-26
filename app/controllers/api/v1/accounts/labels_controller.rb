@@ -29,6 +29,6 @@ class Api::V1::Accounts::LabelsController < Api::V1::Accounts::BaseController
   end
 
   def permitted_params
-    params.require(:label).permit(:title, :description, :color, :show_on_sidebar, :ai_learning_description)
+    params.require(:label).permit(:title, :description, :color, :show_on_sidebar, :ai_learning_description, :exclusive)
   end
 end

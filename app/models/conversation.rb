@@ -310,6 +310,13 @@ class Conversation < ApplicationRecord
     return unless previous_changes.keys.present? && allowed_keys?
 
     dispatch_conversation_updated_event(previous_changes)
+
+    # Fire a dedicated label event so automation rules can trigger specifically on label changes.
+    dispatch_conversation_label_updated_event(previous_changes) if previous_changes.key?('label_list')
+  end
+
+  def dispatch_conversation_label_updated_event(previous_changes)
+    dispatcher_dispatch(CONVERSATION_LABEL_UPDATED, previous_changes)
   end
 
   def list_of_keys
