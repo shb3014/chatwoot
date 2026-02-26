@@ -32,6 +32,7 @@
 #  index_messages_on_content                            (content) USING gin
 #  index_messages_on_conversation_account_type_created  (conversation_id,account_id,message_type,created_at)
 #  index_messages_on_conversation_id                    (conversation_id)
+#  index_messages_on_conversation_id_created_at_desc    (conversation_id,created_at DESC)
 #  index_messages_on_created_at                         (created_at)
 #  index_messages_on_inbox_id                           (inbox_id)
 #  index_messages_on_sender_type_and_sender_id          (sender_type,sender_id)
@@ -118,10 +119,10 @@ class Message < ApplicationRecord
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
   scope :voice_calls, -> { where(content_type: :voice_call) }
 
-  # TODO: Get rid of default scope
-  # https://stackoverflow.com/a/1834250/939299
-  # if you want to change order, use `reorder`
-  default_scope { order(created_at: :asc) }
+  # Ordering is applied at the association level (Conversation#messages)
+  # rather than as a global default_scope, to avoid unnecessary ORDER BY
+  # clauses in standalone queries (counts, exists, aggregates).
+  scope :chronological, -> { order(created_at: :asc) }
 
   belongs_to :account
   belongs_to :inbox
@@ -166,7 +167,7 @@ class Message < ApplicationRecord
   def conversation_push_event_data
     {
       assignee_id: conversation.assignee_id,
-      unread_count: conversation.unread_incoming_messages.count,
+      unread_count: conversation.cached_unread_count,
       last_activity_at: conversation.last_activity_at.to_i,
       contact_inbox: { source_id: conversation.contact_inbox.source_id }
     }

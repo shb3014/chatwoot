@@ -18,10 +18,16 @@ module Enterprise::Concerns::Conversation
 
   private
 
+  # Emails are complete messages on arrival, so summarize immediately.
+  # Live chat conversations develop over time, so defer summarization.
   def schedule_deferred_summarization
     return if resolved?
 
-    Captain::ConversationSummarizationJob.set(wait: 1.hour).perform_later(self)
+    if inbox.email?
+      Captain::ConversationSummarizationJob.perform_later(self)
+    else
+      Captain::ConversationSummarizationJob.set(wait: 1.hour).perform_later(self)
+    end
   end
 
   def captain_messages

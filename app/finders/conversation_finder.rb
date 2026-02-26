@@ -215,11 +215,14 @@ class ConversationFinder
     sort_by, sort_order = SORT_OPTIONS[params[:sort_by]] || SORT_OPTIONS['last_activity_at_desc']
     @conversations = @conversations.send(sort_by, sort_order)
 
-    if params[:updated_within].present?
-      @conversations.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
-    else
-      @conversations.page(current_page).per(per_page_count)
-    end
+    result = if params[:updated_within].present?
+               @conversations.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
+             else
+               @conversations.page(current_page).per(per_page_count)
+             end
+
+    Conversations::ListDataPreloader.preload(result)
+    result
   end
 end
 ConversationFinder.prepend_mod_with('ConversationFinder')

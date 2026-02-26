@@ -117,12 +117,16 @@ class Conversation < ApplicationRecord
   belongs_to :campaign, optional: true
 
   has_many :mentions, dependent: :destroy_async
-  has_many :messages, dependent: :destroy_async, autosave: true
+  has_many :messages, -> { order(created_at: :asc) }, dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
+
+  # Batch-preloadable accessors for list views (set by Conversations::ListDataPreloader).
+  # Falls back to per-record queries when not preloaded.
+  attr_writer :cached_latest_message, :cached_latest_non_activity_message, :cached_unread_count
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
@@ -137,6 +141,24 @@ class Conversation < ApplicationRecord
 
   def can_reply?
     Conversations::MessageWindowService.new(self).can_reply?
+  end
+
+  def cached_latest_message
+    return @cached_latest_message if defined?(@cached_latest_message)
+
+    messages.includes([{ attachments: [{ file_attachment: [:blob] }] }]).last
+  end
+
+  def cached_latest_non_activity_message
+    return @cached_latest_non_activity_message if defined?(@cached_latest_non_activity_message)
+
+    messages.non_activity_messages.first
+  end
+
+  def cached_unread_count
+    return @cached_unread_count if defined?(@cached_unread_count)
+
+    unread_incoming_messages.count
   end
 
   def language
@@ -179,7 +201,7 @@ class Conversation < ApplicationRecord
   end
 
   def unread_incoming_messages
-    unread_messages.where(account_id: account_id).incoming.last(10)
+    unread_messages.incoming.last(10)
   end
 
   def cached_label_list_array
