@@ -59,4 +59,8 @@ module Events::Types
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
   COPILOT_MESSAGE_STREAMING = 'copilot.message.streaming'
+
+  # translation events
+  TRANSLATION_MESSAGE_COMPLETED = 'translation.message.completed'
+  TRANSLATION_BATCH_COMPLETED = 'translation.batch.completed'
 end

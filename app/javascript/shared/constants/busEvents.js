@@ -15,4 +15,6 @@ export const BUS_EVENTS = {
   INSERT_INTO_RICH_EDITOR: 'insertIntoRichEditor',
   INSERT_INTO_NORMAL_EDITOR: 'insertIntoNormalEditor',
   SET_EDITOR_TRANSLATE_LANGUAGE: 'setEditorTranslateLanguage',
+  TRANSLATION_MESSAGE_COMPLETED: 'translationMessageCompleted',
+  TRANSLATION_BATCH_COMPLETED: 'translationBatchCompleted',
 };

@@ -19,6 +19,7 @@ import { useI18n } from 'vue-i18n';
 import types from 'dashboard/store/mutation-types';
 import { OnClickOutside } from '@vueuse/components';
 import CaptainLearnedConversationsAPI from 'dashboard/api/captain/learnedConversations';
+import { useConversationTranslation } from 'dashboard/composables/useConversationTranslation';
 
 const props = defineProps({
   chat: {
@@ -135,6 +136,58 @@ const handleLearningAction = async ({ action }) => {
 
   if (action === 'delete') {
     await forgetConversation();
+  }
+};
+
+// --- Conversation-level translation (RAM-only, via Captain LLM) ---
+const {
+  state: translationState,
+  translateConversation,
+  toggleTranslation,
+} = useConversationTranslation();
+
+const conversationId = computed(() => currentChat.value?.id);
+const account = computed(() =>
+  store.getters['accounts/getAccount'](accountId.value)
+);
+
+const hasTranslationCache = computed(() => {
+  const cid = conversationId.value;
+  return !!cid && Object.keys(translationState.cache[cid] || {}).length > 0;
+});
+const isConversationTranslating = computed(
+  () => !!translationState.translating[conversationId.value]
+);
+const isTranslationActive = computed(
+  () => !!translationState.active[conversationId.value]
+);
+const translationProgress = computed(
+  () => translationState.progress[conversationId.value] || { total: 0, done: 0 }
+);
+
+const translateButtonLabel = computed(() => {
+  if (isConversationTranslating.value) {
+    const { done, total } = translationProgress.value;
+    return t('CONVERSATION.TRANSLATING_PROGRESS', { done, total });
+  }
+  if (hasTranslationCache.value && isTranslationActive.value) {
+    return t('CONVERSATION.SHOW_ORIGINAL_CONVERSATION');
+  }
+  if (hasTranslationCache.value && !isTranslationActive.value) {
+    return t('CONVERSATION.SHOW_TRANSLATED_CONVERSATION');
+  }
+  return t('CONVERSATION.TRANSLATE_CONVERSATION');
+});
+
+const handleTranslateClick = () => {
+  if (isConversationTranslating.value) return;
+  const cid = conversationId.value;
+  if (hasTranslationCache.value) {
+    toggleTranslation(cid);
+  } else {
+    const messages = currentChat.value?.messages || [];
+    const targetLang = account.value?.locale || 'en';
+    translateConversation(cid, messages, targetLang);
   }
 };
 
@@ -295,6 +348,15 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
           </div>
         </OnClickOutside>
       </div>
+      <Button
+        size="xs"
+        :color="isTranslationActive ? 'blue' : 'slate'"
+        icon="i-lucide-languages"
+        :label="translateButtonLabel"
+        :is-loading="isConversationTranslating"
+        :disabled="isConversationTranslating"
+        @click="handleTranslateClick"
+      />
       <MoreActions :conversation-id="currentChat.id" />
     </div>
   </div>

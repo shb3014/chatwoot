@@ -35,6 +35,8 @@ class ActionCableConnector extends BaseActionCableConnector {
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
       'copilot.message.streaming': this.onCopilotMessageStreaming,
+      'translation.message.completed': this.onTranslationMessageCompleted,
+      'translation.batch.completed': this.onTranslationBatchCompleted,
     };
   }
 
@@ -204,6 +206,16 @@ class ActionCableConnector extends BaseActionCableConnector {
         content,
       });
     }
+  };
+
+  // eslint-disable-next-line class-methods-use-this
+  onTranslationMessageCompleted = data => {
+    emitter.emit(BUS_EVENTS.TRANSLATION_MESSAGE_COMPLETED, data);
+  };
+
+  // eslint-disable-next-line class-methods-use-this
+  onTranslationBatchCompleted = data => {
+    emitter.emit(BUS_EVENTS.TRANSLATION_BATCH_COMPLETED, data);
   };
 
   onCacheInvalidate = data => {

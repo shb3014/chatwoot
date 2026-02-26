@@ -14,6 +14,10 @@
     "SEARCH_MESSAGES": "搜索对话中的消息",
     "VIEW_ORIGINAL": "查看原始内容",
     "VIEW_TRANSLATED": "查看翻译",
+    "TRANSLATE_CONVERSATION": "翻译",
+    "SHOW_ORIGINAL_CONVERSATION": "原文",
+    "SHOW_TRANSLATED_CONVERSATION": "译文",
+    "TRANSLATING_PROGRESS": "翻译中 ({done}/{total})",
     "EMPTY_STATE": {
       "CMD_BAR": "打开命令菜单",
       "KEYBOARD_SHORTCUTS": "查看键盘快捷键"

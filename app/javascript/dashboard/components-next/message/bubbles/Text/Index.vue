@@ -7,16 +7,36 @@ import TranslationToggle from 'dashboard/components-next/message/TranslationTogg
 import { MESSAGE_TYPES } from '../../constants';
 import { useMessageContext } from '../../provider.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
+import { useConversationTranslation } from 'dashboard/composables/useConversationTranslation';
 
-const { content, attachments, contentAttributes, messageType } =
-  useMessageContext();
+const {
+  content,
+  attachments,
+  contentAttributes,
+  messageType,
+  id,
+  conversationId,
+} = useMessageContext();
 
 const { hasTranslations, translationContent } =
   useTranslations(contentAttributes);
 
+const { state: translationState } = useConversationTranslation();
+
 const renderOriginal = ref(false);
 
+// Conversation-level RAM-cached translation (from the header "Translate" button)
+const conversationTranslationEntry = computed(() => {
+  const cid = conversationId.value;
+  if (!translationState.active[cid]) return null;
+  return translationState.cache[cid]?.[id.value] ?? null;
+});
+
 const renderContent = computed(() => {
+  if (conversationTranslationEntry.value) {
+    return conversationTranslationEntry.value.content;
+  }
+
   if (renderOriginal.value) {
     return content.value;
   }

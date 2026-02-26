@@ -15,9 +15,18 @@ import TranslationToggle from 'dashboard/components-next/message/TranslationTogg
 import { useMessageContext } from '../../provider.js';
 import { MESSAGE_TYPES } from 'next/message/constants.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
+import { useConversationTranslation } from 'dashboard/composables/useConversationTranslation';
 
-const { content, contentAttributes, attachments, messageType } =
-  useMessageContext();
+const {
+  content,
+  contentAttributes,
+  attachments,
+  messageType,
+  id,
+  conversationId,
+} = useMessageContext();
+
+const { state: translationState } = useConversationTranslation();
 
 const isExpandable = ref(false);
 const isExpanded = ref(false);
@@ -34,6 +43,13 @@ const isIncoming = computed(() => !isOutgoing.value);
 
 const { hasTranslations, translationContent } =
   useTranslations(contentAttributes);
+
+// Conversation-level RAM-cached translation (from the header "Translate" button)
+const conversationTranslationEntry = computed(() => {
+  const cid = conversationId.value;
+  if (!translationState.active[cid]) return null;
+  return translationState.cache[cid]?.[id.value] ?? null;
+});
 
 const originalEmailText = computed(() => {
   const text =
@@ -55,29 +71,31 @@ const hasEmailContent = computed(() => {
 });
 
 const messageContent = computed(() => {
-  // If translations exist and we're showing translations (not original)
+  const entry = conversationTranslationEntry.value;
+  if (entry) return entry.content;
   if (hasTranslations.value && !renderOriginal.value) {
     return translationContent.value;
   }
-  // Otherwise show original content
   return content.value;
 });
 
 const textToShow = computed(() => {
-  // If translations exist and we're showing translations (not original)
+  const entry = conversationTranslationEntry.value;
+  // HTML translation: Letter renders from the html prop, text is a fallback
+  if (entry?.isHtml) return '';
+  if (entry) return entry.content;
   if (hasTranslations.value && !renderOriginal.value) {
     return translationContent.value;
   }
-  // Otherwise show original text
   return originalEmailText.value;
 });
 
 const fullHTML = computed(() => {
-  // If translations exist and we're showing translations (not original)
+  const entry = conversationTranslationEntry.value;
+  if (entry) return entry.content;
   if (hasTranslations.value && !renderOriginal.value) {
     return translationContent.value;
   }
-  // Otherwise show original HTML
   return originalEmailHtml.value;
 });
 
@@ -92,6 +110,7 @@ const hasQuotedMessage = computed(() =>
 // Ensure unique keys for <Letter> when toggling between original and translated views.
 // This forces Vue to re-render the component and update content correctly.
 const translationKeySuffix = computed(() => {
+  if (conversationTranslationEntry.value) return 'conv-translated';
   if (renderOriginal.value) return 'original';
   if (hasTranslations.value) return 'translated';
   return 'original';
