@@ -726,7 +726,7 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
       hidden
       @change="onFileChange"
     />
-    <div ref="editor" />
+    <div ref="editor" class="editor-mount" />
     <div
       v-show="isImageNodeSelected && showImageResizeToolbar"
       class="absolute shadow-md rounded-[6px] flex gap-1 py-1 px-1 bg-n-solid-3 outline outline-1 outline-n-weak text-n-slate-12"

@@ -1234,7 +1234,13 @@ export default {
   <div
     ref="replyEditor"
     class="reply-box"
-    :class="[replyBoxClass, { 'is-resizing': isEditorResizing }]"
+    :class="[
+      replyBoxClass,
+      {
+        'is-resizing': isEditorResizing,
+        'has-custom-height': !!editorCustomHeight,
+      },
+    ]"
     :style="editorCustomHeight ? { height: editorCustomHeight + 'px' } : {}"
   >
     <!-- Resize handle at top of editor -->
@@ -1471,6 +1477,35 @@ export default {
 
   textarea {
     @apply shadow-none outline-none border-transparent bg-transparent m-0 max-h-60 min-h-[3rem] pt-4 pb-0 px-0 resize-none;
+  }
+}
+
+// When the reply box has a custom height (via resize handle),
+// propagate flex growth through the entire editor chain so
+// the input area expands instead of just pushing buttons up.
+.reply-box.has-custom-height .reply-box__top {
+  @apply flex-1 flex flex-col overflow-hidden min-h-0;
+
+  textarea {
+    @apply flex-1;
+    max-height: none;
+  }
+
+  :deep(.input) {
+    @apply flex-1 flex flex-col min-h-0 overflow-hidden;
+  }
+
+  :deep(.editor-mount) {
+    @apply flex-1 flex flex-col min-h-0 overflow-hidden;
+  }
+
+  :deep(.ProseMirror-menubar-wrapper) {
+    @apply flex-1 min-h-0 overflow-hidden;
+  }
+
+  :deep(.ProseMirror-woot-style) {
+    @apply flex-1 min-h-0;
+    max-height: none;
   }
 }
 
