@@ -24,6 +24,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  streamingTranslation: {
+    type: String,
+    default: '',
+  },
 });
 
 const { t } = useI18n();
@@ -61,7 +65,10 @@ const customerLanguageName = computed(
 // No need for systemLanguageName — the translation tab just says "Translation"
 
 // ==================== Tabs ====================
-const hasTranslation = computed(() => !!props.message?.translation);
+const effectiveTranslation = computed(
+  () => props.message?.translation || props.streamingTranslation || ''
+);
+const hasTranslation = computed(() => !!effectiveTranslation.value);
 // Default to translation tab when available
 const activeTab = ref('translation');
 
@@ -72,8 +79,8 @@ const messageContent = computed(() => {
 });
 
 const translationFormattedContent = computed(() => {
-  if (!props.message?.translation) return '';
-  const formatter = new MessageFormatter(props.message.translation);
+  if (!effectiveTranslation.value) return '';
+  const formatter = new MessageFormatter(effectiveTranslation.value);
   return formatter.formattedMessage;
 });
 
@@ -116,9 +123,11 @@ const insertIntoRichEditor = computed(() => {
   );
 });
 
+const normalizeForEditorInsert = text => text.replace(/^\s*\n+/, '');
+
 // "Use XX" — inserts the customer-language content (ready to send)
 const useCustomerLanguage = () => {
-  const content = props.message?.content || '';
+  const content = normalizeForEditorInsert(props.message?.content || '');
   if (insertIntoRichEditor.value) {
     emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, content);
   } else {
@@ -134,7 +143,9 @@ const useCustomerLanguage = () => {
 
 // "Edit XX" — inserts the system-language translation (agent can edit then translate)
 const editSystemLanguage = () => {
-  const content = props.message?.translation || props.message?.content || '';
+  const content = normalizeForEditorInsert(
+    effectiveTranslation.value || props.message?.content || ''
+  );
   if (insertIntoRichEditor.value) {
     emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, content);
   } else {

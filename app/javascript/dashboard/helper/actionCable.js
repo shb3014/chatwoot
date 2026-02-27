@@ -200,10 +200,24 @@ class ActionCableConnector extends BaseActionCableConnector {
   onCopilotMessageStreaming = data => {
     const threadId = data.copilot_thread_id;
     const content = data.content;
-    if (threadId && content) {
+    const thinking = data.thinking;
+    const translation = data.translation;
+    if (threadId && typeof content === 'string') {
       this.app.$store.dispatch('copilotMessages/setStreamingContent', {
         threadId,
         content,
+      });
+    }
+    if (threadId && typeof thinking === 'string') {
+      this.app.$store.dispatch('copilotMessages/setStreamingThinking', {
+        threadId,
+        thinking,
+      });
+    }
+    if (threadId && typeof translation === 'string') {
+      this.app.$store.dispatch('copilotMessages/setStreamingTranslation', {
+        threadId,
+        translation,
       });
     }
   };

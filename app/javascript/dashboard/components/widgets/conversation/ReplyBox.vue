@@ -1260,37 +1260,35 @@ export default {
       :popout-reply-box="popOutReplyBox"
       @set-reply-mode="setReplyMode"
       @toggle-popout="togglePopout"
-    />
+    >
+      <template #after-mode>
+        <button
+          v-if="translateLanguage"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-n-iris-3 text-n-iris-11 hover:bg-n-iris-4 border border-n-iris-6 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          :disabled="isTranslating || !message"
+          @click="translateContent"
+        >
+          <span
+            v-if="isTranslating"
+            class="i-lucide-loader-2 animate-spin text-sm"
+          />
+          <span v-else class="i-lucide-languages text-sm" />
+          {{
+            isTranslating
+              ? $t('CAPTAIN.COPILOT.TRANSLATING')
+              : $t('CAPTAIN.COPILOT.TRANSLATE_TO', {
+                  lang: translateLanguageName,
+                })
+          }}
+        </button>
+      </template>
+    </ReplyTopPanel>
     <ArticleSearchPopover
       v-if="showArticleSearchPopover && connectedPortalSlug"
       :selected-portal-slug="connectedPortalSlug"
       @insert="handleInsert"
       @close="onSearchPopoverClose"
     />
-    <!-- Translate to customer language button (shown after copilot suggest answer) -->
-    <div
-      v-if="translateLanguage"
-      class="flex items-center px-3 py-1.5 border-b border-n-weak/50"
-    >
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-n-iris-3 text-n-iris-11 hover:bg-n-iris-4 border border-n-iris-6 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="isTranslating || !message"
-        @click="translateContent"
-      >
-        <span
-          v-if="isTranslating"
-          class="i-lucide-loader-2 animate-spin text-sm"
-        />
-        <span v-else class="i-lucide-languages text-sm" />
-        {{
-          isTranslating
-            ? $t('CAPTAIN.COPILOT.TRANSLATING')
-            : $t('CAPTAIN.COPILOT.TRANSLATE_TO', {
-                lang: translateLanguageName,
-              })
-        }}
-      </button>
-    </div>
     <div class="reply-box__top">
       <ReplyToMessage
         v-if="shouldShowReplyToMessage"
@@ -1457,7 +1455,7 @@ export default {
 .reply-box {
   transition: height 2s cubic-bezier(0.37, 0, 0.63, 1);
 
-  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1 flex flex-col overflow-hidden;
+  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1 flex flex-col;
 
   &.is-private {
     @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;

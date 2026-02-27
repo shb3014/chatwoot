@@ -244,14 +244,63 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
       { role: 'user', content: content }
     ]
 
-    raw = @client.chat(parameters: { model: @model, messages: translate_messages })
-    translated = raw.dig('choices', 0, 'message', 'content')&.strip
+    accumulated_translation = +''
+    translation_model = InstallationConfig.find_by(name: 'CAPTAIN_FAST_MODEL')&.value.presence || @model
+    translation_parameters = {
+      model: translation_model,
+      messages: translate_messages,
+      temperature: 0.2
+    }
+    translation_parameters[:enable_thinking] = false if qwen_model?(translation_model)
+    translation_parameters[:thinking] = ark_thinking_param(false) if deepseek_v32_model?(translation_model) || kimi_model?(translation_model)
+
+    last_translation_broadcast_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    translation_stream = if @user && @copilot_thread
+                           proc do |chunk|
+                             delta = chunk.dig('choices', 0, 'delta', 'content')
+                             next if delta.blank?
+
+                             accumulated_translation << delta
+                             now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+                             elapsed = now - last_translation_broadcast_at
+                             if elapsed >= 0.1 || accumulated_translation.length <= 50
+                               broadcast_translation_streaming(accumulated_translation)
+                               last_translation_broadcast_at = now
+                             end
+                           end
+                         end
+
+    if translation_stream
+      @client.chat(parameters: translation_parameters.merge(stream: translation_stream))
+      translated = accumulated_translation.strip
+      broadcast_translation_streaming(translated) if translated.present?
+    else
+      raw = @client.chat(parameters: translation_parameters)
+      translated = raw.dig('choices', 0, 'message', 'content')&.strip
+    end
 
     captain_logger.info "[Copilot] Translation result: #{translated&.truncate(200)}"
     translated
   rescue StandardError => e
     captain_logger.error "[Copilot] Translation error: #{e.message}"
     nil
+  end
+
+  def broadcast_translation_streaming(translation)
+    return unless @user && @copilot_thread
+    return if translation.blank?
+
+    ActionCable.server.broadcast(
+      @user.pubsub_token,
+      {
+        event: 'copilot.message.streaming',
+        data: {
+          account_id: @account.id,
+          copilot_thread_id: @copilot_thread.id,
+          translation: translation
+        }
+      }
+    )
   end
 
   # Send the complete response content as a final streaming broadcast.
@@ -289,12 +338,14 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
 
     captain_logger.info "[Copilot][Streaming] Enabled for thread=#{thread_id} user=#{@user.id}"
 
-    @streaming_callback = proc do |accumulated_content, _delta|
+    accumulated_reasoning = +''
+    @streaming_callback = proc do |accumulated_content, _delta, reasoning_content, _reasoning_delta|
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       elapsed = now - last_broadcast_at
+      accumulated_reasoning = reasoning_content.to_s if reasoning_content.present?
 
       # Broadcast immediately for the first ~50 chars, then throttle to every 100ms
-      if elapsed >= 0.1 || accumulated_content.length <= 50
+      if elapsed >= 0.1 || accumulated_content.length <= 50 || accumulated_reasoning.length <= 50
         broadcast_count += 1
         captain_logger.info "[Copilot][Streaming] Broadcast ##{broadcast_count} len=#{accumulated_content.length}" if broadcast_count <= 3
 
@@ -305,7 +356,8 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
             data: {
               account_id: acct_id,
               copilot_thread_id: thread_id,
-              content: accumulated_content
+              content: accumulated_content,
+              thinking: accumulated_reasoning
             }
           }
         )

@@ -112,6 +112,22 @@ const streamingContent = computed(() =>
     selectedCopilotThreadId.value
   )
 );
+const streamingThinking = computed(() =>
+  store.getters['copilotMessages/getStreamingThinking'](
+    selectedCopilotThreadId.value
+  )
+);
+const streamingTranslation = computed(() =>
+  store.getters['copilotMessages/getStreamingTranslation'](
+    selectedCopilotThreadId.value
+  )
+);
+const isSuggestInFlight = computed(
+  () =>
+    isWaitingForSuggest.value ||
+    !!streamingContent.value ||
+    !!streamingThinking.value
+);
 
 const activeAssistant = computed(() => {
   const preferredId = uiSettings.value.preferred_captain_assistant_id;
@@ -219,6 +235,7 @@ const sendMessage = async message => {
 };
 
 const suggestAnswer = () => {
+  if (isSuggestInFlight.value) return;
   activeTab.value = 'copilot';
   if (isFolded.value) {
     isFolded.value = false;
@@ -305,11 +322,14 @@ watch(
 );
 
 // Clear waiting state when messages or streaming content arrive
-watch([messages, streamingContent], ([msgs, sc]) => {
-  if (isWaitingForSuggest.value && (msgs.length > 0 || sc)) {
-    isWaitingForSuggest.value = false;
+watch(
+  [messages, streamingContent, streamingThinking, streamingTranslation],
+  ([msgs, sc, sk, st]) => {
+    if (isWaitingForSuggest.value && (msgs.length > 0 || sc || sk || st)) {
+      isWaitingForSuggest.value = false;
+    }
   }
-});
+);
 
 // Also fetch summary when copilot becomes available (feature flag loads async)
 watch(showCopilotTab, show => {
@@ -462,7 +482,9 @@ onMounted(() => {
         <!-- Prominent Suggest Answer Button -->
         <div class="px-3 pb-1 flex-shrink-0">
           <button
-            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-n-iris-3 text-n-iris-11 hover:bg-n-iris-4 font-medium text-sm transition-colors border border-n-iris-6"
+            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-n-iris-3 text-n-iris-11 font-medium text-sm transition-colors border border-n-iris-6 disabled:opacity-60 disabled:cursor-not-allowed"
+            :class="isSuggestInFlight ? '' : 'hover:bg-n-iris-4'"
+            :disabled="isSuggestInFlight"
             @click="suggestAnswer"
           >
             <span class="i-lucide-sparkles text-base" />
@@ -479,6 +501,8 @@ onMounted(() => {
             :assistants="assistants"
             :active-assistant="activeAssistant"
             :streaming-content="streamingContent || ''"
+            :streaming-thinking="streamingThinking || ''"
+            :streaming-translation="streamingTranslation || ''"
             :is-waiting="isWaitingForSuggest"
             @set-assistant="setAssistant"
             @send-message="sendMessage"

@@ -39,6 +39,14 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  streamingThinking: {
+    type: String,
+    default: '',
+  },
+  streamingTranslation: {
+    type: String,
+    default: '',
+  },
   isWaiting: {
     type: Boolean,
     default: false,
@@ -81,6 +89,13 @@ const groupedMessages = computed(() => {
     return true;
   });
 });
+const shouldShowConversation = computed(
+  () =>
+    groupedMessages.value.length > 0 ||
+    !!props.streamingContent ||
+    !!props.streamingThinking ||
+    !!props.isWaiting
+);
 
 const isLastMessageFromAssistant = computed(() => {
   const messages = groupedMessages.value;
@@ -108,9 +123,14 @@ const formattedStreamingContent = computed(() => {
   const formatter = new MessageFormatter(props.streamingContent);
   return formatter.formattedMessage;
 });
+const formattedStreamingThinking = computed(() => {
+  if (!props.streamingThinking) return '';
+  const formatter = new MessageFormatter(props.streamingThinking);
+  return formatter.formattedMessage;
+});
 
 const hasAssistants = computed(() => props.assistants.length > 0);
-const hasMessages = computed(() => props.messages.length > 0);
+const hasMessages = computed(() => groupedMessages.value.length > 0);
 const copilotButtons = computed(() => {
   if (hasMessages.value) {
     return [
@@ -124,7 +144,11 @@ const copilotButtons = computed(() => {
   return [];
 });
 watch(
-  [() => props.messages, () => props.streamingContent],
+  [
+    () => props.messages,
+    () => props.streamingContent,
+    () => props.streamingThinking,
+  ],
   () => {
     scrollToBottom();
   },
@@ -147,7 +171,10 @@ watch(
       ref="chatContainer"
       class="flex-1 flex px-4 py-4 overflow-y-auto items-start"
     >
-      <div v-if="hasMessages" class="space-y-6 flex-1 flex flex-col w-full">
+      <div
+        v-if="shouldShowConversation"
+        class="space-y-6 flex-1 flex flex-col w-full"
+      >
         <template v-for="(item, index) in groupedMessages" :key="item.id">
           <CopilotAgentMessage
             v-if="item.message_type === 'user'"
@@ -158,6 +185,9 @@ watch(
             :message="item.message"
             :is-last-message="index === groupedMessages.length - 1"
             :conversation-inbox-type="conversationInboxType"
+            :streaming-translation="
+              index === groupedMessages.length - 1 ? streamingTranslation : ''
+            "
           />
         </template>
 
@@ -167,16 +197,21 @@ watch(
           class="flex flex-col gap-1 text-n-slate-12"
         >
           <div
+            v-if="streamingThinking && !streamingContent"
+            class="copilot-thinking-container"
+          >
+            <div
+              v-dompurify-html="formattedStreamingThinking"
+              class="copilot-prose break-words text-n-slate-10"
+            />
+          </div>
+          <div
             v-if="streamingContent"
             v-dompurify-html="formattedStreamingContent"
             class="copilot-prose break-words"
           />
           <CopilotLoader />
         </div>
-      </div>
-      <!-- Waiting for suggest answer: show loader before messages arrive -->
-      <div v-else-if="isWaiting" class="flex-1 flex items-start px-4 py-4">
-        <CopilotLoader />
       </div>
       <CopilotEmptyState
         v-else
@@ -208,5 +243,14 @@ watch(
 .copilot-prose {
   font-size: 0.8125rem;
   line-height: 1.625;
+}
+
+.copilot-thinking-container {
+  max-height: 9rem;
+  overflow-y: auto;
+  border: 1px solid var(--n-weak);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  background: var(--n-alpha-1);
 }
 </style>

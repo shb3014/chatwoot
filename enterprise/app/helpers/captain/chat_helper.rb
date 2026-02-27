@@ -139,11 +139,14 @@ module Captain::ChatHelper
       delta = choice['delta'] || {}
       message_role ||= delta['role']
 
-      reasoning << delta['reasoning_content'] if delta['reasoning_content'].present?
+      if delta['reasoning_content'].present?
+        reasoning << delta['reasoning_content']
+        @streaming_callback&.call(content, delta['content'], reasoning, delta['reasoning_content'])
+      end
 
       if delta['content'].present?
         content << delta['content']
-        @streaming_callback&.call(content, delta['content'])
+        @streaming_callback&.call(content, delta['content'], reasoning, nil)
       end
 
       if delta['tool_calls'].present?
@@ -691,6 +694,7 @@ module Captain::ChatHelper
 
     last_user_message = last_user_message_content
     return false if last_user_message.nil? || last_user_message.strip.empty?
+    return false if copilot_suggest_prompt?(last_user_message)
 
     if first_user_message?
       return greeting_only?(last_user_message) ? false : 'new_question'
@@ -715,6 +719,10 @@ module Captain::ChatHelper
   rescue StandardError => e
     captain_logger.error "Error in should_force_search?: #{e.message}, falling back to pattern matching"
     fallback_should_force_search(last_user_message&.strip&.downcase)
+  end
+
+  def copilot_suggest_prompt?(message)
+    message.to_s.strip == 'Based on the full conversation, draft a reply to the customer.'
   end
 
   def classify_user_message_intent(user_message)

@@ -519,8 +519,29 @@ async function insertNodeIntoEditor(node, from = 0, to = 0) {
 }
 
 function insertContentIntoEditor(content, defaultFrom = 0) {
+  const normalizedContent = content
+    .replace(/^\uFEFF/, '')
+    .replace(/^\s*\n+/, '')
+    .replace(/^\s+/, '');
   const from = defaultFrom || editorView.state.selection.from || 0;
-  let node = new MessageMarkdownTransformer(messageSchema).parse(content);
+  let node = new MessageMarkdownTransformer(messageSchema).parse(
+    normalizedContent
+  );
+
+  // Multi-paragraph doc inserted at position ≤ 1 (start of the editor)
+  // triggers a paragraph split that leaves an empty leading paragraph.
+  // Replace the full document content instead to avoid that artifact.
+  if (node.type.name === 'doc' && node.childCount > 1 && from <= 1) {
+    const tr = editorView.state.tr.replaceWith(
+      0,
+      editorView.state.doc.content.size,
+      node.content
+    );
+    state = editorView.state.apply(tr);
+    editorView.updateState(state);
+    emitOnChange();
+    return;
+  }
 
   insertNodeIntoEditor(node, from, undefined);
 }
