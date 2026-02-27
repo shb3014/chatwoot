@@ -17,6 +17,15 @@ class SuperAdmin::AccountUsersController < SuperAdmin::ApplicationController
     redirect_back(fallback_location: [namespace, resource.account], notice: notice)
   end
 
+  def update
+    if requested_resource.update(resource_params)
+      flash[:notice] = translate_with_resource('update.success')
+    else
+      flash[:error] = requested_resource.errors.full_messages.join('<br/>')
+    end
+    redirect_back(fallback_location: [namespace, requested_resource.account])
+  end
+
   def destroy
     if requested_resource.destroy
       flash[:notice] = translate_with_resource('destroy.success')

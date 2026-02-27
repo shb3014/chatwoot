@@ -54,16 +54,17 @@ to display a collection of resources in an HTML table.
 
   <tbody>
     <% resources.each do |resource| %>
+      <% routable_resource = resource.is_a?(AccountUser) ? resource : resource.becomes(User) %>
       <tr class="js-table-row"
           tabindex="0"
           <% if existing_action? collection_presenter.resource_name, :show %>
-            <%= %(role=link data-url=#{polymorphic_path([namespace, resource.becomes(User)])}) %>
+            <%= %(role=link data-url=#{polymorphic_path([namespace, routable_resource])}) %>
           <% end %>
           >
         <% collection_presenter.attributes_for(resource).each do |attribute| %>
           <td class="cell-data cell-data--<%= attribute.html_class %>">
             <% if authorized_action? resource,  :show -%>
-              <a href="<%= polymorphic_path([namespace, resource.becomes(User)]) -%>"
+              <a href="<%= polymorphic_path([namespace, routable_resource]) -%>"
                  class="action-show"
                  >
                 <%= render_field attribute %>
@@ -75,7 +76,7 @@ to display a collection of resources in an HTML table.
         <% if existing_action? collection_presenter.resource_name, :edit %>
           <td><%= link_to(
             t("administrate.actions.edit"),
-            [:edit, namespace, resource.becomes(User)],
+            [:edit, namespace, routable_resource],
             class: "action-edit",
           ) if authorized_action? resource, :edit%></td>
         <% end %>
@@ -83,7 +84,7 @@ to display a collection of resources in an HTML table.
         <% if existing_action? collection_presenter.resource_name, :destroy %>
           <td><%= link_to(
             t("administrate.actions.destroy"),
-            [namespace, collection_presenter.resource_name == 'account_user' ? resource : resource.becomes(User)],
+            [namespace, routable_resource],
             class: "text-color-red",
             method: :delete,
             data: { confirm: t("administrate.actions.confirm") }

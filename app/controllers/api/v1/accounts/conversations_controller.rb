@@ -3,7 +3,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include DateRangeHelper
   include HmacConcern
 
-  before_action :conversation, except: [:index, :meta, :search, :create, :filter, :label_unread_counts]
+  before_action :conversation, except: [:index, :meta, :search, :create, :filter, :label_unread_counts, :batch_read, :batch_unread]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
 
   ATTACHMENT_RESULTS_PER_PAGE = 100
@@ -122,6 +122,29 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     last_incoming_message = @conversation.messages.incoming.last
     last_seen_at = last_incoming_message.created_at - 1.second if last_incoming_message.present?
     update_last_seen_on_conversation(last_seen_at, true)
+  end
+
+  def batch_read
+    conversations = Current.account.conversations.where(display_id: params[:ids])
+    now = DateTime.now.utc
+    # rubocop:disable Rails/SkipsModelValidations
+    conversations.update_all(agent_last_seen_at: now)
+    conversations.where(assignee_id: Current.user.id).update_all(assignee_last_seen_at: now)
+    # rubocop:enable Rails/SkipsModelValidations
+    render json: { updated_ids: params[:ids], agent_last_seen_at: now }
+  end
+
+  def batch_unread
+    conversations = Current.account.conversations.where(display_id: params[:ids])
+    conversations.find_each do |conversation|
+      last_incoming = conversation.messages.incoming.last
+      last_seen_at = last_incoming.present? ? last_incoming.created_at - 1.second : nil
+      # rubocop:disable Rails/SkipsModelValidations
+      conversation.update_column(:agent_last_seen_at, last_seen_at)
+      conversation.update_column(:assignee_last_seen_at, last_seen_at)
+      # rubocop:enable Rails/SkipsModelValidations
+    end
+    render json: { updated_ids: params[:ids] }
   end
 
   def custom_attributes

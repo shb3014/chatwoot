@@ -18,10 +18,6 @@ import {
   useFunctionGetter,
 } from 'dashboard/composables/store.js';
 
-// [VITE] [TODO] We are using vue-virtual-scroll for now, since that seemed the simplest way to migrate
-// from the current one. But we should consider using tanstack virtual in the future
-// https://tanstack.com/virtual/latest/docs/framework/vue/examples/variable
-import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller';
 import ChatListHeader from './ChatListHeader.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import ConversationFilter from 'next/filter/ConversationFilter.vue';
@@ -68,8 +64,6 @@ import {
 import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
 import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
-
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 const props = defineProps({
   conversationInbox: { type: [String, Number], default: 0 },
@@ -696,11 +690,10 @@ function loadMoreConversations() {
   }
 }
 
-// Add a method to handle scroll events
 function handleScroll() {
-  const scroller = conversationDynamicScroller.value;
-  if (scroller && scroller.hasScrollbar) {
-    const { scrollTop, scrollHeight, clientHeight } = scroller.$el;
+  const el = conversationDynamicScroller.value;
+  if (el) {
+    const { scrollTop, scrollHeight, clientHeight } = el;
     if (scrollHeight - (scrollTop + clientHeight) < 100) {
       loadMoreConversations();
     }
@@ -916,9 +909,7 @@ async function batchMarkRead() {
   const ids = selectedConversations.value;
   if (!ids.length) return;
   try {
-    await Promise.all(
-      ids.map(id => store.dispatch('markMessagesRead', { id }))
-    );
+    await store.dispatch('batchMarkRead', { ids });
     useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
     resetBulkActions();
   } catch {
@@ -930,9 +921,7 @@ async function batchMarkUnread() {
   const ids = selectedConversations.value;
   if (!ids.length) return;
   try {
-    await Promise.all(
-      ids.map(id => store.dispatch('markMessagesUnread', { id }))
-    );
+    await store.dispatch('batchMarkUnread', { ids });
     useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
     resetBulkActions();
   } catch {
@@ -943,6 +932,13 @@ async function batchMarkUnread() {
 async function batchMarkResolved() {
   const ids = selectedConversations.value;
   if (!ids.length) return;
+  ids.forEach(id => {
+    store.commit('CHANGE_CONVERSATION_STATUS', {
+      conversationId: id,
+      status: 'resolved',
+      snoozedUntil: null,
+    });
+  });
   try {
     await store.dispatch('bulkActions/process', {
       type: 'Conversation',
@@ -951,7 +947,7 @@ async function batchMarkResolved() {
     });
     useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
     resetBulkActions();
-    resetAndFetchData();
+    store.dispatch('conversationStats/get', conversationFilters.value);
   } catch {
     useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
   }
@@ -960,6 +956,13 @@ async function batchMarkResolved() {
 async function batchMarkUnresolved() {
   const ids = selectedConversations.value;
   if (!ids.length) return;
+  ids.forEach(id => {
+    store.commit('CHANGE_CONVERSATION_STATUS', {
+      conversationId: id,
+      status: 'open',
+      snoozedUntil: null,
+    });
+  });
   try {
     await store.dispatch('bulkActions/process', {
       type: 'Conversation',
@@ -968,7 +971,7 @@ async function batchMarkUnresolved() {
     });
     useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
     resetBulkActions();
-    resetAndFetchData();
+    store.dispatch('conversationStats/get', conversationFilters.value);
   } catch {
     useAlert(t('CHAT_LIST.BATCH_EDIT.FAILED'));
   }
@@ -977,12 +980,15 @@ async function batchMarkUnresolved() {
 async function batchRemovePriority() {
   const ids = selectedConversations.value;
   if (!ids.length) return;
+  ids.forEach(id => {
+    store.commit('ASSIGN_PRIORITY', { conversationId: id, priority: null });
+  });
   try {
-    await Promise.all(
-      ids.map(id =>
-        store.dispatch('assignPriority', { conversationId: id, priority: null })
-      )
-    );
+    await store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids,
+      fields: { priority: null },
+    });
     useAlert(t('CHAT_LIST.BATCH_EDIT.SUCCESS'));
     resetBulkActions();
   } catch {
@@ -1181,58 +1187,37 @@ watch(conversationsPerPage, (newVal, oldVal) => {
       class="flex-1 overflow-hidden conversations-list hover:overflow-y-auto"
       :class="{ 'overflow-hidden': isContextMenuOpen }"
     >
-      <DynamicScroller
+      <div
         ref="conversationDynamicScroller"
-        :items="conversationList"
-        :min-item-size="24"
         class="w-full h-full overflow-auto"
       >
-        <template #default="{ item, index, active }">
-          <!--
-            If we encounter resizing issues, we can set the `watchData` prop to true
-            this will deeply watch the entire object instead of just size dependencies
-            But it can impact performance
-          -->
-          <DynamicScrollerItem
-            :item="item"
-            :active="active"
-            :data-index="index"
-            :size-dependencies="[
-              item.messages,
-              item.labels,
-              item.uuid,
-              item.inbox_id,
-            ]"
-          >
-            <ConversationItem
-              :source="item"
-              :label="label"
-              :team-id="teamId"
-              :folders-id="foldersId"
-              :conversation-type="conversationType"
-              :show-assignee="showAssigneeInConversationCard"
-              @select-conversation="selectConversation"
-              @de-select-conversation="deSelectConversation"
-            />
-          </DynamicScrollerItem>
-        </template>
-        <template #after>
-          <div v-if="chatListLoading" class="flex justify-center my-4">
-            <Spinner class="text-n-brand" />
-          </div>
-          <p
-            v-else-if="showEndOfListMessage"
-            class="p-4 text-center text-n-slate-11"
-          >
-            {{ $t('CHAT_LIST.EOF') }}
-          </p>
-          <IntersectionObserver
-            v-else
-            :options="intersectionObserverOptions"
-            @observed="loadMoreConversations"
-          />
-        </template>
-      </DynamicScroller>
+        <ConversationItem
+          v-for="item in conversationList"
+          :key="item.id"
+          :source="item"
+          :label="label"
+          :team-id="teamId"
+          :folders-id="foldersId"
+          :conversation-type="conversationType"
+          :show-assignee="showAssigneeInConversationCard"
+          @select-conversation="selectConversation"
+          @de-select-conversation="deSelectConversation"
+        />
+        <div v-if="chatListLoading" class="flex justify-center my-4">
+          <Spinner class="text-n-brand" />
+        </div>
+        <p
+          v-else-if="showEndOfListMessage"
+          class="p-4 text-center text-n-slate-11"
+        >
+          {{ $t('CHAT_LIST.EOF') }}
+        </p>
+        <IntersectionObserver
+          v-else
+          :options="intersectionObserverOptions"
+          @observed="loadMoreConversations"
+        />
+      </div>
     </div>
     <Dialog
       ref="deleteConversationDialogRef"

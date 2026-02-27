@@ -32,4 +32,34 @@ export default {
       throwErrorMessage(error);
     }
   },
+
+  batchMarkRead: async ({ commit }, { ids }) => {
+    ids.forEach(id =>
+      commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, {
+        id,
+        lastSeen: Date.now() / 1000,
+      })
+    );
+    try {
+      await ConversationApi.batchMarkRead({ ids });
+    } catch (error) {
+      throwErrorMessage(error);
+    }
+  },
+
+  batchMarkUnread: async ({ commit, state }, { ids }) => {
+    ids.forEach(id => {
+      const chat = state.allConversations.find(c => c.id === id);
+      commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, {
+        id,
+        lastSeen: chat?.agent_last_seen_at,
+        unreadCount: Math.max(chat?.unread_count || 0, 1),
+      });
+    });
+    try {
+      await ConversationApi.batchMarkUnread({ ids });
+    } catch (error) {
+      throwErrorMessage(error);
+    }
+  },
 };

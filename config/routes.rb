@@ -125,6 +125,8 @@ Rails.application.routes.draw do
               get :search
               get :label_unread_counts
               post :filter
+              post :batch_read
+              post :batch_unread
             end
             scope module: :conversations do
               resources :messages, only: [:index, :create, :destroy, :update] do
@@ -641,7 +643,7 @@ Rails.application.routes.draw do
       end
 
       # resources that doesn't appear in primary navigation in super admin
-      resources :account_users, only: [:new, :create, :show, :destroy]
+      resources :account_users, only: [:new, :create, :show, :edit, :update, :destroy]
     end
     authenticated :super_admin do
       mount Sidekiq::Web => '/monitoring/sidekiq'

@@ -84,6 +84,14 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/${id}/unread`);
   }
 
+  batchMarkRead({ ids }) {
+    return axios.post(`${this.url}/batch_read`, { ids });
+  }
+
+  batchMarkUnread({ ids }) {
+    return axios.post(`${this.url}/batch_unread`, { ids });
+  }
+
   toggleTyping({ conversationId, status, isPrivate }) {
     return axios.post(`${this.url}/${conversationId}/toggle_typing_status`, {
       typing_status: status,

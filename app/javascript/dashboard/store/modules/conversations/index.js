@@ -116,6 +116,13 @@ export const mutations = {
     chat.priority = priority;
   },
 
+  [types.ADD_CONVERSATION_LABELS](_state, { conversationId, labels }) {
+    const [chat] = _state.allConversations.filter(c => c.id === conversationId);
+    if (chat) {
+      chat.labels = [...new Set([...(chat.labels || []), ...labels])];
+    }
+  },
+
   [types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES](_state, custom_attributes) {
     const [chat] = getSelectedChatConversation(_state);
     chat.custom_attributes = custom_attributes;

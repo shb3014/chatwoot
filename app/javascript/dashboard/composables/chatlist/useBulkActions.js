@@ -75,10 +75,18 @@ export function useBulkActions() {
 
   // Same method used in context menu, conversationId being passed from there.
   async function onAssignLabels(newLabels, conversationId = null) {
+    const ids = conversationId || selectedConversations.value;
+    const idsArray = Array.isArray(ids) ? ids : [ids];
+    idsArray.forEach(id => {
+      store.commit('ADD_CONVERSATION_LABELS', {
+        conversationId: id,
+        labels: newLabels,
+      });
+    });
     try {
       await store.dispatch('bulkActions/process', {
         type: 'Conversation',
-        ids: conversationId || selectedConversations.value,
+        ids: idsArray,
         labels: {
           add: newLabels,
         },
