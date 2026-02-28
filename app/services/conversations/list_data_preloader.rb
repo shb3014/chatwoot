@@ -73,7 +73,12 @@ class Conversations::ListDataPreloader
 
     ActiveRecord::Associations::Preloader.new(
       records: msgs,
-      associations: [{ attachments: [{ file_attachment: [:blob] }] }, { sender: { avatar_attachment: [:blob] } }]
+      associations: [
+        :conversation,
+        { conversation: :contact_inbox },
+        { attachments: [{ file_attachment: [:blob] }] },
+        { sender: { avatar_attachment: [:blob] } }
+      ]
     ).call
   end
 end

@@ -23,9 +23,7 @@ const activeTabIndex = computed(() => {
 const onTabChange = selectedTabIndex => {
   if (selectedTabIndex >= 0 && selectedTabIndex < props.items.length) {
     const selectedItem = props.items[selectedTabIndex];
-    if (selectedItem.key !== props.activeTab) {
-      emit('chatTabChange', selectedItem.key);
-    }
+    emit('chatTabChange', selectedItem.key);
   }
 };
 

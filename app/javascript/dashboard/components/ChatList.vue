@@ -26,7 +26,6 @@ import ChatTypeTabs from './widgets/ChatTypeTabs.vue';
 import ConversationItem from './ConversationItem.vue';
 import DeleteCustomViews from 'dashboard/routes/dashboard/customviews/DeleteCustomViews.vue';
 import ConversationBulkActions from './widgets/conversation/conversationBulkActions/Index.vue';
-import IntersectionObserver from './IntersectionObserver.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 
@@ -144,6 +143,7 @@ const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
 const isContextMenuOpen = ref(false);
 const appliedFilter = ref([]);
+const emptyTabRecoveryKey = ref(null);
 const advancedFilterTypes = ref(
   advancedFilterOptions.map(filter => ({
     ...filter,
@@ -202,14 +202,6 @@ const {
 } = useFilter({
   filteri18nKey: 'FILTER',
   attributeModel: 'conversation_attribute',
-});
-
-// computed
-const intersectionObserverOptions = computed(() => {
-  return {
-    root: conversationListRef.value,
-    rootMargin: '100px 0px 100px 0px',
-  };
 });
 
 const hasAppliedFilters = computed(() => {
@@ -409,60 +401,27 @@ const conversationList = computed(() => {
     });
   }
 
-  return localConversationList;
+  const safeCurrentPage = Number(currentPage.value);
+  const loadedPages = Number.isFinite(safeCurrentPage) ? safeCurrentPage : 0;
+  const effectivePages = Math.max(1, loadedPages);
+  const visibleItemsLimit = effectivePages * conversationsPerPage.value;
+  return localConversationList.slice(0, visibleItemsLimit);
 });
 
-const readUnresolvedConversationIds = computed(() => {
-  return conversationList.value
-    .filter(
-      conversation =>
-        conversation.unread_count === 0 && conversation.status !== 'resolved'
-    )
-    .map(conversation => conversation.id);
-});
+function resetConversationListScroll() {
+  if (conversationDynamicScroller.value) {
+    conversationDynamicScroller.value.scrollTop = 0;
+  }
+}
 
-const hasReadConversationsToResolve = computed(() => {
-  return readUnresolvedConversationIds.value.length > 0;
-});
-
-const showEndOfListMessage = computed(() => {
-  return (
-    conversationList.value.length &&
-    hasCurrentPageEndReached.value &&
-    !chatListLoading.value
-  );
-});
-
-// Show a full-area loading spinner when fetching data for an unvisited tab/view.
-// currentPage is 0 when the tab has never been loaded (no cache),
-// preventing stale cross-tab data from appearing during the fetch.
-const showConversationLoader = computed(() => {
-  return chatListLoading.value && !currentPage.value;
-});
-
-const allConversationsSelected = computed(() => {
-  return (
-    conversationList.value.length === selectedConversations.value.length &&
-    conversationList.value.every(el =>
-      selectedConversations.value.includes(el.id)
-    )
-  );
-});
-
-const uniqueInboxes = computed(() => {
-  return [...new Set(selectedInboxes.value)];
-});
-
-// ---------------------- Methods -----------------------
-function setFiltersFromUISettings() {
-  const { conversations_filter_by: filterBy = {} } = uiSettings.value;
-  const { status, order_by: orderBy } = filterBy;
-  activeStatus.value = status || wootConstants.STATUS_TYPE.OPEN;
-  activeSortBy.value = Object.values(wootConstants.SORT_BY_TYPE).includes(
-    orderBy
-  )
-    ? orderBy
-    : wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC;
+function debugChatList(message, data = {}) {
+  if (
+    typeof window !== 'undefined' &&
+    window.localStorage?.getItem('cw_debug_chat_list') === '1'
+  ) {
+    // eslint-disable-next-line no-console
+    console.debug(`[ChatList] ${message}`, data);
+  }
 }
 
 function emitConversationLoaded() {
@@ -661,6 +620,7 @@ function fetchConversations() {
 }
 
 function resetAndFetchData() {
+  resetConversationListScroll();
   appliedFilter.value = [];
   resetBulkActions();
   store.dispatch('conversationPage/reset');
@@ -676,7 +636,14 @@ function resetAndFetchData() {
 }
 
 function loadMoreConversations() {
+  debugChatList('loadMoreConversations:called', {
+    hasCurrentPageEndReached: hasCurrentPageEndReached.value,
+    chatListLoading: chatListLoading.value,
+    currentPage: currentPage.value,
+    activeAssigneeTab: activeAssigneeTab.value,
+  });
   if (hasCurrentPageEndReached.value || chatListLoading.value) {
+    debugChatList('loadMoreConversations:skipped');
     return;
   }
 
@@ -692,11 +659,18 @@ function loadMoreConversations() {
 
 function handleScroll() {
   const el = conversationDynamicScroller.value;
-  if (el) {
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    if (scrollHeight - (scrollTop + clientHeight) < 100) {
-      loadMoreConversations();
-    }
+  if (!el) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = el;
+  const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 100;
+  debugChatList('handleScroll', {
+    scrollTop,
+    scrollHeight,
+    clientHeight,
+    isNearBottom,
+  });
+  if (isNearBottom) {
+    loadMoreConversations();
   }
 }
 
@@ -705,10 +679,13 @@ function updateAssigneeTab(selectedTab) {
     resetBulkActions();
     emitter.emit('clearSearchInput');
     activeAssigneeTab.value = selectedTab;
-    if (!currentPage.value) {
-      fetchConversations();
-    }
+    return;
   }
+
+  // If the same tab is reselected, force a refresh to avoid stale/empty states.
+  resetConversationListScroll();
+  store.dispatch('conversationPage/reset');
+  fetchConversations();
 }
 
 function onBasicFilterChange(value, type) {
@@ -761,6 +738,19 @@ function redirectToConversationList() {
     })
   );
 }
+
+const readUnresolvedConversationIds = computed(() => {
+  return conversationList.value
+    .filter(
+      conversation =>
+        conversation.unread_count === 0 && conversation.status !== 'resolved'
+    )
+    .map(conversation => conversation.id);
+});
+
+const hasReadConversationsToResolve = computed(() => {
+  return readUnresolvedConversationIds.value.length > 0;
+});
 
 async function resolveReadConversations() {
   const ids = readUnresolvedConversationIds.value;
@@ -871,6 +861,17 @@ useEmitter('fetch_conversation_stats', () => {
 
 useEventListener(conversationDynamicScroller, 'scroll', handleScroll);
 
+function setFiltersFromUISettings() {
+  const { conversations_filter_by: filterBy = {} } = uiSettings.value;
+  const { status, order_by: orderBy } = filterBy;
+  activeStatus.value = status || wootConstants.STATUS_TYPE.OPEN;
+  activeSortBy.value = Object.values(wootConstants.SORT_BY_TYPE).includes(
+    orderBy
+  )
+    ? orderBy
+    : wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC;
+}
+
 onMounted(() => {
   store.dispatch('setChatListFilters', conversationFilters.value);
   setFiltersFromUISettings();
@@ -882,6 +883,35 @@ onMounted(() => {
   }
 });
 
+const showEndOfListMessage = computed(() => {
+  return (
+    conversationList.value.length &&
+    hasCurrentPageEndReached.value &&
+    !chatListLoading.value
+  );
+});
+
+// Show a full-area loading spinner when fetching data for an unvisited tab/view.
+// currentPage is 0 when the tab has never been loaded (no cache),
+// preventing stale cross-tab data from appearing during the fetch.
+const showConversationLoader = computed(() => {
+  return chatListLoading.value && !currentPage.value;
+});
+
+const allConversationsSelected = computed(() => {
+  return (
+    conversationList.value.length === selectedConversations.value.length &&
+    conversationList.value.every(el =>
+      selectedConversations.value.includes(el.id)
+    )
+  );
+});
+
+const uniqueInboxes = computed(() => {
+  return [...new Set(selectedInboxes.value)];
+});
+
+// ---------------------- Methods -----------------------
 const deleteConversationDialogRef = ref(null);
 const selectedConversationId = ref(null);
 
@@ -1043,6 +1073,13 @@ provide('isBatchEditMode', isBatchEditMode);
 
 watch(activeTeam, () => resetAndFetchData());
 
+watch(activeAssigneeTab, () => {
+  resetConversationListScroll();
+  if (!currentPage.value) {
+    fetchConversations();
+  }
+});
+
 watch(
   computed(() => props.conversationInbox),
   () => resetAndFetchData()
@@ -1087,6 +1124,32 @@ watch(conversationsPerPage, (newVal, oldVal) => {
     resetAndFetchData();
   }
 });
+
+// When a tab has no cached conversations, fetch page 1 for that tab.
+// Uses a recoveryKey to avoid firing more than once per tab+filter combo.
+watch(
+  [activeAssigneeTab, currentPage, chatListLoading, conversationList],
+  () => {
+    if (hasAppliedFiltersOrActiveFolders.value) return;
+    if (conversationList.value.length) {
+      emptyTabRecoveryKey.value = null;
+      return;
+    }
+
+    if (chatListLoading.value || hasCurrentPageEndReached.value) return;
+    if (currentPage.value > 0) return;
+
+    const recoveryKey = `${activeAssigneeTab.value}:${props.label || ''}:${
+      props.conversationInbox || ''
+    }:${props.teamId || ''}`;
+
+    if (emptyTabRecoveryKey.value !== recoveryKey) {
+      emptyTabRecoveryKey.value = recoveryKey;
+      fetchConversations();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -1212,11 +1275,7 @@ watch(conversationsPerPage, (newVal, oldVal) => {
         >
           {{ $t('CHAT_LIST.EOF') }}
         </p>
-        <IntersectionObserver
-          v-else
-          :options="intersectionObserverOptions"
-          @observed="loadMoreConversations"
-        />
+        <div v-else class="h-2 w-full" />
       </div>
     </div>
     <Dialog

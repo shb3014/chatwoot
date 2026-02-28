@@ -148,12 +148,12 @@ class ConversationFinder
   end
 
   def filter_by_status
-    return if params[:status] == 'all'
-
     if @assignee_type == 'unresolved'
       @conversations = @conversations.where.not(status: 'resolved')
       return
     end
+
+    return if params[:status] == 'all'
 
     # Unread tab should show all unread conversations regardless of status
     return if @assignee_type == 'unread'
@@ -204,9 +204,16 @@ class ConversationFinder
   end
 
   def conversations_base_query
-    @conversations.includes(
-      :taggings, :inbox, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }, :team, :contact_inbox
-    )
+    includes_list = [
+      :inbox,
+      { assignee: { avatar_attachment: [:blob] } },
+      { contact: { avatar_attachment: [:blob] } },
+      :team,
+      :contact_inbox
+    ]
+    includes_list << :captain_conversation_learning if Conversation.reflect_on_association(:captain_conversation_learning)
+
+    @conversations.includes(*includes_list)
   end
 
   def conversations
