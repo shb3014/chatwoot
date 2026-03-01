@@ -37,6 +37,8 @@
 # Indexes
 #
 #  conv_acid_inbid_stat_asgnid_idx                    (account_id,inbox_id,status,assignee_id)
+#  idx_conv_account_status_last_activity              (account_id,status,last_activity_at DESC)
+#  idx_conv_account_status_priority_activity          (account_id,status,priority DESC NULLS LAST,last_activity_at DESC)
 #  index_conversations_on_account_id                  (account_id)
 #  index_conversations_on_account_id_and_display_id   (account_id,display_id) UNIQUE
 #  index_conversations_on_assignee_id_and_account_id  (assignee_id,account_id)

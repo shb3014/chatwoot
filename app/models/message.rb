@@ -25,6 +25,8 @@
 # Indexes
 #
 #  idx_messages_account_content_created                 (account_id,content_type,created_at)
+#  idx_messages_conv_non_activity_id_desc               (conversation_id,id DESC) WHERE (message_type <> 2)
+#  idx_messages_incoming_conv_created                   (conversation_id,created_at) WHERE (message_type = 0)
 #  index_messages_on_account_created_type               (account_id,created_at,message_type)
 #  index_messages_on_account_id                         (account_id)
 #  index_messages_on_account_id_and_inbox_id            (account_id,inbox_id)

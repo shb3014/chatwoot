@@ -20,7 +20,7 @@ development:
 
 test:
   <<: *default
-  database: "<%= ENV.fetch('POSTGRES_DATABASE', 'chatwoot_test') %>"
+  database: "<%= ENV.fetch('POSTGRES_TEST_DATABASE', ENV.fetch('POSTGRES_DATABASE', 'chatwoot') + '_test') %>"
   username: "<%= ENV.fetch('POSTGRES_USERNAME', 'postgres') %>"
   password: "<%= ENV.fetch('POSTGRES_PASSWORD', '') %>"
 

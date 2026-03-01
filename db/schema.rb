@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_26_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_28_081203) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -716,6 +716,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_26_100000) do
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
+    t.index ["account_id", "status", "last_activity_at"], name: "idx_conv_account_status_last_activity", order: { last_activity_at: :desc }
+    t.index ["account_id", "status", "priority", "last_activity_at"], name: "idx_conv_account_status_priority_activity", order: { priority: "DESC NULLS LAST", last_activity_at: :desc }
     t.index ["account_id"], name: "index_conversations_on_account_id"
     t.index ["assignee_id", "account_id"], name: "index_conversations_on_assignee_id_and_account_id"
     t.index ["campaign_id"], name: "index_conversations_on_campaign_id"
@@ -1015,7 +1017,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_26_100000) do
     t.index ["account_id"], name: "index_messages_on_account_id"
     t.index ["content"], name: "index_messages_on_content", opclass: :gin_trgm_ops, using: :gin
     t.index ["conversation_id", "account_id", "message_type", "created_at"], name: "index_messages_on_conversation_account_type_created"
+    t.index ["conversation_id", "created_at"], name: "idx_messages_incoming_conv_created", where: "(message_type = 0)"
     t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_created_at_desc", order: { created_at: :desc }
+    t.index ["conversation_id", "id"], name: "idx_messages_conv_non_activity_id_desc", order: { id: :desc }, where: "(message_type <> 2)"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["created_at"], name: "index_messages_on_created_at"
     t.index ["inbox_id"], name: "index_messages_on_inbox_id"

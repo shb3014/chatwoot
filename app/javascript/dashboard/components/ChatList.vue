@@ -1125,7 +1125,8 @@ watch(conversationsPerPage, (newVal, oldVal) => {
   }
 });
 
-// When a tab has no cached conversations, fetch page 1 for that tab.
+// When a tab's visible list is empty (never loaded, or emptied by a bulk action),
+// reset its pagination and fetch page 1.
 // Uses a recoveryKey to avoid firing more than once per tab+filter combo.
 watch(
   [activeAssigneeTab, currentPage, chatListLoading, conversationList],
@@ -1137,7 +1138,6 @@ watch(
     }
 
     if (chatListLoading.value || hasCurrentPageEndReached.value) return;
-    if (currentPage.value > 0) return;
 
     const recoveryKey = `${activeAssigneeTab.value}:${props.label || ''}:${
       props.conversationInbox || ''
@@ -1145,6 +1145,12 @@ watch(
 
     if (emptyTabRecoveryKey.value !== recoveryKey) {
       emptyTabRecoveryKey.value = recoveryKey;
+      if (currentPage.value > 0) {
+        store.dispatch('conversationPage/setCurrentPage', {
+          filter: currentPageFilterKey.value,
+          page: 0,
+        });
+      }
       fetchConversations();
     }
   },

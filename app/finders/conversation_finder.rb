@@ -32,7 +32,6 @@ class ConversationFinder
   def initialize(current_user, params)
     @current_user = current_user
     @current_account = current_user.account
-    @is_admin = current_account.account_users.find_by(user_id: current_user.id)&.administrator?
     @params = params
   end
 
@@ -141,8 +140,7 @@ class ConversationFinder
     return unless params[:q]
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
-    @conversations = conversations.joins(:messages).where('messages.content ILIKE :search', search: "%#{params[:q]}%")
-                                  .where(messages: { message_type: allowed_message_types }).includes(:messages)
+    @conversations = conversations.joins(:messages)
                                   .where('messages.content ILIKE :search', search: "%#{params[:q]}%")
                                   .where(messages: { message_type: allowed_message_types })
   end
@@ -170,7 +168,16 @@ class ConversationFinder
   def filter_by_labels
     return unless params[:labels]
 
-    @conversations = @conversations.tagged_with(params[:labels], any: true)
+    label_list = Array(params[:labels])
+    return if label_list.empty?
+
+    pattern_clauses = label_list.map do |label|
+      sanitized = Conversation.sanitize_sql_like(label.strip)
+      Conversation.sanitize_sql_for_conditions(
+        ['cached_label_list LIKE ?', "%#{sanitized}%"]
+      )
+    end
+    @conversations = @conversations.where(pattern_clauses.join(' OR '))
   end
 
   def filter_by_source_id
@@ -181,13 +188,21 @@ class ConversationFinder
   end
 
   def set_count_for_all_conversations
-    [
-      @conversations.assigned_to(current_user).count,
-      @conversations.unassigned.count,
-      @conversations.count,
-      @conversations.where.not(status: 'resolved').count,
-      @conversations.unread_by_agent.count
-    ]
+    resolved_status = Conversation.statuses[:resolved]
+    user_id = current_user.id
+    base = @conversations.unscope(:order, :includes)
+
+    row = base.pick(
+      Arel.sql('COUNT(DISTINCT conversations.id)'),
+      Arel.sql("COUNT(DISTINCT conversations.id) FILTER (WHERE conversations.assignee_id = #{user_id})"),
+      Arel.sql('COUNT(DISTINCT conversations.id) FILTER (WHERE conversations.assignee_id IS NULL)'),
+      Arel.sql("COUNT(DISTINCT conversations.id) FILTER (WHERE conversations.status != #{resolved_status})")
+    )
+
+    all_count, mine_count, unassigned_count, unresolved_count = row
+    unread_count = base.unread_by_agent.count
+
+    [mine_count, unassigned_count, all_count, unresolved_count, unread_count]
   end
 
   def current_page
