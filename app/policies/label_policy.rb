@@ -18,4 +18,8 @@ class LabelPolicy < ApplicationPolicy
   def destroy?
     @account_user.administrator?
   end
+
+  def reorder?
+    @account_user.administrator?
+  end
 end

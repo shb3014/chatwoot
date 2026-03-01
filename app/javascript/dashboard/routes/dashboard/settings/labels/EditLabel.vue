@@ -5,10 +5,12 @@ import validations, { getLabelTitleErrorMessage } from './validations';
 import { useVuelidate } from '@vuelidate/core';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import HardRulesEditor from './HardRulesEditor.vue';
 
 export default {
   components: {
     NextButton,
+    HardRulesEditor,
   },
   props: {
     selectedResponse: {
@@ -28,6 +30,7 @@ export default {
       color: '',
       aiLearningDescription: '',
       exclusive: false,
+      hardRules: [],
     };
   },
   validations,
@@ -60,6 +63,9 @@ export default {
       this.aiLearningDescription =
         this.selectedResponse.ai_learning_description || '';
       this.exclusive = this.selectedResponse.exclusive || false;
+      this.hardRules = Array.isArray(this.selectedResponse.hard_rules)
+        ? [...this.selectedResponse.hard_rules]
+        : [];
     },
     editLabel() {
       this.$store
@@ -71,6 +77,7 @@ export default {
           show_on_sidebar: this.showOnSidebar,
           ai_learning_description: this.aiLearningDescription,
           exclusive: this.exclusive,
+          hard_rules: this.hardRules,
         })
         .then(() => {
           useAlert(this.$t('LABEL_MGMT.EDIT.API.SUCCESS_MESSAGE'));
@@ -128,7 +135,8 @@ export default {
           {{ $t('LABEL_MGMT.FORM.AI_LEARNING.HELP') }}
         </p>
       </div>
-      <div class="flex flex-col w-full gap-2">
+      <HardRulesEditor v-model="hardRules" />
+      <div class="flex flex-col w-full gap-2 mt-2">
         <div class="flex items-center gap-2">
           <input v-model="exclusive" type="checkbox" :value="true" />
           <label>

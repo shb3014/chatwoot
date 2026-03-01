@@ -11,10 +11,15 @@
       "TITLE": "Manage labels",
       "DESC": "Labels let you group the conversations together.",
       "TABLE_HEADER": {
+        "PRIORITY": "#",
         "NAME": "Name",
         "DESCRIPTION": "Description",
         "COLOR": "Color"
       }
+    },
+    "REORDER": {
+      "SUCCESS_MESSAGE": "Labels reordered successfully",
+      "ERROR_MESSAGE": "Failed to reorder labels"
     },
     "FORM": {
       "NAME": {
@@ -42,6 +47,33 @@
       "EXCLUSIVE": {
         "LABEL": "Exclusive label",
         "HELP": "When enabled, once this label is assigned to a conversation, no other labels can be added to it."
+      },
+      "HARD_RULES": {
+        "LABEL": "Hard Rules",
+        "HELP": "Hard rules are evaluated before AI labeling. If a conversation matches these conditions, this label is applied automatically without relying on AI.",
+        "ADD_CONDITION": "Add Condition",
+        "ATTRIBUTE": "Attribute",
+        "OPERATOR": "Operator",
+        "VALUE": "Value",
+        "DELETE_CONDITION": "Delete condition",
+        "ATTRIBUTES": {
+          "CONTENT": "Message Content",
+          "MAIL_SUBJECT": "Email Subject",
+          "EMAIL": "Contact Email",
+          "INBOX_ID": "Inbox"
+        },
+        "QUERY_OPERATOR": {
+          "AND": "AND",
+          "OR": "OR"
+        },
+        "OPERATORS": {
+          "EQUAL_TO": "Equal to",
+          "NOT_EQUAL_TO": "Not equal to",
+          "CONTAINS": "Contains",
+          "DOES_NOT_CONTAIN": "Does not contain",
+          "IS_PRESENT": "Is present",
+          "IS_NOT_PRESENT": "Is not present"
+        }
       },
       "EDIT": "Edit",
       "CREATE": "Create",

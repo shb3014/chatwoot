@@ -5,3 +5,5 @@ json.color @label.color
 json.show_on_sidebar @label.show_on_sidebar
 json.ai_learning_description @label.ai_learning_description
 json.exclusive @label.exclusive
+json.position @label.position
+json.hard_rules @label.hard_rules

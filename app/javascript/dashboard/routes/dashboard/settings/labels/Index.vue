@@ -3,6 +3,7 @@ import { useAlert } from 'dashboard/composables';
 import { computed, onBeforeMount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
+import draggable from 'vuedraggable';
 
 import AddLabel from './AddLabel.vue';
 import EditLabel from './EditLabel.vue';
@@ -22,6 +23,18 @@ const selectedLabel = ref({});
 
 const records = computed(() => getters['labels/getLabels'].value);
 const uiFlags = computed(() => getters['labels/getUIFlags'].value);
+
+const draggableRecords = computed({
+  get: () => [...records.value],
+  set: async newOrder => {
+    try {
+      await store.dispatch('labels/reorder', newOrder);
+      useAlert(t('LABEL_MGMT.REORDER.SUCCESS_MESSAGE'));
+    } catch {
+      useAlert(t('LABEL_MGMT.REORDER.ERROR_MESSAGE'));
+    }
+  },
+});
 
 const deleteMessage = computed(() => ` ${selectedLabel.value.title}?`);
 
@@ -67,14 +80,6 @@ const confirmDeletion = () => {
   deleteLabel(selectedLabel.value.id);
 };
 
-const tableHeaders = computed(() => {
-  return [
-    t('LABEL_MGMT.LIST.TABLE_HEADER.NAME'),
-    t('LABEL_MGMT.LIST.TABLE_HEADER.DESCRIPTION'),
-    t('LABEL_MGMT.LIST.TABLE_HEADER.COLOR'),
-  ];
-});
-
 onBeforeMount(() => {
   store.dispatch('labels/get');
 });
@@ -106,55 +111,87 @@ onBeforeMount(() => {
     <template #body>
       <table class="min-w-full overflow-x-auto divide-y divide-n-weak">
         <thead>
-          <th
-            v-for="thHeader in tableHeaders"
-            :key="thHeader"
-            class="py-4 font-semibold text-left ltr:pr-4 rtl:pl-4 text-n-slate-11"
-          >
-            {{ thHeader }}
-          </th>
-        </thead>
-        <tbody class="flex-1 divide-y divide-n-weak text-n-slate-12">
-          <tr v-for="(label, index) in records" :key="label.title">
-            <td class="py-4 ltr:pr-4 rtl:pl-4">
-              <span class="mb-1 font-medium break-words text-n-slate-12">
-                {{ label.title }}
-              </span>
-            </td>
-            <td class="py-4 ltr:pr-4 rtl:pl-4">{{ label.description }}</td>
-            <td class="py-4 leading-6 ltr:pr-4 rtl:pl-4">
-              <div class="flex items-center">
-                <span
-                  class="w-4 h-4 mr-1 border border-solid rounded rtl:mr-0 rtl:ml-1 border-n-weak"
-                  :style="{ backgroundColor: label.color }"
-                />
-                {{ label.color }}
-              </div>
-            </td>
-            <td class="py-4 min-w-xs">
-              <div class="flex gap-1 justify-end">
-                <Button
-                  v-tooltip.top="$t('LABEL_MGMT.FORM.EDIT')"
-                  icon="i-lucide-pen"
-                  slate
-                  xs
-                  faded
-                  :is-loading="loading[label.id]"
-                  @click="openEditPopup(label)"
-                />
-                <Button
-                  v-tooltip.top="$t('LABEL_MGMT.FORM.DELETE')"
-                  icon="i-lucide-trash-2"
-                  xs
-                  ruby
-                  faded
-                  :is-loading="loading[label.id]"
-                  @click="openDeletePopup(label, index)"
-                />
-              </div>
-            </td>
+          <tr>
+            <th
+              class="py-4 font-semibold text-left ltr:pr-4 rtl:pl-4 text-n-slate-11 w-10"
+            >
+              {{ $t('LABEL_MGMT.LIST.TABLE_HEADER.PRIORITY') }}
+            </th>
+            <th
+              class="py-4 font-semibold text-left ltr:pr-4 rtl:pl-4 text-n-slate-11"
+            >
+              {{ $t('LABEL_MGMT.LIST.TABLE_HEADER.NAME') }}
+            </th>
+            <th
+              class="py-4 font-semibold text-left ltr:pr-4 rtl:pl-4 text-n-slate-11"
+            >
+              {{ $t('LABEL_MGMT.LIST.TABLE_HEADER.DESCRIPTION') }}
+            </th>
+            <th
+              class="py-4 font-semibold text-left ltr:pr-4 rtl:pl-4 text-n-slate-11"
+            >
+              {{ $t('LABEL_MGMT.LIST.TABLE_HEADER.COLOR') }}
+            </th>
+            <th />
           </tr>
-        </tbody>
+        </thead>
+        <draggable
+          v-model="draggableRecords"
+          tag="tbody"
+          item-key="id"
+          handle=".drag-handle"
+          class="flex-1 divide-y divide-n-weak text-n-slate-12"
+        >
+          <template #item="{ element: label, index }">
+            <tr class="group">
+              <td class="py-4 ltr:pr-4 rtl:pl-4 w-10">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="drag-handle cursor-grab active:cursor-grabbing text-n-slate-10 hover:text-n-slate-12 i-lucide-grip-vertical"
+                  />
+                  <span class="text-n-slate-11 text-sm">{{ index + 1 }}</span>
+                </div>
+              </td>
+              <td class="py-4 ltr:pr-4 rtl:pl-4">
+                <span class="mb-1 font-medium break-words text-n-slate-12">
+                  {{ label.title }}
+                </span>
+              </td>
+              <td class="py-4 ltr:pr-4 rtl:pl-4">{{ label.description }}</td>
+              <td class="py-4 leading-6 ltr:pr-4 rtl:pl-4">
+                <div class="flex items-center">
+                  <span
+                    class="w-4 h-4 mr-1 border border-solid rounded rtl:mr-0 rtl:ml-1 border-n-weak"
+                    :style="{ backgroundColor: label.color }"
+                  />
+                  {{ label.color }}
+                </div>
+              </td>
+              <td class="py-4 min-w-xs">
+                <div class="flex gap-1 justify-end">
+                  <Button
+                    v-tooltip.top="$t('LABEL_MGMT.FORM.EDIT')"
+                    icon="i-lucide-pen"
+                    slate
+                    xs
+                    faded
+                    :is-loading="loading[label.id]"
+                    @click="openEditPopup(label)"
+                  />
+                  <Button
+                    v-tooltip.top="$t('LABEL_MGMT.FORM.DELETE')"
+                    icon="i-lucide-trash-2"
+                    xs
+                    ruby
+                    faded
+                    :is-loading="loading[label.id]"
+                    @click="openDeletePopup(label, index)"
+                  />
+                </div>
+              </td>
+            </tr>
+          </template>
+        </draggable>
       </table>
     </template>
 

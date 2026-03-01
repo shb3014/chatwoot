@@ -111,8 +111,8 @@ class Captain::Llm::SystemPromptsService
                          <<~LABELS
 
                            ## Label Assignment
-                           Below are the available labels with their descriptions. For EACH label, check if the conversation topic matches the description. If it does, include that label in the output.
-                           Be inclusive — if the conversation reasonably relates to a label's description, assign it. Do not be overly conservative.
+                           Below are the available labels with their descriptions.
+                           Assign ALL labels whose descriptions match the conversation topic. Do not worry about conflicts — assign every label that fits.
 
                            Available labels:
                            #{labels_context}

@@ -1,6 +1,6 @@
 class Api::V1::Accounts::LabelsController < Api::V1::Accounts::BaseController
   before_action :current_account
-  before_action :fetch_label, except: [:index, :create]
+  before_action :fetch_label, except: [:index, :create, :reorder]
   before_action :check_authorization
 
   def index
@@ -22,6 +22,16 @@ class Api::V1::Accounts::LabelsController < Api::V1::Accounts::BaseController
     head :ok
   end
 
+  def reorder
+    positions = params.require(:positions).permit!.to_h
+    ActiveRecord::Base.transaction do
+      positions.each do |id, position|
+        Current.account.labels.find(id).update!(position: position.to_i)
+      end
+    end
+    head :ok
+  end
+
   private
 
   def fetch_label
@@ -29,6 +39,7 @@ class Api::V1::Accounts::LabelsController < Api::V1::Accounts::BaseController
   end
 
   def permitted_params
-    params.require(:label).permit(:title, :description, :color, :show_on_sidebar, :ai_learning_description, :exclusive)
+    params.require(:label).permit(:title, :description, :color, :show_on_sidebar, :ai_learning_description, :exclusive, :position,
+                                  hard_rules: [:attribute_key, :filter_operator, :query_operator, { values: [] }])
   end
 end

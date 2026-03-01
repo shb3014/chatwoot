@@ -10,15 +10,20 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
   def generate
     return nil if @transcript.blank?
 
+    hard_rule_labels = Labels::HardRuleMatchService.new(conversation).perform
+    @hard_rule_exclusive = resolve_exclusive_from_hard_rules(hard_rule_labels)
+
     response = @client.chat(parameters: chat_parameters)
     result = parse_response(response)
     return nil unless result
 
-    # Capture old AI-suggested labels before overwriting the summary
     old_ai_labels = conversation.captain_summary&.dig('labels') || []
 
+    llm_labels = @hard_rule_exclusive ? [] : (result['labels'] || [])
+    final_labels = reassign_labels(llm_labels, old_ai_labels, hard_rule_labels)
+
+    result['labels'] = final_labels || []
     persist_summary(result)
-    reassign_labels(result['labels'] || [], old_ai_labels)
 
     result
   rescue OpenAI::Error => e
@@ -71,34 +76,61 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
     conversation.update!(captain_summary: summary_data)
   end
 
-  def reassign_labels(new_label_titles, old_ai_labels)
-    # Skip all label changes when the conversation already carries an exclusive label.
-    return if conversation.has_exclusive_label?
+  def resolve_exclusive_from_hard_rules(hard_rule_labels)
+    return nil if hard_rule_labels.blank?
+
+    account.labels
+           .where(exclusive: true)
+           .where('LOWER(title) IN (?)', hard_rule_labels.map(&:downcase))
+           .order(:position, :title)
+           .pick(:title)
+  end
+
+  def reassign_labels(new_label_titles, old_ai_labels, hard_rule_labels = [])
+    if hard_rule_labels.blank? && conversation.has_exclusive_label?
+      existing = conversation.label_list.map(&:to_s)
+      exclusive_label = account.labels.where(exclusive: true)
+                               .where('LOWER(title) IN (?)', existing.map(&:downcase))
+                               .order(:position, :title)
+                               .pick(:title)
+      if exclusive_label && existing.size > 1
+        cleaned = [exclusive_label]
+        conversation.update!(label_list: cleaned)
+        return cleaned
+      end
+      return existing
+    end
 
     current_labels = conversation.label_list.map(&:to_s)
 
-    # Remove labels that were AI-suggested previously but are no longer suggested
     stale_labels = old_ai_labels.map(&:downcase) - new_label_titles.map(&:downcase)
     current_labels = current_labels.reject { |l| stale_labels.include?(l.downcase) } if stale_labels.present?
 
-    # Only add labels that actually exist in the account
     valid_new_labels = if new_label_titles.present?
                          account.labels.where('LOWER(title) IN (?)', new_label_titles.map(&:downcase)).pluck(:title)
                        else
                          []
                        end
 
-    combined_labels = (current_labels + valid_new_labels).uniq
+    valid_hard_rule_labels = if hard_rule_labels.present?
+                               account.labels.where('LOWER(title) IN (?)', hard_rule_labels.map(&:downcase)).pluck(:title)
+                             else
+                               []
+                             end
 
-    # If any of the resulting labels is exclusive, keep only that label (first match wins).
+    combined_labels = (current_labels + valid_hard_rule_labels + valid_new_labels).uniq
+
     exclusive_label = account.labels.where(exclusive: true)
                              .where('LOWER(title) IN (?)', combined_labels.map(&:downcase))
+                             .order(:position, :title)
                              .pick(:title)
     combined_labels = [exclusive_label] if exclusive_label.present?
 
     conversation.update!(label_list: combined_labels)
+    combined_labels
   rescue StandardError => e
     captain_logger.error "[Captain::Summarization] Label reassignment error: #{e.message}"
+    nil
   end
 
   def build_conversation_transcript
@@ -139,7 +171,7 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
   end
 
   def build_labels_context
-    labels_with_ai_learning = account.labels.where.not(ai_learning_description: [nil, ''])
+    labels_with_ai_learning = account.labels.reorder(:position, :title).where.not(ai_learning_description: [nil, ''])
     return '' if labels_with_ai_learning.empty?
 
     lines = labels_with_ai_learning.map do |label|

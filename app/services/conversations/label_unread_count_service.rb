@@ -18,15 +18,17 @@ class Conversations::LabelUnreadCountService
       FROM conversations
       CROSS JOIN LATERAL unnest(string_to_array(conversations.cached_label_list, ',')) AS label
       WHERE conversations.account_id = :account_id
-        AND conversations.status NOT IN (#{Conversation.statuses[:resolved]})
         AND conversations.cached_label_list IS NOT NULL
         AND conversations.cached_label_list != ''
-        AND EXISTS (
-          SELECT 1 FROM messages
-          WHERE messages.conversation_id = conversations.id
-            AND messages.account_id = conversations.account_id
-            AND messages.message_type = #{Message.message_types[:incoming]}
-            AND (conversations.agent_last_seen_at IS NULL OR messages.created_at > conversations.agent_last_seen_at)
+        AND (
+          conversations.agent_last_seen_at IS NULL
+          OR EXISTS (
+            SELECT 1 FROM messages
+            WHERE messages.conversation_id = conversations.id
+              AND messages.account_id = conversations.account_id
+              AND messages.message_type = #{Message.message_types[:incoming]}
+              AND messages.created_at > conversations.agent_last_seen_at
+          )
         )
       GROUP BY TRIM(label)
     SQL

@@ -26,7 +26,11 @@ export const getters = {
   getLabelsOnSidebar(_state) {
     return _state.records
       .filter(record => record.show_on_sidebar)
-      .sort((a, b) => a.title.localeCompare(b.title));
+      .sort(
+        (a, b) =>
+          (a.position ?? 0) - (b.position ?? 0) ||
+          a.title.localeCompare(b.title)
+      );
   },
   getLabelById: _state => id => {
     return _state.records.find(record => record.id === Number(id));
@@ -53,8 +57,10 @@ export const actions = {
     commit(types.SET_LABEL_UI_FLAG, { isFetching: true });
     try {
       const response = await LabelsAPI.get(true);
-      const sortedLabels = response.data.payload.sort((a, b) =>
-        a.title.localeCompare(b.title)
+      const sortedLabels = response.data.payload.sort(
+        (a, b) =>
+          (a.position ?? 0) - (b.position ?? 0) ||
+          a.title.localeCompare(b.title)
       );
       commit(types.SET_LABELS, sortedLabels);
     } catch (error) {
@@ -97,6 +103,23 @@ export const actions = {
       commit(types.SET_LABEL_UNREAD_COUNTS, response.data);
     } catch (error) {
       // Ignore error
+    }
+  },
+
+  reorder: async function reorderLabels({ commit }, reorderedLabels) {
+    const positions = {};
+    reorderedLabels.forEach((label, index) => {
+      positions[label.id] = index;
+    });
+    try {
+      await LabelsAPI.reorder(positions);
+      const updated = reorderedLabels.map((label, index) => ({
+        ...label,
+        position: index,
+      }));
+      commit(types.SET_LABELS, updated);
+    } catch (error) {
+      throw new Error(error);
     }
   },
 

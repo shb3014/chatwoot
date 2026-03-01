@@ -6,10 +6,12 @@ import { getRandomColor } from 'dashboard/helper/labelColor';
 import { useVuelidate } from '@vuelidate/core';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import HardRulesEditor from './HardRulesEditor.vue';
 
 export default {
   components: {
     NextButton,
+    HardRulesEditor,
   },
   props: {
     prefillTitle: {
@@ -29,6 +31,7 @@ export default {
       showOnSidebar: true,
       aiLearningDescription: '',
       exclusive: false,
+      hardRules: [],
     };
   },
   validations,
@@ -58,6 +61,7 @@ export default {
           show_on_sidebar: this.showOnSidebar,
           ai_learning_description: this.aiLearningDescription,
           exclusive: this.exclusive,
+          hard_rules: this.hardRules,
         });
         useAlert(this.$t('LABEL_MGMT.ADD.API.SUCCESS_MESSAGE'));
         this.onClose();
@@ -121,7 +125,8 @@ export default {
           {{ $t('LABEL_MGMT.FORM.AI_LEARNING.HELP') }}
         </p>
       </div>
-      <div class="flex flex-col w-full gap-2">
+      <HardRulesEditor v-model="hardRules" />
+      <div class="flex flex-col w-full gap-2 mt-2">
         <div class="flex items-center gap-2">
           <input v-model="exclusive" type="checkbox" :value="true" />
           <label>
