@@ -21,6 +21,9 @@ export const filterByTeam = (shouldFilter, teamId, chatTeamId) => {
 };
 
 export const filterByLabel = (shouldFilter, labels, chatLabels) => {
+  if (labels.length && labels.includes('__no_label__')) {
+    return shouldFilter && (!chatLabels || chatLabels.length === 0);
+  }
   const isOnLabel = labels.every(label => chatLabels.includes(label));
   return labels.length ? isOnLabel && shouldFilter : shouldFilter;
 };

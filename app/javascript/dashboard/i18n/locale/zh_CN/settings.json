@@ -319,6 +319,7 @@
     "ACCOUNT_SETTINGS": "账户设置",
     "APPLICATIONS": "应用程序",
     "LABELS": "标签",
+    "NO_LABEL": "无标签",
     "CUSTOM_ATTRIBUTES": "自定义属性",
     "AUTOMATION": "自动化",
     "MACROS": "宏",

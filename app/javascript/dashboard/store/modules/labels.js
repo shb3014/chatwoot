@@ -152,11 +152,11 @@ export const mutations = {
   [types.SET_LABEL_UNREAD_COUNTS](_state, counts) {
     _state.unreadCounts = counts;
   },
-  decrementLabelUnreadCounts(_state, labelNames) {
+  decrementLabelUnreadCounts(_state, labelDecrements) {
     const updated = { ..._state.unreadCounts };
-    labelNames.forEach(name => {
+    Object.entries(labelDecrements).forEach(([name, count]) => {
       if (updated[name] > 0) {
-        updated[name] -= 1;
+        updated[name] = Math.max(0, updated[name] - count);
       }
     });
     _state.unreadCounts = updated;

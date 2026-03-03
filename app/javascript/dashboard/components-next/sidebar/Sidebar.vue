@@ -201,23 +201,32 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.LABELS'),
           icon: 'i-lucide-tag',
           activeOn: ['conversations_through_label'],
-          children: labels.value.map(label => ({
-            name: `${label.title}-${label.id}`,
-            label: label.title,
-            to: accountScopedRoute(
-              'label_conversations',
-              { label: label.title },
-              labelUnreadCounts.value?.[label.title]
-                ? { assignee_type: 'unread' }
-                : {}
-            ),
-            component: leafProps =>
-              h(LabelLeaf, {
-                label: leafProps.label,
-                active: leafProps.active,
-                labelData: label,
+          children: [
+            ...labels.value.map(label => ({
+              name: `${label.title}-${label.id}`,
+              label: label.title,
+              to: accountScopedRoute(
+                'label_conversations',
+                { label: label.title },
+                labelUnreadCounts.value?.[label.title]
+                  ? { assignee_type: 'unread' }
+                  : {}
+              ),
+              component: leafProps =>
+                h(LabelLeaf, {
+                  label: leafProps.label,
+                  active: leafProps.active,
+                  labelData: label,
+                }),
+            })),
+            {
+              name: 'no-label',
+              label: t('SIDEBAR.NO_LABEL'),
+              to: accountScopedRoute('label_conversations', {
+                label: '__no_label__',
               }),
-          })),
+            },
+          ],
         },
       ],
     },

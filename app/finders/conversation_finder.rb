@@ -171,6 +171,11 @@ class ConversationFinder
     label_list = Array(params[:labels])
     return if label_list.empty?
 
+    if label_list.include?('__no_label__')
+      @conversations = @conversations.where("cached_label_list IS NULL OR cached_label_list = ''")
+      return
+    end
+
     pattern_clauses = label_list.map do |label|
       sanitized = Conversation.sanitize_sql_like(label.strip)
       Conversation.sanitize_sql_for_conditions(

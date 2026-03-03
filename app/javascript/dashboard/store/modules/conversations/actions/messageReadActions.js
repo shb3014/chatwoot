@@ -14,9 +14,13 @@ export default {
       });
       if (!recentlyMarkedRead.has(data.id)) {
         recentlyMarkedRead.add(data.id);
-        commit('conversationStats/decrementUnreadCount', null, { root: true });
+        commit('conversationStats/decrementUnreadCount', 1, { root: true });
         if (chat.labels?.length) {
-          commit('labels/decrementLabelUnreadCounts', chat.labels, {
+          const labelsMap = {};
+          chat.labels.forEach(l => {
+            labelsMap[l] = 1;
+          });
+          commit('labels/decrementLabelUnreadCounts', labelsMap, {
             root: true,
           });
         }
@@ -46,13 +50,32 @@ export default {
     }
   },
 
-  batchMarkRead: async ({ commit }, { ids }) => {
-    ids.forEach(id =>
+  batchMarkRead: async ({ commit, state }, { ids }) => {
+    let unreadDecrement = 0;
+    const labelDecrements = {};
+    ids.forEach(id => {
+      const chat = state.allConversations.find(c => c.id === id);
+      if (chat && chat.unread_count > 0) {
+        unreadDecrement += 1;
+        (chat.labels || []).forEach(label => {
+          labelDecrements[label] = (labelDecrements[label] || 0) + 1;
+        });
+      }
       commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, {
         id,
         lastSeen: Date.now() / 1000,
-      })
-    );
+      });
+    });
+    if (unreadDecrement > 0) {
+      commit('conversationStats/decrementUnreadCount', unreadDecrement, {
+        root: true,
+      });
+      if (Object.keys(labelDecrements).length) {
+        commit('labels/decrementLabelUnreadCounts', labelDecrements, {
+          root: true,
+        });
+      }
+    }
     try {
       await ConversationApi.batchMarkRead({ ids });
     } catch (error) {

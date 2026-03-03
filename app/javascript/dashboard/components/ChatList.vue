@@ -359,6 +359,9 @@ const pageTitle = computed(() => {
     return activeTeam.value.name;
   }
   if (props.label) {
+    if (props.label === '__no_label__') {
+      return t('SIDEBAR.NO_LABEL');
+    }
     return `#${props.label}`;
   }
   if (props.conversationType === 'mention') {
