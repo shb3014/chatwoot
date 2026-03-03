@@ -69,6 +69,11 @@ export const mutations = {
     $state.unreadCount = unreadCount;
     $state.updatedOn = new Date();
   },
+  decrementUnreadCount($state) {
+    if ($state.unreadCount > 0) {
+      $state.unreadCount -= 1;
+    }
+  },
 };
 
 export default {

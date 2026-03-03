@@ -2,19 +2,32 @@ import { throwErrorMessage } from 'dashboard/store/utils/api';
 import ConversationApi from '../../../../api/inbox/conversation';
 import mutationTypes from '../../../mutation-types';
 
+const recentlyMarkedRead = new Set();
+
 export default {
-  markMessagesRead: async ({ commit }, data) => {
+  markMessagesRead: async ({ commit, state }, data) => {
+    const chat = state.allConversations.find(c => c.id === data.id);
+    if (chat && chat.unread_count > 0) {
+      commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, {
+        id: data.id,
+        lastSeen: Date.now() / 1000,
+      });
+      if (!recentlyMarkedRead.has(data.id)) {
+        recentlyMarkedRead.add(data.id);
+        commit('conversationStats/decrementUnreadCount', null, { root: true });
+        if (chat.labels?.length) {
+          commit('labels/decrementLabelUnreadCounts', chat.labels, {
+            root: true,
+          });
+        }
+      }
+    }
     try {
-      const {
-        data: { id, agent_last_seen_at: lastSeen },
-      } = await ConversationApi.markMessageRead(data);
-      setTimeout(
-        () =>
-          commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, { id, lastSeen }),
-        4000
-      );
+      await ConversationApi.markMessageRead(data);
     } catch (error) {
       // Handle error
+    } finally {
+      setTimeout(() => recentlyMarkedRead.delete(data.id), 5000);
     }
   },
 

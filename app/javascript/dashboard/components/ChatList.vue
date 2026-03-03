@@ -138,6 +138,7 @@ const showAdvancedFilters = ref(false);
 // chatsOnView is to store the chats that are currently visible on the screen,
 // which mirrors the conversationList.
 const chatsOnView = ref([]);
+let pinnedUnreadIds = new Set();
 const foldersQuery = ref({});
 const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
@@ -155,7 +156,6 @@ const currentUser = useMapGetter('getCurrentUser');
 const chatLists = useMapGetter('getFilteredConversations');
 const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
-const unreadChatsList = useMapGetter('getUnreadChats');
 const unresolvedChatsList = useMapGetter('getUnresolvedChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
@@ -384,7 +384,13 @@ const conversationList = computed(() => {
     if (activeAssigneeTab.value === 'me') {
       localConversationList = [...mineChatsList.value(filters)];
     } else if (activeAssigneeTab.value === 'unread') {
-      localConversationList = [...unreadChatsList.value(filters)];
+      const allConvs = allChatList.value(filters);
+      allConvs.forEach(c => {
+        if (c.unread_count > 0) pinnedUnreadIds.add(c.id);
+      });
+      localConversationList = allConvs.filter(
+        c => c.unread_count > 0 || pinnedUnreadIds.has(c.id)
+      );
     } else if (activeAssigneeTab.value === 'unresolved') {
       localConversationList = [...unresolvedChatsList.value(filters)];
     } else {
@@ -620,6 +626,7 @@ function fetchConversations() {
 }
 
 function resetAndFetchData() {
+  pinnedUnreadIds = new Set();
   resetConversationListScroll();
   appliedFilter.value = [];
   resetBulkActions();
@@ -683,6 +690,7 @@ function updateAssigneeTab(selectedTab) {
   }
 
   // If the same tab is reselected, force a refresh to avoid stale/empty states.
+  pinnedUnreadIds = new Set();
   resetConversationListScroll();
   store.dispatch('conversationPage/reset');
   fetchConversations();
@@ -1073,7 +1081,10 @@ provide('isBatchEditMode', isBatchEditMode);
 
 watch(activeTeam, () => resetAndFetchData());
 
-watch(activeAssigneeTab, () => {
+watch(activeAssigneeTab, (newTab, oldTab) => {
+  if (oldTab === 'unread' && newTab !== 'unread') {
+    pinnedUnreadIds = new Set();
+  }
   resetConversationListScroll();
   if (!currentPage.value) {
     fetchConversations();

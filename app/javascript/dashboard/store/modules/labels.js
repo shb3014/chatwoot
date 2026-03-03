@@ -152,6 +152,15 @@ export const mutations = {
   [types.SET_LABEL_UNREAD_COUNTS](_state, counts) {
     _state.unreadCounts = counts;
   },
+  decrementLabelUnreadCounts(_state, labelNames) {
+    const updated = { ..._state.unreadCounts };
+    labelNames.forEach(name => {
+      if (updated[name] > 0) {
+        updated[name] -= 1;
+      }
+    });
+    _state.unreadCounts = updated;
+  },
 };
 
 export default {
