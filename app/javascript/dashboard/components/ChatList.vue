@@ -63,6 +63,7 @@ import {
 import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
 import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
+import ConversationApi from 'dashboard/api/inbox/conversation';
 
 const props = defineProps({
   conversationInbox: { type: [String, Number], default: 0 },
@@ -750,37 +751,46 @@ function redirectToConversationList() {
   );
 }
 
-const readUnresolvedConversationIds = computed(() => {
-  return conversationList.value
-    .filter(
-      conversation =>
-        conversation.unread_count === 0 && conversation.status !== 'resolved'
-    )
-    .map(conversation => conversation.id);
-});
+const markAllLabelReadDialogRef = ref(null);
+const resolveAllLabelDialogRef = ref(null);
 
-const hasReadConversationsToResolve = computed(() => {
-  return readUnresolvedConversationIds.value.length > 0;
-});
+function onMarkAllLabelRead() {
+  markAllLabelReadDialogRef.value.open();
+}
 
-async function resolveReadConversations() {
-  const ids = readUnresolvedConversationIds.value;
-  if (!ids.length) return;
+function onResolveAllLabel() {
+  resolveAllLabelDialogRef.value.open();
+}
 
+async function confirmMarkAllLabelRead() {
   try {
-    await store.dispatch('bulkActions/process', {
-      type: 'Conversation',
-      ids,
-      fields: {
-        status: 'resolved',
-      },
-    });
-    useAlert(t('BULK_ACTION.UPDATE.UPDATE_SUCCESFUL'));
+    await ConversationApi.bulkReadByLabel({ label: props.label });
+    useAlert(t('CHAT_LIST.HEADER.ACTIONS.MARK_ALL_READ_SUCCESS'));
+    markAllLabelReadDialogRef.value.close();
+    store.dispatch('emptyAllConversations');
     resetAndFetchData();
   } catch (error) {
-    useAlert(t('BULK_ACTION.UPDATE.UPDATE_FAILED'));
+    useAlert(t('CHAT_LIST.HEADER.ACTIONS.OPERATION_FAILED'));
   }
 }
+
+async function confirmResolveAllLabel() {
+  try {
+    await ConversationApi.bulkResolveByLabel({ label: props.label });
+    useAlert(t('CHAT_LIST.HEADER.ACTIONS.MARK_ALL_RESOLVED_SUCCESS'));
+    resolveAllLabelDialogRef.value.close();
+    store.dispatch('emptyAllConversations');
+    resetAndFetchData();
+  } catch (error) {
+    useAlert(t('CHAT_LIST.HEADER.ACTIONS.OPERATION_FAILED'));
+  }
+}
+
+const displayLabel = computed(() => {
+  if (!props.label) return '';
+  if (props.label === '__no_label__') return t('SIDEBAR.NO_LABEL');
+  return props.label;
+});
 
 async function assignPriority(priority, conversationId = null) {
   store.dispatch('setCurrentChatPriority', {
@@ -1190,14 +1200,15 @@ watch(
       :is-on-expanded-layout="isOnExpandedLayout"
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
-      :has-read-conversations-to-resolve="hasReadConversationsToResolve"
       :is-batch-edit-mode="isBatchEditMode"
+      :label="label"
       @add-folders="onClickOpenAddFoldersModal"
       @delete-folders="onClickOpenDeleteFoldersModal"
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetAndFetchData"
       @basic-filter-change="onBasicFilterChange"
-      @resolve-read-conversations="resolveReadConversations"
+      @mark-all-label-read="onMarkAllLabelRead"
+      @resolve-all-label="onResolveAllLabel"
       @toggle-batch-edit="toggleBatchEditMode"
     />
 
@@ -1326,6 +1337,30 @@ watch(
       "
       :confirm-button-label="$t('CHAT_LIST.BATCH_EDIT.DELETE_CONFIRM_BUTTON')"
       @confirm="batchDeleteConversations"
+    />
+    <Dialog
+      ref="markAllLabelReadDialogRef"
+      type="alert"
+      :title="$t('CHAT_LIST.HEADER.ACTIONS.CONFIRM_MARK_ALL_READ_TITLE')"
+      :description="
+        $t('CHAT_LIST.HEADER.ACTIONS.CONFIRM_MARK_ALL_READ_DESC', {
+          label: displayLabel,
+        })
+      "
+      :confirm-button-label="$t('CHAT_LIST.HEADER.ACTIONS.CONFIRM_BUTTON')"
+      @confirm="confirmMarkAllLabelRead"
+    />
+    <Dialog
+      ref="resolveAllLabelDialogRef"
+      type="alert"
+      :title="$t('CHAT_LIST.HEADER.ACTIONS.CONFIRM_MARK_ALL_RESOLVED_TITLE')"
+      :description="
+        $t('CHAT_LIST.HEADER.ACTIONS.CONFIRM_MARK_ALL_RESOLVED_DESC', {
+          label: displayLabel,
+        })
+      "
+      :confirm-button-label="$t('CHAT_LIST.HEADER.ACTIONS.CONFIRM_BUTTON')"
+      @confirm="confirmResolveAllLabel"
     />
     <TeleportWithDirection
       v-if="showAdvancedFilters"

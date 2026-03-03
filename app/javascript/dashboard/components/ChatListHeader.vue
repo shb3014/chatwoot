@@ -18,8 +18,8 @@ const props = defineProps({
   isOnExpandedLayout: { type: Boolean, required: true },
   conversationStats: { type: Object, required: true },
   isListLoading: { type: Boolean, required: true },
-  hasReadConversationsToResolve: { type: Boolean, default: false },
   isBatchEditMode: { type: Boolean, default: false },
+  label: { type: String, default: '' },
 });
 
 const emit = defineEmits([
@@ -28,7 +28,8 @@ const emit = defineEmits([
   'resetFilters',
   'basicFilterChange',
   'filtersModal',
-  'resolveReadConversations',
+  'markAllLabelRead',
+  'resolveAllLabel',
   'toggleBatchEdit',
 ]);
 
@@ -63,21 +64,40 @@ const toggleConversationLayout = () => {
   });
 };
 
+const displayLabel = computed(() => {
+  if (!props.label) return '';
+  if (props.label === '__no_label__') return t('SIDEBAR.NO_LABEL');
+  return props.label;
+});
+
 const moreActionsMenuItems = computed(() => {
+  if (!props.label) return [];
   return [
     {
-      label: t('CHAT_LIST.HEADER.ACTIONS.RESOLVE_READ'),
-      action: 'resolveRead',
-      value: 'resolveRead',
+      label: t('CHAT_LIST.HEADER.ACTIONS.MARK_ALL_READ', {
+        label: displayLabel.value,
+      }),
+      action: 'markAllLabelRead',
+      value: 'markAllLabelRead',
       icon: 'i-lucide-check-check',
-      disabled: !props.hasReadConversationsToResolve,
+    },
+    {
+      label: t('CHAT_LIST.HEADER.ACTIONS.MARK_ALL_RESOLVED', {
+        label: displayLabel.value,
+      }),
+      action: 'resolveAllLabel',
+      value: 'resolveAllLabel',
+      icon: 'i-lucide-check-circle',
     },
   ];
 });
 
 const handleMoreAction = ({ action }) => {
-  if (action === 'resolveRead') {
-    emit('resolveReadConversations');
+  showMoreActionsDropdown.value = false;
+  if (action === 'markAllLabelRead') {
+    emit('markAllLabelRead');
+  } else if (action === 'resolveAllLabel') {
+    emit('resolveAllLabel');
   }
 };
 </script>
@@ -201,6 +221,7 @@ const handleMoreAction = ({ action }) => {
         @toggle="toggleConversationLayout"
       />
       <div
+        v-if="moreActionsMenuItems.length"
         v-on-clickaway="() => (showMoreActionsDropdown = false)"
         class="relative"
       >
@@ -216,7 +237,8 @@ const handleMoreAction = ({ action }) => {
         <DropdownMenu
           v-if="showMoreActionsDropdown"
           :menu-items="moreActionsMenuItems"
-          class="ltr:right-0 rtl:left-0 mt-1 w-56 top-full"
+          label-class="!text-xs !whitespace-normal"
+          class="ltr:right-0 rtl:left-0 mt-1 w-72 top-full"
           @action="handleMoreAction($event)"
         />
       </div>

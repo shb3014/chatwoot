@@ -127,6 +127,8 @@ Rails.application.routes.draw do
               post :filter
               post :batch_read
               post :batch_unread
+              post :bulk_read_by_label
+              post :bulk_resolve_by_label
             end
             scope module: :conversations do
               resources :messages, only: [:index, :create, :destroy, :update] do

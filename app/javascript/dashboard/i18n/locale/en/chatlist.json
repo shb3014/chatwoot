@@ -23,7 +23,16 @@
     "HEADER": {
       "MORE_ACTIONS": "More actions",
       "ACTIONS": {
-        "RESOLVE_READ": "Resolve read"
+        "MARK_ALL_READ": "Mark all {label} as read",
+        "MARK_ALL_RESOLVED": "Mark all {label} as resolved",
+        "CONFIRM_MARK_ALL_READ_TITLE": "Mark all as read",
+        "CONFIRM_MARK_ALL_READ_DESC": "Are you sure you want to mark all conversations with label \"{label}\" as read?",
+        "CONFIRM_MARK_ALL_RESOLVED_TITLE": "Mark all as resolved",
+        "CONFIRM_MARK_ALL_RESOLVED_DESC": "Are you sure you want to mark all conversations with label \"{label}\" as resolved?",
+        "CONFIRM_BUTTON": "Confirm",
+        "MARK_ALL_READ_SUCCESS": "All conversations marked as read",
+        "MARK_ALL_RESOLVED_SUCCESS": "All conversations marked as resolved",
+        "OPERATION_FAILED": "Operation failed"
       }
     },
     "BATCH_EDIT": {

@@ -3,7 +3,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include DateRangeHelper
   include HmacConcern
 
-  before_action :conversation, except: [:index, :meta, :search, :create, :filter, :label_unread_counts, :batch_read, :batch_unread]
+  before_action :conversation, except: [:index, :meta, :search, :create, :filter, :label_unread_counts, :batch_read, :batch_unread,
+                                        :bulk_read_by_label, :bulk_resolve_by_label]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
 
   ATTACHMENT_RESULTS_PER_PAGE = 100
@@ -147,6 +148,24 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     render json: { updated_ids: params[:ids] }
   end
 
+  def bulk_read_by_label
+    conversations = conversations_by_label(params[:label])
+    now = DateTime.now.utc
+    # rubocop:disable Rails/SkipsModelValidations
+    count = conversations.update_all(agent_last_seen_at: now)
+    conversations.where(assignee_id: Current.user.id).update_all(assignee_last_seen_at: now)
+    # rubocop:enable Rails/SkipsModelValidations
+    render json: { count: count, agent_last_seen_at: now }
+  end
+
+  def bulk_resolve_by_label
+    conversations = conversations_by_label(params[:label]).where.not(status: Conversation.statuses[:resolved])
+    # rubocop:disable Rails/SkipsModelValidations
+    count = conversations.update_all(status: Conversation.statuses[:resolved])
+    # rubocop:enable Rails/SkipsModelValidations
+    render json: { count: count }
+  end
+
   def custom_attributes
     @conversation.custom_attributes = params.permit(custom_attributes: {})[:custom_attributes]
     @conversation.save!
@@ -229,6 +248,15 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def conversation_finder
     @conversation_finder ||= ConversationFinder.new(Current.user, params)
+  end
+
+  def conversations_by_label(label)
+    if label == '__no_label__'
+      Current.account.conversations.where("cached_label_list IS NULL OR cached_label_list = ''")
+    else
+      sanitized = Conversation.sanitize_sql_like(label.to_s.strip)
+      Current.account.conversations.where('cached_label_list LIKE ?', "%#{sanitized}%")
+    end
   end
 
   def assignee?

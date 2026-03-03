@@ -24,7 +24,16 @@
     "HEADER": {
       "MORE_ACTIONS": "更多操作",
       "ACTIONS": {
-        "RESOLVE_READ": "解决已读"
+        "MARK_ALL_READ": "将所有 {label} 消息置为已读",
+        "MARK_ALL_RESOLVED": "将所有 {label} 消息置为已解决",
+        "CONFIRM_MARK_ALL_READ_TITLE": "全部置为已读",
+        "CONFIRM_MARK_ALL_READ_DESC": "确定要将标签「{label}」下的所有对话置为已读吗？",
+        "CONFIRM_MARK_ALL_RESOLVED_TITLE": "全部置为已解决",
+        "CONFIRM_MARK_ALL_RESOLVED_DESC": "确定要将标签「{label}」下的所有对话置为已解决吗？",
+        "CONFIRM_BUTTON": "确认",
+        "MARK_ALL_READ_SUCCESS": "所有对话已置为已读",
+        "MARK_ALL_RESOLVED_SUCCESS": "所有对话已置为已解决",
+        "OPERATION_FAILED": "操作失败"
       }
     },
     "BATCH_EDIT": {
