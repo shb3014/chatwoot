@@ -14,19 +14,10 @@ RSpec.describe Account::ConversationsResolutionSchedulerJob, type: :job do
         create(:captain_inbox, captain_assistant: assistant, inbox: email_inbox)
       end
 
-      it 'enqueues resolution jobs only for non-email inboxes with captain enabled' do
-        expect do
-          described_class.perform_now
-        end.to have_enqueued_job(Captain::InboxPendingConversationsResolutionJob)
-          .with(regular_inbox)
-          .exactly(:once)
-      end
-
-      it 'does not enqueue resolution jobs for email inboxes even with captain enabled' do
+      it 'does not enqueue captain resolution jobs' do
         expect do
           described_class.perform_now
         end.not_to have_enqueued_job(Captain::InboxPendingConversationsResolutionJob)
-          .with(email_inbox)
       end
     end
 
