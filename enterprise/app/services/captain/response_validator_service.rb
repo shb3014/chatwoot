@@ -75,6 +75,12 @@ class Captain::ResponseValidatorService
       .join("\n")
   end
 
+  def has_non_documentation_tool_results?
+    @tool_results.any? do |result|
+      !%w[search_documentation learned_conversations].include?(result[:tool])
+    end
+  end
+
   # Validate if response appears to use only documented information
   # Returns: { valid: boolean, reason: string, confidence: float, should_reject: boolean }
   def validate_response(response_text)
@@ -158,8 +164,20 @@ class Captain::ResponseValidatorService
       end
     end
 
-    # If no documentation was found, response should indicate this
+    # If no documentation was found, response should indicate this.
+    # However, Copilot can also answer from non-documentation tools
+    # (for example get_conversation / get_contact / get_article).
+    # In that case, no-doc fallback is not required.
     if (search_docs.blank? || search_docs.include?('No documentation found')) && learned_docs.blank?
+      if has_non_documentation_tool_results?
+        return {
+          valid: true,
+          reason: 'Response based on non-documentation tool results',
+          confidence: 0.8,
+          should_reject: false
+        }
+      end
+
       result = validate_no_docs_response(response_text)
       result[:should_reject] = !result[:valid] && should_reject_based_on_strictness(result[:confidence])
       return result
