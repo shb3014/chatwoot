@@ -47,7 +47,7 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
 
       # PHASE 1: Persist immediately WITH content + sources but WITHOUT translation.
       # This broadcasts to the frontend so the agent sees the response right away.
-      persisted_message = flush_assistant_message
+      persisted_message = flush_assistant_message || persist_assistant_message_fallback(response)
 
       # PHASE 2: Translate in background, then UPDATE the persisted message.
       # The update triggers after_update_commit which broadcasts the updated message.
@@ -64,7 +64,7 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
       end
     else
       # Non-reply-suggestion: just persist
-      flush_assistant_message
+      flush_assistant_message || persist_assistant_message_fallback(response)
     end
 
     Rails.logger.debug { "#{self.class.name} Assistant: #{@assistant.id}, Received response #{response}" }
@@ -74,6 +74,10 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     @account.increment_response_usage
 
     response
+  ensure
+    # Always send a terminal streaming update so the frontend can exit
+    # "generating" state even if message persistence/broadcast is missed.
+    broadcast_streaming_reset
   end
 
   private
@@ -396,6 +400,39 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     )
     @buffered_assistant_message = nil
     record
+  end
+
+  def persist_assistant_message_fallback(response)
+    return nil if @copilot_thread.blank?
+    return nil unless response.is_a?(Hash)
+
+    normalized = normalize_copilot_response_payload(response)
+    return nil if normalized['content'].blank?
+
+    captain_logger.warn '[Copilot] Buffered assistant message missing; persisting fallback message'
+    @copilot_thread.copilot_messages.create!(message: normalized, message_type: 'assistant')
+  rescue StandardError => e
+    captain_logger.error "[Copilot] Fallback assistant persistence failed: #{e.message}"
+    nil
+  end
+
+  def broadcast_streaming_reset
+    return unless @user && @copilot_thread
+
+    captain_logger.info "[Copilot][Streaming] Sending terminal reset for thread=#{@copilot_thread.id}"
+    ActionCable.server.broadcast(
+      @user.pubsub_token,
+      {
+        event: 'copilot.message.streaming',
+        data: {
+          account_id: @account.id,
+          copilot_thread_id: @copilot_thread.id,
+          content: '',
+          thinking: '',
+          translation: ''
+        }
+      }
+    )
   end
 
   # Copilot messages only allow a fixed schema in CopilotMessage model.
