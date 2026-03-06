@@ -147,17 +147,22 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
       "#{message_role(message)}: #{content}"
     end
 
-    return nil if message_lines.empty?
+    email_context_lines = build_email_context_lines
+    return nil if message_lines.empty? && email_context_lines.empty?
 
     channel_name = conversation.inbox&.channel&.name || conversation.inbox&.channel_type || 'Unknown'
 
-    [
+    transcript_lines = [
       "Conversation ID: ##{conversation.display_id}",
       "Channel: #{channel_name}",
-      "Status: #{conversation.status}",
-      'Message History:',
-      message_lines.join("\n")
-    ].join("\n")
+      "Status: #{conversation.status}"
+    ]
+
+    transcript_lines.concat(email_context_lines) if email_context_lines.present?
+    transcript_lines << 'Message History:'
+    transcript_lines << (message_lines.present? ? message_lines.join("\n") : '(No non-empty message body)')
+
+    transcript_lines.join("\n")
   end
 
   def message_role(message)
@@ -179,5 +184,24 @@ class Captain::Llm::ConversationSummarizationService < Llm::BaseOpenAiService
     end
 
     lines.join("\n")
+  end
+
+  def build_email_context_lines
+    return [] unless conversation.inbox&.email?
+
+    lines = []
+    customer_email = conversation.contact&.email.to_s.strip.presence || latest_incoming_from_email_header
+    subject = conversation.additional_attributes&.dig('mail_subject').to_s.strip
+
+    lines << "Customer Email: #{customer_email}" if customer_email.present?
+    lines << "Mail Subject: #{subject}" if subject.present?
+    lines
+  end
+
+  def latest_incoming_from_email_header
+    latest_email_message = conversation.messages.where(message_type: :incoming).where(private: false).reorder(created_at: :desc).first
+    from_values = latest_email_message&.content_attributes&.dig('email', 'from')
+
+    Array(from_values).map { |value| value.to_s.strip }.find(&:present?)
   end
 end

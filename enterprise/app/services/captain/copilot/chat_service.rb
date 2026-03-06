@@ -31,7 +31,7 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     # Enable streaming so copilot responses are delivered in real time via ActionCable
     setup_streaming_callback
 
-    response = request_chat_completion
+    response = normalize_copilot_response_payload(request_chat_completion)
 
     # Send the final streaming content to ensure completeness before the real message arrives
     broadcast_final_streaming_content(response)
@@ -373,7 +373,10 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     return if @copilot_thread.blank?
 
     if message_type == 'assistant'
-      @buffered_assistant_message = { message: message, message_type: message_type }
+      @buffered_assistant_message = {
+        message: normalize_copilot_response_payload(message),
+        message_type: message_type
+      }
     else
       @copilot_thread.copilot_messages.create!(
         message: message,
@@ -393,5 +396,17 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
     )
     @buffered_assistant_message = nil
     record
+  end
+
+  # Copilot messages only allow a fixed schema in CopilotMessage model.
+  # Normalize provider outputs (e.g. { response: "..." }) into this schema
+  # so we can always persist and broadcast a terminal assistant message.
+  def normalize_copilot_response_payload(payload)
+    return payload unless payload.is_a?(Hash)
+
+    normalized = payload.deep_stringify_keys
+    normalized['content'] = normalized['response'] if normalized['content'].blank? && normalized['response'].present?
+
+    normalized.slice('content', 'reply_suggestion', 'customer_language', 'translation', 'sources')
   end
 end

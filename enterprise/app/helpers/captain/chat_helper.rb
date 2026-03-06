@@ -251,19 +251,24 @@ module Captain::ChatHelper
         parsed_message = JSON.parse(content)
 
         if @response_validator
-          validation = @response_validator.validate_response(parsed_message['response'] || '')
+          response_text = parsed_message['response'] || parsed_message['content'] || ''
+          validation = @response_validator.validate_response(response_text)
 
           captain_logger.info "[Validation] valid=#{validation[:valid]} reject=#{validation[:should_reject]} reason=\"#{validation[:reason]}\""
 
           if validation[:should_reject]
-            captain_logger.warn "VALIDATION REJECTED: #{validation[:reason]}"
-            retry_result = attempt_validation_retry(content, validation)
-            return retry_result if retry_result
+            if bypass_no_search_rejection_for_copilot_reply?(parsed_message, validation)
+              captain_logger.info '[Validation] Bypassing no-search rejection for copilot draft reply based on conversation context'
+            else
+              captain_logger.warn "VALIDATION REJECTED: #{validation[:reason]}"
+              retry_result = attempt_validation_retry(content, validation)
+              return retry_result if retry_result
 
-            parsed_message = {
-              'reasoning' => 'Response validation detected potential issues. Unable to provide accurate information from documentation.',
-              'response' => I18n.t('captain.assistant.no_answer_fallback')
-            }
+              parsed_message = {
+                'reasoning' => 'Response validation detected potential issues. Unable to provide accurate information from documentation.',
+                'response' => I18n.t('captain.assistant.no_answer_fallback')
+              }
+            end
           elsif !validation[:valid]
             captain_logger.warn "VALIDATION WARNING: #{validation[:reason]} (allowed due to strictness setting)"
           end
@@ -335,6 +340,21 @@ module Captain::ChatHelper
     ensure
       @streaming_callback = saved_callback
     end
+  end
+
+  def bypass_no_search_rejection_for_copilot_reply?(parsed_message, validation)
+    return false unless validation[:should_reject]
+    return false unless validation[:reason].to_s.include?('ongoing conversation without searching documentation')
+    return false unless parsed_message.is_a?(Hash)
+
+    has_response_content = parsed_message['content'].present? || parsed_message['response'].present?
+    return false unless has_response_content
+
+    # Copilot draft-reply flow can answer from the current conversation transcript
+    # (already injected as context) without forcing documentation search.
+    is_copilot_draft_prompt = copilot_suggest_prompt?(last_user_message_content.to_s)
+    is_reply_suggestion = parsed_message['reply_suggestion'] == true
+    is_copilot_draft_prompt || is_reply_suggestion
   end
 
   def process_tool_calls(tool_calls)
