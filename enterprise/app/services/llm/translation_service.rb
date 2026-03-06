@@ -85,7 +85,9 @@ class Llm::TranslationService < Llm::BaseOpenAiService
     end
 
     parameters = batch_translation_parameters(concatenated, target_language)
-    @client.chat(parameters: parameters, stream: stream_proc)
+    # ruby-openai expects streaming callback under the `parameters` hash.
+    # Passing `stream:` as a top-level keyword can fail on default client versions.
+    @client.chat(parameters: parameters.merge(stream: stream_proc))
 
     # Emit the last message (after the final <<<MSG:id>>> marker, no trailing marker)
     if current_msg_id && accumulated.strip.present?
