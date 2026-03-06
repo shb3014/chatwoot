@@ -48,6 +48,7 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
       # PHASE 1: Persist immediately WITH content + sources but WITHOUT translation.
       # This broadcasts to the frontend so the agent sees the response right away.
       persisted_message = flush_assistant_message || persist_assistant_message_fallback(response)
+      broadcast_persisted_assistant_message(persisted_message)
 
       # PHASE 2: Translate in background, then UPDATE the persisted message.
       # The update triggers after_update_commit which broadcasts the updated message.
@@ -64,7 +65,8 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
       end
     else
       # Non-reply-suggestion: just persist
-      flush_assistant_message || persist_assistant_message_fallback(response)
+      persisted_message = flush_assistant_message || persist_assistant_message_fallback(response)
+      broadcast_persisted_assistant_message(persisted_message)
     end
 
     Rails.logger.debug { "#{self.class.name} Assistant: #{@assistant.id}, Received response #{response}" }
@@ -433,6 +435,22 @@ class Captain::Copilot::ChatService < Llm::BaseOpenAiService
         }
       }
     )
+  end
+
+  def broadcast_persisted_assistant_message(record)
+    return unless record
+    return unless @user
+
+    captain_logger.info "[Copilot] Broadcasting persisted assistant message #{record.id}"
+    ActionCable.server.broadcast(
+      @user.pubsub_token,
+      {
+        event: 'copilot.message.created',
+        data: record.push_event_data.merge(account_id: @account.id)
+      }
+    )
+  rescue StandardError => e
+    captain_logger.error "[Copilot] Failed to broadcast persisted assistant message: #{e.message}"
   end
 
   # Copilot messages only allow a fixed schema in CopilotMessage model.

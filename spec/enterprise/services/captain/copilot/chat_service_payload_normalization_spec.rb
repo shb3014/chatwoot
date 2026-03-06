@@ -94,4 +94,33 @@ RSpec.describe Captain::Copilot::ChatService do
       service.send(:broadcast_streaming_reset)
     end
   end
+
+  describe '#broadcast_persisted_assistant_message' do
+    let(:account) { create(:account) }
+    let(:user) { create(:user, account: account) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:copilot_thread) { create(:captain_copilot_thread, account: account, user: user, assistant: assistant) }
+    let(:record) { create(:captain_copilot_message, copilot_thread: copilot_thread, account: account, message_type: 'assistant') }
+    let(:service) { described_class.allocate }
+
+    before do
+      service.instance_variable_set(:@user, user)
+      service.instance_variable_set(:@account, account)
+    end
+
+    it 'broadcasts copilot.message.created payload directly' do
+      expect(ActionCable.server).to receive(:broadcast).with(
+        user.pubsub_token,
+        hash_including(
+          event: 'copilot.message.created',
+          data: hash_including(
+            id: record.id,
+            account_id: account.id
+          )
+        )
+      )
+
+      service.send(:broadcast_persisted_assistant_message, record)
+    end
+  end
 end
