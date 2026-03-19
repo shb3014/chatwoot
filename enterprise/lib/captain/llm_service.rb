@@ -42,9 +42,11 @@ class Captain::LlmService
       @logger.warn 'DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON' if has_tools
     elsif thinking_enabled
       openai_params[:thinking] = true
+      openai_params[:enable_thinking] = true if is_qwen
       @logger.warn 'Thinking mode enabled - response format constraint removed, relying on prompt for JSON' if has_tools
-    elsif is_qwen && has_tools
-      @logger.info 'Qwen model detected with tools: response_format disabled to enable proper tool calling'
+    elsif is_qwen
+      openai_params[:enable_thinking] = false
+      @logger.info 'Qwen model detected with tools: response_format disabled to enable proper tool calling' if has_tools
     end
 
     response = @client.chat(parameters: openai_params)

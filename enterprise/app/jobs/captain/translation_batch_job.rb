@@ -14,7 +14,11 @@ class Captain::TranslationBatchJob < ApplicationJob
                         "conversation=#{conversation_id} messages=#{messages.size} target=#{target_language}"
 
     service = Llm::TranslationService.new
+    emitted = 0
     service.stream_translate_batch(messages, target_language: target_language) do |msg_id, translation|
+      emitted += 1
+      captain_logger.info "[Translation][Batch] Emitted #{emitted}/#{messages.size} msg_id=#{msg_id} " \
+                          "translation_length=#{translation&.length || 0}"
       broadcast_message_completed(msg_id, translation)
     end
 
@@ -28,32 +32,31 @@ class Captain::TranslationBatchJob < ApplicationJob
   private
 
   def broadcast_message_completed(message_id, translation)
-    ActionCable.server.broadcast(
-      @user_token,
-      {
-        event: 'translation.message.completed',
-        data: {
-          account_id: @account.id,
-          conversation_id: @conversation_id,
-          message_id: message_id,
-          translation: translation
-        }
+    payload = {
+      event: 'translation.message.completed',
+      data: {
+        account_id: @account.id,
+        conversation_id: @conversation_id,
+        message_id: message_id,
+        translation: translation
       }
-    )
+    }
+    captain_logger.info "[Translation][Broadcast] msg_id=#{message_id} channel=#{@user_token} " \
+                        "account_id=#{@account.id} conversation_id=#{@conversation_id}"
+    ActionCable.server.broadcast(@user_token, payload)
   end
 
   def broadcast_batch_completed(error: nil)
-    ActionCable.server.broadcast(
-      @user_token,
-      {
-        event: 'translation.batch.completed',
-        data: {
-          account_id: @account.id,
-          conversation_id: @conversation_id,
-          error: error
-        }
+    payload = {
+      event: 'translation.batch.completed',
+      data: {
+        account_id: @account.id,
+        conversation_id: @conversation_id,
+        error: error
       }
-    )
+    }
+    captain_logger.info "[Translation][Broadcast] BATCH_COMPLETED channel=#{@user_token} error=#{error.present?}"
+    ActionCable.server.broadcast(@user_token, payload)
   end
 
   def captain_logger

@@ -1,7 +1,6 @@
 import { reactive } from 'vue';
 import CaptainTranslation from 'dashboard/api/captain/translation';
 import {
-  extractTextSegments,
   splitTranslatedSegments,
   replaceTextInHtml,
 } from 'dashboard/helper/htmlTranslation';
@@ -45,20 +44,14 @@ const LOG_PREFIX = '[ConversationTranslation]';
  * For plain-text messages: returns msg.content directly.
  */
 function extractTranslatableContent(msg) {
-  const attrs = msg.content_attributes || msg.contentAttributes || {};
-  const email = attrs.email || {};
-
-  const htmlFull = email.html_content?.full || email.htmlContent?.full || null;
-  if (htmlFull) {
-    const { joinedText } = extractTextSegments(htmlFull);
-    return {
-      content: joinedText.slice(0, MAX_CONTENT_LENGTH),
-      isHtml: true,
-      originalHtml: htmlFull,
-    };
-  }
-
   const content = msg.content || '';
+
+  // For batch translation, always use the plain-text content field.
+  // HTML email extraction pulls in quoted replies and signatures that
+  // double the token count and translation time. The backend strips
+  // quoted content from plain text much more effectively.
+  // The translated result is displayed as plain text, which is sufficient
+  // for agent reading purposes.
   return {
     content: content.slice(0, MAX_CONTENT_LENGTH),
     isHtml: false,

@@ -48,11 +48,13 @@ class Llm::TranslationService < Llm::BaseOpenAiService
 
     # ActiveJob deserializes hash keys as strings, so support both symbol and string keys
     msgs = messages.map { |m| m.with_indifferent_access }
-    concatenated = msgs.map { |m| "<<<MSG:#{m[:id]}>>>\n#{m[:content]}" }.join("\n")
+    concatenated = msgs.map { |m| "<<<MSG:#{m[:id]}>>>\n#{clean_for_translation(m[:content])}" }.join("\n")
 
+    raw_total = msgs.sum { |m| m[:content].to_s.length }
     total_length = concatenated.length
     captain_logger.info "[Translation][Batch] Streaming START model=#{@model} target=#{target_language} " \
-                        "msg_count=#{msgs.size} total_length=#{total_length}"
+                        "msg_count=#{msgs.size} raw_total=#{raw_total} cleaned_total=#{total_length} " \
+                        "reduction=#{raw_total.positive? ? ((1.0 - (total_length.to_f / raw_total)) * 100).round : 0}%"
 
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     accumulated = +''
@@ -205,5 +207,37 @@ class Llm::TranslationService < Llm::BaseOpenAiService
 
   def parse_translation_response(response, original_message)
     response.dig('choices', 0, 'message', 'content')&.strip || original_message
+  end
+
+  # Strip quoted email replies, long URLs, and signatures to reduce token waste.
+  # The quoted text is already visible in earlier messages and doesn't need re-translating.
+  def clean_for_translation(text)
+    return text if text.blank?
+
+    lines = text.lines
+    cleaned = []
+    skip_rest = false
+
+    lines.each do |line|
+      break if skip_rest
+
+      # "On <date>, <name> wrote:" — start of a quoted email reply (allow up to 200 chars for long names/addresses)
+      if line.match?(/^On .{10,200} wrote:\s*$/i)
+        skip_rest = true
+        next
+      end
+
+      # Consecutive ">" quoted lines (email reply chain)
+      next if line.match?(/^\s*>/)
+
+      cleaned << line
+    end
+
+    result = cleaned.join
+    # Collapse long URLs to [link] — they have no translation value
+    result = result.gsub(%r{https?://\S{40,}}, '[link]')
+    # Collapse [image: ...] placeholders
+    result = result.gsub(/\[image:[^\]]*\]/, '[image]')
+    result.strip
   end
 end

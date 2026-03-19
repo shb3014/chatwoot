@@ -2,6 +2,7 @@ require 'net/http'
 
 class Llm::BaseOpenAiService
   DEFAULT_MODEL = 'gpt-4o-mini'.freeze
+  REQUEST_TIMEOUT = 180
 
   # model_type: nil (default/assistant), :copilot, or :fast
   # Each model type can have its own API key, model, endpoint, and thinking setting.
@@ -18,6 +19,7 @@ class Llm::BaseOpenAiService
     @client = OpenAI::Client.new(
       access_token: @main_api_key,
       uri_base: @uri_base,
+      request_timeout: REQUEST_TIMEOUT,
       log_errors: Rails.env.development?,
       faraday_middleware: faraday_proxy_middleware
     )
@@ -27,7 +29,12 @@ class Llm::BaseOpenAiService
 
     # Override the request_uri to use custom endpoint directly
     # Patch if either custom chat endpoint or custom embeddings configuration is present
-    patch_client_for_custom_endpoint if @custom_endpoint_full_path.present? || @patch_embeddings
+    needs_patch = @custom_endpoint_full_path.present? || @patch_embeddings
+    captain_logger.info "[Captain][Init] uri_base=#{@uri_base} custom_chat=#{@custom_endpoint_full_path.present?} " \
+                        "patch_embeddings=#{@patch_embeddings} client=#{needs_patch && @custom_endpoint_full_path.present? ? 'httparty' : 'faraday'}"
+    patch_client_for_custom_endpoint if needs_patch
+
+    apply_thinking_to_client
   rescue StandardError => e
     raise "Failed to initialize OpenAI client: #{e.message}"
   end
@@ -159,6 +166,7 @@ class Llm::BaseOpenAiService
 
     # Monkey-patch the client instance to override the chat endpoint (only if custom chat endpoint is set)
     if custom_chat_path.present?
+      timeout = REQUEST_TIMEOUT
       @client.define_singleton_method(:chat) do |parameters:, stream: nil|
         # Support stream passed either as keyword arg or inside parameters hash
         stream = parameters.delete(:stream) if stream.nil? && parameters[:stream].is_a?(Proc)
@@ -179,7 +187,7 @@ class Llm::BaseOpenAiService
           uri = URI.parse(custom_chat_path)
           http = Net::HTTP.new(uri.host, uri.port)
           http.use_ssl = (uri.scheme == 'https')
-          http.read_timeout = 120
+          http.read_timeout = timeout
 
           # Configure proxy if present
           if proxy_options[:http_proxyaddr].present?
@@ -189,11 +197,13 @@ class Llm::BaseOpenAiService
               proxy_options[:http_proxyport]
             )
             http.use_ssl = (uri.scheme == 'https')
-            http.read_timeout = 120
+            http.read_timeout = timeout
           end
 
           request = Net::HTTP::Post.new(uri.request_uri)
-          headers.each { |k, v| request[k] = v }
+          # Disable compression for streaming to ensure chunks are delivered incrementally
+          streaming_headers = headers.merge('Accept-Encoding' => 'identity')
+          streaming_headers.each { |k, v| request[k] = v }
           request.body = streaming_params.to_json
 
           http.request(request) do |response|
@@ -253,6 +263,7 @@ class Llm::BaseOpenAiService
             custom_chat_path,
             headers: headers,
             body: parameters.to_json,
+            timeout: timeout,
             **proxy_options
           )
 
@@ -269,6 +280,7 @@ class Llm::BaseOpenAiService
     # Patch embeddings if custom endpoint or custom API key is configured
     return unless @patch_embeddings
 
+    embeddings_timeout = REQUEST_TIMEOUT
     @client.define_singleton_method(:embeddings) do |parameters:|
       # Use embedding-specific API key if configured, otherwise use main API key
       headers = {
@@ -285,6 +297,7 @@ class Llm::BaseOpenAiService
         embeddings_endpoint,
         headers: headers,
         body: parameters.to_json,
+        timeout: embeddings_timeout,
         **proxy_options
       )
 
@@ -305,6 +318,44 @@ class Llm::BaseOpenAiService
   def setup_thinking
     thinking_value = fetch_config_for_model_type(:thinking)
     @thinking_enabled = thinking_value.present? && ActiveModel::Type::Boolean.new.cast(thinking_value)
+  end
+
+  # Wrap @client.chat so that every call automatically receives the correct
+  # thinking/enable_thinking parameters based on @thinking_enabled and @model.
+  # Callers that already set these keys explicitly (e.g. ChatHelper) are left
+  # unchanged — the wrapper only injects when neither key is present.
+  def apply_thinking_to_client
+    thinking_params = build_thinking_parameters
+    return if thinking_params.empty?
+
+    original_chat = @client.method(:chat)
+    params_to_inject = thinking_params
+
+    @client.define_singleton_method(:chat) do |parameters:, **kwargs|
+      parameters = parameters.merge(params_to_inject) unless parameters.key?(:enable_thinking) || parameters.key?(:thinking)
+      original_chat.call(parameters: parameters, **kwargs)
+    end
+  end
+
+  def build_thinking_parameters
+    model_str = @model.to_s
+    is_qwen = model_str.match?(/qwen/i)
+    is_deepseek_v32 = model_str.match?(/deepseek[-_]?v3[-_]?2/i) || model_str.match?(/deepseek[-_]?v3\.2/i)
+    is_kimi = model_str.match?(/kimi/i)
+
+    if is_kimi
+      { thinking: { type: 'disabled' } }
+    elsif is_deepseek_v32
+      { thinking: { type: @thinking_enabled ? 'enabled' : 'disabled' } }
+    elsif @thinking_enabled
+      params = { thinking: true }
+      params[:enable_thinking] = true if is_qwen
+      params
+    elsif is_qwen
+      { enable_thinking: false }
+    else
+      {}
+    end
   end
 
   def captain_logger

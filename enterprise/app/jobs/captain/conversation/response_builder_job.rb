@@ -178,7 +178,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     )
   end
 
-  def handle_stream_chunk(full_content, delta_content)
+  def handle_stream_chunk(full_content, delta_content, _reasoning = nil, _delta_reasoning = nil)
     return unless @streaming_message
     return if delta_content.blank?
 
