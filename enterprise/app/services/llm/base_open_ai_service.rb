@@ -341,11 +341,16 @@ class Llm::BaseOpenAiService
     model_str = @model.to_s
     is_qwen = model_str.match?(/qwen/i)
     is_deepseek_v32 = model_str.match?(/deepseek[-_]?v3[-_]?2/i) || model_str.match?(/deepseek[-_]?v3\.2/i)
+    # DeepSeek-V4 family + legacy aliases that route to V4 (deepseek-chat / deepseek-reasoner).
+    # All of them default to thinking=enabled and silently burn reasoning_content tokens unless
+    # we send the disabled marker explicitly.
+    is_deepseek_v4 = model_str.match?(/deepseek[-_]?v4/i) || model_str.match?(/\Adeepseek-(chat|reasoner)\z/i)
+    is_deepseek = is_deepseek_v32 || is_deepseek_v4
     is_kimi = model_str.match?(/kimi/i)
 
     if is_kimi
       { thinking: { type: 'disabled' } }
-    elsif is_deepseek_v32
+    elsif is_deepseek
       { thinking: { type: @thinking_enabled ? 'enabled' : 'disabled' } }
     elsif @thinking_enabled
       params = { thinking: true }

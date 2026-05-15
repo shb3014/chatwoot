@@ -1,10 +1,26 @@
 module Captain::ChatHelper
+  # Hard ceiling for recursive request_chat_completion calls within a single user
+  # turn. The recursion happens via:
+  #   - process_tool_calls (model issues tool_calls -> we run them -> ask model again)
+  #   - attempt_validation_retry (response failed validator)
+  #   - force_documentation_search (clarification / forced search)
+  # In healthy conversations depth stays <= 4. A runaway model that keeps emitting
+  # the same tool_calls (or a provider returning unrecoverable 4xx that bypasses
+  # rescue paths) would otherwise spin until the request times out, burning tokens.
+  CAPTAIN_MAX_REQUEST_DEPTH = 8
+
   def captain_logger
     Captain::Logger.logger
   end
 
   def request_chat_completion
     @captain_request_depth = (@captain_request_depth || 0) + 1
+    if @captain_request_depth > CAPTAIN_MAX_REQUEST_DEPTH
+      captain_logger.error "[Captain][request_chat_completion] ABORT: depth=#{@captain_request_depth} exceeded max=#{CAPTAIN_MAX_REQUEST_DEPTH} " \
+                           "messages=#{@messages.length} assistant=#{@assistant&.id}"
+      return chat_completion_depth_exceeded_response
+    end
+
     request_id = SecureRandom.hex(6)
     request_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     captain_logger.info "[Captain][request_chat_completion] start id=#{request_id} depth=#{@captain_request_depth} messages=#{@messages.length}"
@@ -55,21 +71,26 @@ module Captain::ChatHelper
     parameters[:tool_choice] = 'auto' if has_tools
 
     is_deepseek_v32 = deepseek_v32_model?(@model)
+    is_deepseek_v4  = deepseek_v4_model?(@model)
+    is_deepseek     = is_deepseek_v32 || is_deepseek_v4
     is_qwen = qwen_model?(@model)
 
     effective_thinking_enabled = thinking_enabled && !kimi_model?(@model)
     captain_logger.info 'Thinking mode disabled for this model' if thinking_enabled && !effective_thinking_enabled
 
     # response_format: json_object is not supported by Ark DeepSeek-V3.2 (even when thinking is disabled).
+    # DeepSeek-V4 supports JSON output but not in thinking mode (and we always disable thinking for V4 below).
     # Qwen models also don't work well with response_format when tools are present - they return JSON content
     # directly instead of using tool_calls mechanism.
-    # So we only enforce response_format for models that support it properly.
     parameters[:response_format] = { type: 'json_object' } if !effective_thinking_enabled && !is_deepseek_v32 && !(is_qwen && has_tools)
 
-    # Ark DeepSeek-V3.2 expects a thinking object: { type: "enabled" | "disabled" }.
-    if is_deepseek_v32
+    # All DeepSeek models (Ark V3.2, official V4-flash/V4-pro) use the same shape:
+    #   thinking: { type: "enabled" | "disabled" }
+    # V4 defaults to thinking=enabled which silently burns reasoning tokens, so we MUST send
+    # the disabled marker explicitly when CAPTAIN_THINKING_ENABLED is false.
+    if is_deepseek
       parameters[:thinking] = ark_thinking_param(thinking_enabled)
-      Rails.logger.warn 'DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON' if has_tools
+      Rails.logger.warn 'DeepSeek-V3.2: response_format is disabled; relying on prompt + parser fallback for JSON' if is_deepseek_v32 && has_tools
     elsif kimi_model?(@model)
       # Some Kimi models enable thinking by default unless explicitly disabled.
       parameters[:thinking] = ark_thinking_param(false)
@@ -188,6 +209,15 @@ module Captain::ChatHelper
   def deepseek_v32_model?(model_name)
     model = model_name.to_s
     model.match?(/deepseek[-_]?v3[-_]?2/i) || model.match?(/deepseek[-_]?v3\.2/i)
+  end
+
+  # Matches the official DeepSeek API V4 family (deepseek-v4-flash, deepseek-v4-pro)
+  # AND the legacy aliases that route to V4 (deepseek-chat -> v4-flash non-thinking,
+  # deepseek-reasoner -> v4-flash thinking). All of them speak the same
+  # `thinking: { type: "enabled" | "disabled" }` parameter.
+  def deepseek_v4_model?(model_name)
+    model = model_name.to_s
+    model.match?(/deepseek[-_]?v4/i) || model.match?(/\Adeepseek-(chat|reasoner)\z/i)
   end
 
   def qwen_model?(model_name)
@@ -312,6 +342,16 @@ module Captain::ChatHelper
         fallback_message
       end
     end
+  end
+
+  def chat_completion_depth_exceeded_response
+    fallback = {
+      'reasoning' => "request_chat_completion recursion depth exceeded #{CAPTAIN_MAX_REQUEST_DEPTH}; " \
+                     'aborting to avoid runaway tool/retry loop.',
+      'response' => I18n.t('captain.assistant.no_answer_fallback')
+    }
+    persist_message(fallback, 'assistant')
+    fallback
   end
 
   def attempt_validation_retry(original_content, validation)
