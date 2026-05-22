@@ -83,14 +83,73 @@ RSpec.describe ChatwootMarkdownRenderer do
   end
 
   describe '#render_markdown_to_plain_text' do
-    let(:rendered_content) { renderer.render_markdown_to_plain_text }
+    context 'with mocked CommonMarker' do
+      let(:rendered_content) { renderer.render_markdown_to_plain_text }
 
-    before do
-      allow(doc).to receive(:to_plaintext).and_return(plain_text_content)
+      before do
+        allow(CommonMarker).to receive(:render_doc).with(markdown_content, :DEFAULT).and_return(doc)
+        allow(doc).to receive(:walk)
+        allow(doc).to receive(:to_plaintext).and_return(plain_text_content)
+      end
+
+      it 'renders the markdown content to plain text' do
+        expect(rendered_content).to eq(plain_text_content)
+      end
     end
 
-    it 'renders the markdown content to plain text' do
-      expect(rendered_content).to eq(plain_text_content)
+    context 'when the content contains code or html blocks' do
+      before do
+        allow(CommonMarker).to receive(:render_doc).and_call_original
+      end
+
+      it 'strips fenced code blocks from the preview' do
+        content = <<~MARKDOWN
+          Ivy's emoji gallery is shown below.
+
+          ```css
+          .ivy-emoji-gallery { display: block; width: 100%; }
+          ```
+
+          Enjoy the emojis!
+        MARKDOWN
+
+        result = described_class.new(content).render_markdown_to_plain_text
+        expect(result).not_to include('.ivy-emoji-gallery')
+        expect(result).not_to include('display: block')
+        expect(result).to include("Ivy's emoji gallery is shown below.")
+        expect(result).to include('Enjoy the emojis!')
+      end
+
+      it 'strips raw html blocks from the preview' do
+        content = <<~MARKDOWN
+          Welcome to the help center.
+
+          <style>
+            .ivy-emoji-gallery { display: block; width: 100%; }
+          </style>
+
+          Find articles below.
+        MARKDOWN
+
+        result = described_class.new(content).render_markdown_to_plain_text
+        expect(result).not_to include('.ivy-emoji-gallery')
+        expect(result).not_to include('display: block')
+        expect(result).to include('Welcome to the help center.')
+        expect(result).to include('Find articles below.')
+      end
+
+      it 'strips inline code and inline html from the preview' do
+        content = "Use `npm install` and <span class=\"highlight\">enjoy</span> coding."
+        result = described_class.new(content).render_markdown_to_plain_text
+        expect(result).not_to include('npm install')
+        expect(result).not_to include('<span')
+        expect(result).to include('Use')
+        expect(result).to include('coding.')
+      end
+
+      it 'returns an empty string when the content is nil' do
+        expect(described_class.new(nil).render_markdown_to_plain_text).to eq('')
+      end
     end
   end
 end
