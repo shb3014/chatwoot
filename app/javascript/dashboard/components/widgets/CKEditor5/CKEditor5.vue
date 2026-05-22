@@ -6,6 +6,7 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { Ckeditor } from '@ckeditor/ckeditor5-vue';
+import DOMPurify from 'dompurify';
 
 // 导入 CKEditor5 样式
 import 'ckeditor5/ckeditor5.css';
@@ -25,6 +26,7 @@ import { List } from 'ckeditor5';
 import { BlockQuote } from 'ckeditor5';
 import { Table, TableToolbar } from 'ckeditor5';
 import { MediaEmbed } from 'ckeditor5';
+import { HtmlEmbed } from 'ckeditor5';
 import { Undo } from 'ckeditor5';
 import {
   Image,
@@ -82,6 +84,7 @@ export default {
       Table,
       TableToolbar,
       MediaEmbed,
+      HtmlEmbed,
       Undo,
       Image,
       ImageCaption,
@@ -155,6 +158,7 @@ export default {
           '|',
           'imageUpload',
           'mediaEmbed',
+          'htmlEmbed',
           '|',
           'undo',
           'redo',
@@ -306,6 +310,27 @@ export default {
             },
           },
         ],
+      },
+      htmlEmbed: {
+        showPreviews: true,
+        sanitizeHtml: inputHtml => {
+          const sanitizedHtml = DOMPurify.sanitize(inputHtml, {
+            ADD_TAGS: ['iframe', 'video', 'audio', 'source'],
+            ADD_ATTR: [
+              'target',
+              'allow',
+              'allowfullscreen',
+              'frameborder',
+              'controls',
+              'playsinline',
+              'preload',
+            ],
+          });
+          return {
+            html: sanitizedHtml,
+            hasChanged: sanitizedHtml !== inputHtml,
+          };
+        },
       },
     };
 
@@ -512,6 +537,17 @@ export default {
       th {
         background: #f5f5f5;
         font-weight: 600;
+      }
+    }
+
+    // HTML 嵌入块样式
+    .raw-html-embed {
+      margin: 1em 0;
+      border-radius: 4px;
+      @apply border border-n-weak;
+
+      .raw-html-embed__content-wrapper {
+        @apply bg-n-background;
       }
     }
   }
