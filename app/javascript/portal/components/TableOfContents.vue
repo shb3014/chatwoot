@@ -8,7 +8,7 @@ export default {
   },
   data() {
     return {
-      currentSlug: window.location?.hash?.substring(1) || '',
+      currentSlug: this.readSlugFromHash(),
       intersectionObserver: null,
     };
   },
@@ -72,7 +72,17 @@ export default {
       });
     },
     onURLHashChange() {
-      this.currentSlug = window.location?.hash?.substring(1) || '';
+      this.currentSlug = this.readSlugFromHash();
+    },
+    readSlugFromHash() {
+      const rawHash = window.location?.hash?.substring(1) || '';
+      if (!rawHash) return '';
+      try {
+        // Decode so non-ASCII (e.g. CJK) slugs match the raw element ids
+        return decodeURIComponent(rawHash);
+      } catch {
+        return rawHash;
+      }
     },
     isElementActive(el) {
       return this.currentSlug === el.slug;

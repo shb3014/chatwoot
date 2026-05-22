@@ -3,6 +3,7 @@ import { JSDOM } from 'jsdom';
 import {
   InitializationHelpers,
   openExternalLinksInNewTab,
+  getHeadingsfromTheArticle,
 } from '../portalHelpers';
 
 describe('InitializationHelpers.navigateToLocalePage', () => {
@@ -180,5 +181,65 @@ describe('openExternalLinksInNewTab', () => {
 
     expect(internal.target).not.toBe('_blank');
     expect(custom.target).not.toBe('_blank');
+  });
+});
+
+describe('getHeadingsfromTheArticle', () => {
+  let dom;
+
+  const setupDom = bodyHtml => {
+    dom = new JSDOM(
+      `<!DOCTYPE html><html><body><div id="cw-article-content">${bodyHtml}</div></body></html>`,
+      { url: 'http://localhost/' }
+    );
+    global.document = dom.window.document;
+    global.window = dom.window;
+  };
+
+  afterEach(() => {
+    dom = null;
+    delete global.document;
+    delete global.window;
+  });
+
+  it('returns an empty list when the article container is missing', () => {
+    dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+      url: 'http://localhost/',
+    });
+    global.document = dom.window.document;
+    global.window = dom.window;
+
+    expect(getHeadingsfromTheArticle()).toEqual([]);
+  });
+
+  it('preserves CJK characters in heading slugs', () => {
+    setupDom('<h1>测试标题</h1><h2>Hello 世界</h2><h3>配置说明</h3>');
+
+    const rows = getHeadingsfromTheArticle();
+
+    expect(rows.map(row => row.slug)).toEqual([
+      '测试标题',
+      'hello-世界',
+      '配置说明',
+    ]);
+    expect(document.querySelector('h1').id).toBe('测试标题');
+    expect(document.querySelector('h2').id).toBe('hello-世界');
+    expect(document.querySelector('h3').id).toBe('配置说明');
+  });
+
+  it('disambiguates duplicate headings with a counter', () => {
+    setupDom('<h3>配置</h3><h3>配置</h3><h3>配置</h3>');
+
+    const rows = getHeadingsfromTheArticle();
+
+    expect(rows.map(row => row.slug)).toEqual(['配置', '配置-2', '配置-3']);
+  });
+
+  it('falls back to "section" when the heading has no slug-able characters', () => {
+    setupDom('<h2>***</h2><h2>***</h2>');
+
+    const rows = getHeadingsfromTheArticle();
+
+    expect(rows.map(row => row.slug)).toEqual(['section', 'section-2']);
   });
 });

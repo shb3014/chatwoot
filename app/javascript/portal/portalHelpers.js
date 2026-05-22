@@ -4,24 +4,54 @@ import { domPurifyConfig } from '../shared/helpers/HTMLSanitizer';
 import { directive as onClickaway } from 'vue3-click-away';
 import { isSameHost } from '@chatwoot/utils';
 
-import slugifyWithCounter from '@sindresorhus/slugify';
 import PublicArticleSearch from './components/PublicArticleSearch.vue';
 import HeaderArticleSearch from './components/HeaderArticleSearch.vue';
 import TableOfContents from './components/TableOfContents.vue';
 import { initializeTheme } from './portalThemeHelper.js';
 import { getLanguageDirection } from 'dashboard/components/widgets/conversation/advancedFilterItems/languages.js';
 
+// Unicode-aware slug factory that preserves CJK / non-Latin letters so headings
+// in non-English articles still produce stable, unique anchor ids.
+const createHeadingSlugifier = () => {
+  const counts = new Map();
+
+  return text => {
+    let slug = String(text || '')
+      .normalize('NFKC')
+      .toLowerCase()
+      .trim()
+      // Replace whitespace, punctuation and symbols with a hyphen, but keep
+      // any Unicode letter or number (\p{L}, \p{N}) including CJK characters.
+      .replace(/[\s\p{P}\p{S}]+/gu, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    if (!slug) slug = 'section';
+
+    const count = counts.get(slug) || 0;
+    counts.set(slug, count + 1);
+    return count === 0 ? slug : `${slug}-${count + 1}`;
+  };
+};
+
 export const getHeadingsfromTheArticle = () => {
   const rows = [];
   const articleElement = document.getElementById('cw-article-content');
+  if (!articleElement) return rows;
+
+  const slugify = createHeadingSlugifier();
   articleElement.querySelectorAll('h1, h2, h3').forEach(element => {
-    const slug = slugifyWithCounter(element.innerText);
+    // Prefer textContent over innerText so the slug is computed even when the
+    // element has no layout (e.g. SSR / tests) and so CJK headings are kept.
+    const title = (element.textContent || '').trim();
+    const slug = slugify(title);
     element.id = slug;
     element.className = 'scroll-mt-24 heading';
-    element.innerHTML += `<a class="permalink text-slate-600 ml-3" href="#${slug}" title="${element.innerText}" data-turbolinks="false">#</a>`;
+    const encodedHref = encodeURIComponent(slug);
+    element.innerHTML += `<a class="permalink text-slate-600 ml-3" href="#${encodedHref}" title="${title}" data-turbolinks="false">#</a>`;
     rows.push({
       slug,
-      title: element.innerText,
+      title,
       tag: element.tagName.toLowerCase(),
     });
   });
