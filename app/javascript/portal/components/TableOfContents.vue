@@ -52,16 +52,24 @@ export default {
       return '';
     },
     initializeIntersectionObserver() {
+      // The IntersectionObserver is only used as a "something changed
+      // around the headings" trigger. The actual active heading is then
+      // computed from real positions (getBoundingClientRect), which avoids
+      // two issues with the naive `entries.find(isIntersecting)` approach:
+      //   1. `entries` only contains headings whose visibility *changed*
+      //      in this tick, not everything currently on screen. When a
+      //      lower heading scrolled into view, the active state used to
+      //      jump to it even though the previous one was still visible
+      //      at the top of the viewport.
+      //   2. The entry order is not guaranteed to be document order, so
+      //      bulk scrolls (e.g. clicking a TOC link) could pick the wrong
+      //      heading.
       this.intersectionObserver = new IntersectionObserver(
-        entries => {
-          const currentSection = entries.find(entry => entry.isIntersecting);
-          if (currentSection) {
-            this.currentSlug = currentSection.target.id;
-          }
+        () => {
+          this.updateActiveSlug();
         },
         {
-          threshold: 0.25,
-          rootMargin: '0px 0px -20% 0px',
+          threshold: 0,
         }
       );
 
@@ -70,6 +78,32 @@ export default {
         if (!sectionElement) return;
         this.intersectionObserver.observe(sectionElement);
       });
+
+      // Compute once on mount in case everything is already in view and
+      // the observer would otherwise not fire until the user scrolls.
+      this.updateActiveSlug();
+    },
+    updateActiveSlug() {
+      // Active heading = the *last* heading whose top is at or above the
+      // trigger line. The trigger line sits just below the sticky header,
+      // matching the `scroll-mt-24` (96px) offset applied to headings, so
+      // a heading that was just scrolled into the top of the page counts
+      // as "passed" and becomes active immediately.
+      const triggerLine = 120;
+      let lastPassed = null;
+      for (const row of this.rows) {
+        const el = document.getElementById(row.slug);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top <= triggerLine) {
+          lastPassed = row;
+        } else {
+          // rows are in document order, anything after is below the line
+          break;
+        }
+      }
+      if (lastPassed && lastPassed.slug !== this.currentSlug) {
+        this.currentSlug = lastPassed.slug;
+      }
     },
     onURLHashChange() {
       this.currentSlug = this.readSlugFromHash();
