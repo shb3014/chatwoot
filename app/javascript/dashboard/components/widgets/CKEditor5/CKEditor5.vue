@@ -315,7 +315,7 @@ export default {
         showPreviews: true,
         sanitizeHtml: inputHtml => {
           const sanitizedHtml = DOMPurify.sanitize(inputHtml, {
-            ADD_TAGS: ['iframe', 'video', 'audio', 'source'],
+            ADD_TAGS: ['iframe', 'video', 'audio', 'source', 'style'],
             ADD_ATTR: [
               'target',
               'allow',
@@ -325,6 +325,8 @@ export default {
               'playsinline',
               'preload',
             ],
+            FORBID_TAGS: [],
+            FORBID_ATTR: [],
           });
           return {
             html: sanitizedHtml,
