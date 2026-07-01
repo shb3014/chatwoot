@@ -22,14 +22,14 @@
 
       <%# Appearance toggle section %>
       <div class="relative">
-        <button id="toggle-appearance" class="flex flex-row items-center text-slate-600 dark:text-slate-300 stroke-slate-600 dark:stroke-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:stroke-slate-900 dark:hover:stroke-slate-100 transition-colors gap-1" type="button">
+        <button id="toggle-appearance" class="flex flex-row items-center whitespace-nowrap text-slate-600 dark:text-slate-300 stroke-slate-600 dark:stroke-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:stroke-slate-900 dark:hover:stroke-slate-100 transition-colors gap-1" type="button">
           <div data-theme="system" class="flex-row items-center gap-1 theme-button <%= @theme_from_params == 'system' ? 'flex' : 'hidden' %>">
             <%= render partial: 'icons/monitor' %>
             <span class="text-sm font-medium"><%= I18n.t('public_portal.header.appearance.system') %></span>
           </div>
           <div data-theme="light" class="flex-row items-center gap-1 theme-button <%= @theme_from_params == 'light' ? 'flex' : 'hidden' %>">
             <%= render partial: 'icons/sun' %>
-            <span class="text-sm font-medium"><%= I18n.t('public_portal.header.appearance.light') %></span>
+            <span class="text-sm font-medium whitespace-nowrap"><%= I18n.t('public_portal.header.appearance.light') %></span>
           </div>
           <div data-theme="dark" class="flex-row items-center gap-1 theme-button <%= @theme_from_params == 'dark' ? 'flex' : 'hidden' %>">
             <%= render partial: 'icons/moon' %>
@@ -40,10 +40,10 @@
           </div>
         </button>
         <%# Appearance dropdown section %>
-        <div id="appearance-dropdown" 
-             data-current-theme="<%= @theme_from_params %>" 
-             class="appearance-menu absolute hidden flex-col w-32 h-auto bg-white border border-solid rounded dark:bg-slate-900 top-9 ltr:right-1 rtl:left-1 border-slate-100 dark:border-slate-800 shadow-lg transition-all duration-200 ease-out opacity-0 scale-95 data-[dropdown-open=true]:opacity-100 data-[dropdown-open=true]:scale-100 data-[dropdown-open=true]:flex" 
-             aria-hidden="true" 
+        <div id="appearance-dropdown"
+             data-current-theme="<%= @theme_from_params %>"
+             class="appearance-menu absolute hidden flex-col w-32 h-auto bg-white border border-solid rounded dark:bg-slate-900 top-9 ltr:right-1 rtl:left-1 border-slate-100 dark:border-slate-800 shadow-lg transition-all duration-200 ease-out opacity-0 scale-95 data-[dropdown-open=true]:opacity-100 data-[dropdown-open=true]:scale-100 data-[dropdown-open=true]:flex"
+             aria-hidden="true"
              data-dropdown="appearance-dropdown">
           <button class="desktop-theme-button flex flex-row items-center justify-between gap-1 px-2 py-2 border-b border-solid border-slate-100 dark:border-slate-800 stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-theme="system">
             <div class="flex flex-row items-center gap-1">
@@ -79,7 +79,7 @@
       <% allowed_locales = @portal.config&.dig("allowed_locales") || [] %>
       <% if allowed_locales.length > 1 %>
         <div class="relative">
-          <button id="toggle-locale" class="flex flex-row items-center text-slate-600 dark:text-slate-300 stroke-slate-600 dark:stroke-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:stroke-slate-900 dark:hover:stroke-slate-100 transition-colors gap-1" type="button">
+          <button id="toggle-locale" class="flex flex-row items-center whitespace-nowrap text-slate-600 dark:text-slate-300 stroke-slate-600 dark:stroke-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:stroke-slate-900 dark:hover:stroke-slate-100 transition-colors gap-1" type="button">
             <div class="flex flex-row items-center gap-1">
               <%= render partial: 'icons/globe' %>
               <span class="text-sm font-medium locale-display-text"><%= language_name(@selected_locale) %></span>
@@ -89,16 +89,16 @@
             </div>
           </button>
           <%# Locale dropdown section %>
-          <div id="locale-dropdown" 
+          <div id="locale-dropdown"
                data-current-locale="<%= @selected_locale %>"
                data-portal-slug="<%= @portal.slug %>"
-               class="locale-menu absolute hidden flex-col w-auto min-w-[160px] h-auto bg-white border border-solid rounded dark:bg-slate-900 top-9 ltr:right-1 rtl:left-1 border-slate-100 dark:border-slate-800 shadow-lg transition-all duration-200 ease-out opacity-0 scale-95 data-[dropdown-open=true]:opacity-100 data-[dropdown-open=true]:scale-100 data-[dropdown-open=true]:flex" 
-               aria-hidden="true" 
+               class="locale-menu absolute hidden flex-col w-auto min-w-[160px] h-auto bg-white border border-solid rounded dark:bg-slate-900 top-9 ltr:right-1 rtl:left-1 border-slate-100 dark:border-slate-800 shadow-lg transition-all duration-200 ease-out opacity-0 scale-95 data-[dropdown-open=true]:opacity-100 data-[dropdown-open=true]:scale-100 data-[dropdown-open=true]:flex"
+               aria-hidden="true"
                data-dropdown="locale-dropdown">
             <% allowed_locales.each_with_index do |locale_obj, index| %>
               <% locale_code = locale_obj.is_a?(Hash) ? (locale_obj['code'] || locale_obj[:code]) : locale_obj %>
-              <button 
-                class="desktop-locale-button flex flex-row items-center justify-between gap-2 px-2 py-2 <%= index < allowed_locales.length - 1 ? 'border-b border-solid border-slate-100 dark:border-slate-800' : '' %> stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors <%= index == allowed_locales.length - 1 ? 'rounded-b' : '' %>" 
+              <button
+                class="desktop-locale-button flex flex-row items-center justify-between gap-2 px-2 py-2 <%= index < allowed_locales.length - 1 ? 'border-b border-solid border-slate-100 dark:border-slate-800' : '' %> stroke-slate-700 dark:stroke-slate-200 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors <%= index == allowed_locales.length - 1 ? 'rounded-b' : '' %>"
                 data-locale="<%= locale_code %>">
                 <div class="flex flex-row items-center gap-2">
                   <span class="text-xs font-medium whitespace-nowrap"><%= language_name(locale_code) %></span>
@@ -127,11 +127,11 @@
       <div class="flex items-center gap-1">
         <div id="mobile-header-search-wrap" class="flex items-center"></div>
         <!-- Mobile Menu Component -->
-        <%= render partial: 'public/api/v1/portals/mobile_menu', locals: { 
-          portal: @portal, 
+        <%= render partial: 'public/api/v1/portals/mobile_menu', locals: {
+          portal: @portal,
           locale: @locale,
           selected_locale: @selected_locale,
-          theme_from_params: @theme_from_params 
+          theme_from_params: @theme_from_params
         } %>
       </div>
     </div>

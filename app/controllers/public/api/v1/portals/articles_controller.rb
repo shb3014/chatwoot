@@ -122,7 +122,7 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
                            table thead tbody tfoot tr th td caption
                            figure figcaption iframe hr
                            video source
-                           oembed
+                           oembed style
                          ]
                          scrubber.attributes = %w[
                            href title target rel class style
