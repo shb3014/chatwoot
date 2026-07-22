@@ -132,7 +132,8 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
                            id url
                          ]
 
-                         ActionController::Base.helpers.sanitize(content, scrubber: scrubber).html_safe
+                         sanitized_content = ActionController::Base.helpers.sanitize(content, scrubber: scrubber)
+                         normalize_embedded_media(sanitized_content)
                        else
                          # Markdown 格式 - 使用现有的渲染器（向后兼容）
                          ChatwootMarkdownRenderer.new(content).render_article
@@ -140,6 +141,32 @@ class Public::Api::V1::Portals::ArticlesController < Public::Api::V1::Portals::B
 
     # 如果配置了 CDN，替换 Active Storage URL
     replace_urls_with_cdn(rendered_content)
+  end
+
+  def normalize_embedded_media(content)
+    return content.html_safe unless content.match?(/<(?:iframe|video)\b/i)
+
+    fragment = Nokogiri::HTML5.fragment(content)
+
+    fragment.css('figure.media').each do |figure|
+      media = figure.at_css('iframe, video')
+      next unless media
+
+      figure_ancestors = media.ancestors.take_while { |ancestor| ancestor != figure }
+      wrapper = figure_ancestors.find do |ancestor|
+        ancestor.name == 'div' && ancestor['style'].to_s.match?(/padding-(?:bottom|top)\s*:\s*\d+(?:\.\d+)?%/i)
+      end
+      next unless wrapper
+
+      append_css_class(wrapper, 'responsive-embed')
+      append_css_class(media, 'responsive-embed__media')
+    end
+
+    fragment.to_html.html_safe
+  end
+
+  def append_css_class(node, css_class)
+    node['class'] = [node['class'], css_class].compact.join(' ').split.uniq.join(' ')
   end
 
   # 替换内容中的 Active Storage URL 为 CDN 直链（仅限 Amazon S3）

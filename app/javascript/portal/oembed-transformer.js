@@ -13,9 +13,10 @@ class OEmbedTransformer {
           const videoId = this.getYouTubeVideoId(url);
           if (!videoId) return null;
 
-          return `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+          return `<div class="responsive-embed" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
             <iframe
               src="https://www.youtube.com/embed/${videoId}"
+              class="responsive-embed__media"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
               frameborder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -31,9 +32,10 @@ class OEmbedTransformer {
           const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
           if (!videoId) return null;
 
-          return `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+          return `<div class="responsive-embed" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
             <iframe
               src="https://player.vimeo.com/video/${videoId}"
+              class="responsive-embed__media"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
               frameborder="0"
               allow="autoplay; fullscreen; picture-in-picture"
@@ -49,9 +51,10 @@ class OEmbedTransformer {
           const videoId = url.match(/dailymotion\.com\/video\/([^_]+)/)?.[1];
           if (!videoId) return null;
 
-          return `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+          return `<div class="responsive-embed" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
             <iframe
               src="https://www.dailymotion.com/embed/video/${videoId}"
+              class="responsive-embed__media"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
               frameborder="0"
               allow="autoplay; fullscreen"

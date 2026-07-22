@@ -13,8 +13,8 @@
 youtube:
   regex: 'https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)(?<video_id>[^&/]+)'
   template: |
-    <div style="position: relative; padding-bottom: 62.5%; height: 0;">
-     <iframe
+    <div class="responsive-embed" style="position: relative; padding-bottom: 62.5%; height: 0;">
+     <iframe class="responsive-embed__media"
       src="https://www.youtube-nocookie.com/embed/%{video_id}"
       frameborder="0"
       style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"

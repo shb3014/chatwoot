@@ -253,9 +253,9 @@ export default {
             html: match => {
               const videoId = match[1];
               return (
-                '<div style="position: relative; padding-bottom: 56.25%; height: 0;">' +
+                '<div class="responsive-embed" style="position: relative; padding-bottom: 56.25%; height: 0;">' +
                 `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}" ` +
-                'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
+                'class="responsive-embed__media" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
                 'frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ' +
                 'allowfullscreen></iframe></div>'
               );
@@ -268,9 +268,9 @@ export default {
             html: match => {
               const videoId = match[1];
               return (
-                '<div style="position: relative; padding-bottom: 56.25%; height: 0;">' +
+                '<div class="responsive-embed" style="position: relative; padding-bottom: 56.25%; height: 0;">' +
                 `<iframe src="https://player.vimeo.com/video/${videoId}?dnt=true" ` +
-                'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
+                'class="responsive-embed__media" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
                 'frameborder="0" allow="autoplay; fullscreen; picture-in-picture" ' +
                 'allowfullscreen></iframe></div>'
               );

@@ -21,6 +21,23 @@ body {
   font-family: $cw-font-family;
 }
 
+.article-content {
+  .responsive-embed {
+    overflow: hidden;
+    position: relative;
+  }
+
+  .responsive-embed__media {
+    border: 0;
+    border-radius: 0.375rem;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+}
+
 // Taking these utils from tailwind 3.x.x, need to remove once we upgrade
 .scroll-mt-24 {
   scroll-margin-top: 6rem;

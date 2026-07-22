@@ -105,6 +105,30 @@ RSpec.describe 'Public Articles API', type: :request do
       get "/hc/#{portal.slug}/articles/#{article_in_locale.slug}"
       expect(response).to have_http_status(:success)
     end
+
+    it 'normalizes sanitized CKEditor media embeds into responsive containers' do
+      article.update!(
+        content: <<~HTML
+          <figure class="media">
+            <div>
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+                <iframe
+                  src="https://www.youtube-nocookie.com/embed/VIDEO_ID"
+                  style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                </iframe>
+              </div>
+            </div>
+          </figure>
+        HTML
+      )
+
+      get "/hc/#{portal.slug}/articles/#{article.slug}"
+
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include('class="responsive-embed"')
+      expect(response.body).to include('class="responsive-embed__media"')
+      expect(response.body).to include('src="https://www.youtube-nocookie.com/embed/VIDEO_ID"')
+    end
   end
 
   describe 'GET /public/api/v1/portals/:slug/articles/:slug.png (tracking pixel)' do
